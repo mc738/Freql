@@ -57,7 +57,7 @@ module private QueryHelpers =
                     | SupportedType.DateTime -> Some (reader.GetDateTime(o)) :> obj
                     | SupportedType.Guid -> Some (reader.GetGuid(o)) :> obj
                     | SupportedType.Blob -> Some (BlobField.FromStream(reader.GetStream(o))) :> obj
-                    
+                    | SupportedType.Option _ -> None :> obj // Nested options not allowed.        
         
         [ while reader.Read() do
               mappedObj.Fields
@@ -97,7 +97,6 @@ module private QueryHelpers =
         let comm =  noParam connection sql transaction
 
         comm.ExecuteNonQuery()
-
 
     let verbatimNonQuery<'P> (connection: SqliteConnection) (sql: string) (parameters: 'P) (transaction: SqliteTransaction option)  =
         let mappedObj = MappedObject.Create<'P>()
@@ -152,7 +151,7 @@ module private QueryHelpers =
             |> List.sortBy (fun p -> p.Index)
             |> List.map (fun f -> f.MappingName)
 
-        let fieldsString = System.String.Join(',', fields)
+        let fieldsString = String.Join(',', fields)
 
         let sql =
             $"""
@@ -186,7 +185,6 @@ module private QueryHelpers =
 
         mapResults<'T> tMappedObj reader
 
-    
     [<RequireQualifiedAccess>]
     /// Special handling is needed for `INSERT` query to accommodate blobs.
     /// This module aims to wrap as much of that up to in one place.
@@ -196,9 +194,7 @@ module private QueryHelpers =
 
         /// Create an insert query and return the sql and a list of `InsertBlobCallback`'s.
         let createQuery<'T> (tableName: string) (mappedObj: MappedObject) (data: 'T) =
-            let fieldNames, parameterNames, blobCallbacks =
-                
-                
+            let fieldNames, parameterNames, blobCallbacks =                
                 mappedObj.Fields
                 |> List.fold
                     (fun (fn, pn, cb) f ->
@@ -219,13 +215,11 @@ module private QueryHelpers =
                                   Data = stream }
 
                             (fn @ [ f.MappingName ], pn @ [ $"ZEROBLOB({stream.Length})" ], cb @ [ callback ])
-                        // TODO handle option.
-                        //| SupportedType.Option _ ->
                         | _ -> (fn @ [ f.MappingName ], pn @ [ $"@{f.MappingName}" ], cb))
                     ([], [], [])
 
-            let fields = System.String.Join(',', fieldNames)
-            let parameters = System.String.Join(',', parameterNames)
+            let fields = String.Join(',', fieldNames)
+            let parameters = String.Join(',', parameterNames)
 
             let sql =
                 $"""
@@ -252,11 +246,8 @@ module private QueryHelpers =
                 (fun acc f ->
                     match f.Type with
                     | SupportedType.Blob -> acc // Skip blob types, they will be handled with `BlobCallBacks`.
-                    | SupportedType.Option st ->
-                        let v = mappedObj.Type.GetProperty(f.FieldName).GetValue(parameters)
-                        //Option.is
-                        //v :?> Option
-                        match v with
+                    | SupportedType.Option _ ->
+                        match mappedObj.Type.GetProperty(f.FieldName).GetValue(parameters) with
                         | null ->
                             acc
                             @ [ f.MappingName, DBNull.Value :> obj ]
@@ -266,8 +257,6 @@ module private QueryHelpers =
                         | _ ->
                             acc
                             @ [ f.MappingName, DBNull.Value :> obj ]
-                        // TODO handle option
-                        //acc
                     | _ ->
                         acc
                         @ [ f.MappingName,
@@ -330,10 +319,6 @@ type QueryHandler(connection: SqliteConnection, transaction: SqliteTransaction o
             new SqliteConnection($"Data Source={path}")
 
         QueryHandler(conn, None)
-
-    //let test = Queries.createVerbatimSelectQuery<string, int> "SELECT id from table"
-
-    //let r = test.Execute(connection, 1)
 
     member handler.Select<'T> tableName =
         QueryHelpers.selectAll<'T> tableName connection transaction
