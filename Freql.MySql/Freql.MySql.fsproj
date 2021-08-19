@@ -10,4 +10,12 @@
         <Compile Include="Library.fs" />
     </ItemGroup>
 
+    <ItemGroup>
+      <PackageReference Include="MySql.Data" Version="8.0.26" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\Freql.Core\Freql.Core.fsproj" />
+    </ItemGroup>
+
 </Project>

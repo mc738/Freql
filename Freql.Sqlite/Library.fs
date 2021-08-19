@@ -2,6 +2,7 @@
 
 open System
 open System.IO
+open System.Text.Json
 open Freql.Core.Common
 open Freql.Core.Common.Mapping
 open Microsoft.Data.Sqlite
