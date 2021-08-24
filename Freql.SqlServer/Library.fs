@@ -1,11 +1,11 @@
-﻿namespace Freql.Sqlite
+﻿namespace Freql.SqlServer
 
 open System
+open System.Data.SqlClient
 open System.IO
 open System.Text.Json
 open Freql.Core.Common
 open Freql.Core.Common.Mapping
-open Microsoft.Data.Sqlite
 open Freql.Core.Utils
 
 module private QueryHelpers =
@@ -24,8 +24,8 @@ module private QueryHelpers =
                 f.MappingName, v)
         |> Map.ofList
 
-    let mapResults<'T> (mappedObj: MappedObject) (reader: SqliteDataReader) =
-        let getValue (reader: SqliteDataReader) o supportType =
+    let mapResults<'T> (mappedObj: MappedObject) (reader: SqlDataReader) =
+        let getValue (reader: SqlDataReader) (o: int) supportType =
             match supportType with
             | SupportedType.Boolean -> reader.GetBoolean(o) :> obj
             | SupportedType.Byte -> reader.GetByte(o) :> obj
@@ -69,24 +69,22 @@ module private QueryHelpers =
                       { Index = f.Index; Value = value })
               |> (fun v -> RecordBuilder.Create<'T> v) ]
 
-    //let mapResult<'T> (mappedObj: MappedObject) 
-    
-    let noParam (connection: SqliteConnection) (sql: string) (transaction: SqliteTransaction option) =
+    let noParam (connection: SqlConnection) (sql: string) (transaction: SqlTransaction option) =
 
         connection.Open()
         use comm =
             match transaction with
-            | Some t -> new SqliteCommand(sql, connection, t)
-            | None -> new SqliteCommand(sql, connection)
+            | Some t -> new SqlCommand(sql, connection, t)
+            | None -> new SqlCommand(sql, connection)
         comm
 
-    let prepare<'P> (connection: SqliteConnection) (sql: string) (mappedObj: MappedObject) (parameters: 'P) (transaction: SqliteTransaction option) =
+    let prepare<'P> (connection: SqlConnection) (sql: string) (mappedObj: MappedObject) (parameters: 'P) (transaction: SqlTransaction option) =
         connection.Open()
         
         use comm =
             match transaction with
-                | Some t -> new SqliteCommand(sql, connection, t)
-                | None -> new SqliteCommand(sql, connection)
+                | Some t -> new SqlCommand(sql, connection, t)
+                | None -> new SqlCommand(sql, connection)
        
         parameters
         |> mapParameters<'P> mappedObj
@@ -96,17 +94,17 @@ module private QueryHelpers =
         comm.Prepare()
         comm
 
-    let rawNonQuery (connection: SqliteConnection) (sql: string) (transaction: SqliteTransaction option) =
+    let rawNonQuery connection sql transaction =
         let comm =  noParam connection sql transaction
 
         comm.ExecuteNonQuery()
 
-    let verbatimNonQuery<'P> (connection: SqliteConnection) (sql: string) (parameters: 'P) (transaction: SqliteTransaction option)  =
+    let verbatimNonQuery<'P> connection sql (parameters: 'P) transaction  =
         let mappedObj = MappedObject.Create<'P>()
         let comm = prepare connection sql mappedObj parameters transaction
         comm.ExecuteNonQuery()
     
-    let create<'T> (tableName: string) (connection: SqliteConnection) (transaction: SqliteTransaction option) =
+    let create<'T> (tableName: string) connection transaction =
         let mappedObj = MappedObject.Create<'T>()
 
         let columns =
@@ -146,7 +144,7 @@ module private QueryHelpers =
 
         comm.ExecuteNonQuery()
 
-    let selectAll<'T> (tableName: string) (connection: SqliteConnection) (transaction: SqliteTransaction option) =
+    let selectAll<'T> (tableName: string) connection transaction =
         let mappedObj = MappedObject.Create<'T>()
 
         let fields =
@@ -168,7 +166,7 @@ module private QueryHelpers =
 
         mapResults<'T> mappedObj reader
 
-    let select<'T, 'P> (sql: string) (connection: SqliteConnection) (parameters: 'P) (transaction: SqliteTransaction option) =
+    let select<'T, 'P> (sql: string) connection (parameters: 'P) transaction =
         let tMappedObj = MappedObject.Create<'T>()
         let pMappedObj = MappedObject.Create<'P>()
 
@@ -179,22 +177,7 @@ module private QueryHelpers =
 
         mapResults<'T> tMappedObj reader
 
-    let selectSingle<'T, 'P> (sql: string) (connection: SqliteConnection) (parameters: 'P) (transaction: SqliteTransaction option) =
-        let tMappedObj = MappedObject.Create<'T>()
-        let pMappedObj = MappedObject.Create<'P>()
-
-        let comm =
-            prepare connection sql pMappedObj parameters transaction
-
-        let r = comm.ExecuteScalar()
-        
-        
-        use reader = comm.ExecuteReader()
-
-        mapResults<'T> tMappedObj reader
-
-        
-    let selectSql<'T> (sql: string) (connection: SqliteConnection) (transaction: SqliteTransaction option) =
+    let selectSql<'T> (sql: string) connection transaction =
         let tMappedObj = MappedObject.Create<'T>()
 
         let comm = noParam connection sql transaction
@@ -212,29 +195,16 @@ module private QueryHelpers =
 
         /// Create an insert query and return the sql and a list of `InsertBlobCallback`'s.
         let createQuery<'T> (tableName: string) (mappedObj: MappedObject) (data: 'T) =
-            let fieldNames, parameterNames, blobCallbacks =                
+            let fieldNames, parameterNames =                
                 mappedObj.Fields
                 |> List.fold
-                    (fun (fn, pn, cb) f ->
+                    (fun (fn, pn) f ->
 
                         match f.Type with
-                        | SupportedType.Blob ->
+                        | SupportedType.Blob -> failwith "Blobs not supported in MySql."
                             // Get the blob.
-                            let stream =
-                                (mappedObj
-                                    .Type
-                                    .GetProperty(f.FieldName)
-                                    .GetValue(data)
-                                :?> BlobField)
-                                    .Value
-
-                            let callback =
-                                { ColumnName = f.MappingName
-                                  Data = stream }
-
-                            (fn @ [ f.MappingName ], pn @ [ $"ZEROBLOB({stream.Length})" ], cb @ [ callback ])
-                        | _ -> (fn @ [ f.MappingName ], pn @ [ $"@{f.MappingName}" ], cb))
-                    ([], [], [])
+                        | _ -> (fn @ [ f.MappingName ], pn @ [ $"@{f.MappingName}" ]))
+                    ([], [])
 
             let fields = String.Join(',', fieldNames)
             let parameters = String.Join(',', parameterNames)
@@ -246,17 +216,17 @@ module private QueryHelpers =
             SELECT last_insert_rowid();
             """
 
-            (sql, blobCallbacks)
+            sql
 
         /// Prepare the `INSERT` query and return a `SqliteCommand` ready for execution.
         /// `BlobField` types will be skipped over, due to being handled separately.
-        let prepareQuery<'P> (connection: SqliteConnection) (sql: string) (mappedObj: MappedObject) (parameters: 'P) (transaction: SqliteTransaction option) =
+        let prepareQuery<'P> (connection: SqlConnection) (sql: string) (mappedObj: MappedObject) (parameters: 'P) (transaction: SqlTransaction option) =
             connection.Open()
 
             use comm =
                 match transaction with
-                | Some t -> new SqliteCommand(sql, connection, t)
-                | None -> new SqliteCommand(sql, connection)
+                | Some t -> new SqlCommand(sql, connection, t)
+                | None -> new SqlCommand(sql, connection)
 
             mappedObj.Fields
             |> List.sortBy (fun p -> p.Index)
@@ -290,51 +260,24 @@ module private QueryHelpers =
             comm.Prepare()
             comm
 
-        let handleBlobCallbacks
-            (connection: SqliteConnection)
-            (tableName: string)
-            (callbacks: InsertBlobCallback list)
-            rowId
-            =
-            callbacks
-            |> List.map
-                (fun cb ->
-                    use writeStream =
-                        new SqliteBlob(connection, tableName, cb.ColumnName, rowId)
-
-                    cb.Data.CopyTo(writeStream))
-            |> ignore
-
-    let insert<'T> (tableName: string) (connection: SqliteConnection) (data: 'T) (transaction: SqliteTransaction option) =
+    let insert<'T> (tableName: string) connection (data: 'T) transaction =
         let mappedObj = MappedObject.Create<'T>()
 
-        let sql, callbacks =
-            Insert.createQuery tableName mappedObj data
+        let sql = Insert.createQuery tableName mappedObj data
 
         // Get the last inserted id.
-        let comm =
-            Insert.prepareQuery connection sql mappedObj data transaction
+        let comm = Insert.prepareQuery connection sql mappedObj data transaction
 
         let rowId = comm.ExecuteScalar() :?> int64
 
-        Insert.handleBlobCallbacks connection tableName callbacks rowId
+        Ok rowId
 
-type QueryHandler(connection: SqliteConnection, transaction: SqliteTransaction option) =
+type QueryHandler(connection, transaction) =
 
-    static member Create(path: string) =
-        printfn $"Creating database '{path}'."
-        File.WriteAllBytes(path, [||])
+    static member Connect(connectionString: string) =
 
         use conn =
-            new SqliteConnection($"Data Source={path}")
-
-        QueryHandler(conn, None)
-
-    static member Open(path: string) =
-        printfn $"Connection to database '{path}'."
-
-        use conn =
-            new SqliteConnection($"Data Source={path}")
+            new SqlConnection(connectionString)
 
         QueryHandler(conn, None)
 
@@ -351,11 +294,12 @@ type QueryHandler(connection: SqliteConnection, transaction: SqliteTransaction o
     member handler.SelectSingle<'T> tableName = handler.Select<'T>(tableName).Head
 
     member handler.SelectSingleVerbatim<'T, 'P>(sql: string, parameters: 'P) =
-        let result = handler.SelectVerbatim<'T, 'P>(sql, parameters)
-        
-        match result.Length with
-        | 0 -> None
-        | _ -> Some result.Head
+        handler
+            .SelectVerbatim<'T, 'P>(
+                sql,
+                parameters
+            )
+            .Head
 
     /// Execute a create table query based on a generic record.
     member handler.CreateTable<'T>(tableName: string) =

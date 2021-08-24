@@ -4,6 +4,7 @@ open System
 open System.Text.RegularExpressions
 open Freql.Sqlite
 
+// Convert an obj to amd obj option.
 let (|SomeObj|_|) =
   let ty = typedefof<option<_>>
   fun (a:obj) ->
