@@ -176,8 +176,10 @@ module private QueryHelpers =
 
         use reader = comm.ExecuteReader()
 
-        mapResults<'T> tMappedObj reader
-
+        let r = mapResults<'T> tMappedObj reader
+        connection.Close()
+        r
+    
     let selectSql<'T> (sql: string) connection transaction =
         let tMappedObj = MappedObject.Create<'T>()
 
@@ -185,7 +187,9 @@ module private QueryHelpers =
 
         use reader = comm.ExecuteReader()
 
-        mapResults<'T> tMappedObj reader
+        let r = mapResults<'T> tMappedObj reader
+        connection.Close()
+        r
 
     [<RequireQualifiedAccess>]
     /// Special handling is needed for `INSERT` query to accommodate blobs.
@@ -273,14 +277,14 @@ module private QueryHelpers =
 
         Ok rowId
 
-type QueryHandler(connection, transaction) =
+type MySqlContext(connection, transaction) =
 
     static member Connect(connectionString: string) =
 
         use conn =
             new MySqlConnection(connectionString)
 
-        QueryHandler(conn, None)
+        MySqlContext(conn, None)
 
     member handler.Select<'T> tableName =
         QueryHelpers.selectAll<'T> tableName connection transaction
@@ -295,12 +299,10 @@ type QueryHandler(connection, transaction) =
     member handler.SelectSingle<'T> tableName = handler.Select<'T>(tableName).Head
 
     member handler.SelectSingleVerbatim<'T, 'P>(sql: string, parameters: 'P) =
-        handler
-            .SelectVerbatim<'T, 'P>(
-                sql,
-                parameters
-            )
-            .Head
+        let result = handler.SelectVerbatim<'T, 'P>(sql, parameters)
+        match List.isEmpty result with
+        | true -> None
+        | false -> Some result.Head
 
     /// Execute a create table query based on a generic record.
     member handler.CreateTable<'T>(tableName: string) =
@@ -330,11 +332,11 @@ type QueryHandler(connection, transaction) =
     /// While a transaction is active on a connection non transaction commands can not be executed.
     /// This is no check for this for this is not thread safe.
     /// Also be warned, this use general error handling so an exception will roll the transaction back.
-    member handler.ExecuteInTransaction<'R>(transactionFn: QueryHandler -> 'R) =
+    member handler.ExecuteInTransaction<'R>(transactionFn: MySqlContext -> 'R) =
         connection.Open()
         use transaction = connection.BeginTransaction()
         
-        let qh = QueryHandler(connection, Some transaction)
+        let qh = MySqlContext(connection, Some transaction)
         
         try
             let r = transactionFn qh

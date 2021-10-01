@@ -7,6 +7,7 @@ open Freql.Core.Common
 open Freql.Core.Common.Mapping
 open Microsoft.Data.Sqlite
 open Freql.Core.Utils
+open Microsoft.Data.Sqlite
 
 module private QueryHelpers =
 
@@ -95,6 +96,21 @@ module private QueryHelpers =
 
         comm.Prepare()
         comm
+        
+    let prepareAnon (connection: SqliteConnection) (sql: string) (parameters: obj list) (transaction: SqliteTransaction option) =
+        connection.Open()
+        
+        use comm =
+            match transaction with
+                | Some t -> new SqliteCommand(sql, connection, t)
+                | None -> new SqliteCommand(sql, connection)
+       
+        parameters
+        |> List.mapi (fun i v -> comm.Parameters.AddWithValue($"@{i}", v))
+        |> ignore
+
+        comm.Prepare()
+        comm
 
     let rawNonQuery (connection: SqliteConnection) (sql: string) (transaction: SqliteTransaction option) =
         let comm =  noParam connection sql transaction
@@ -106,6 +122,23 @@ module private QueryHelpers =
         let comm = prepare connection sql mappedObj parameters transaction
         comm.ExecuteNonQuery()
     
+    let verbatimNonQueryAnon<'P> (connection: SqliteConnection) (sql: string) (parameters: obj list) (transaction: SqliteTransaction option)  =
+        let comm = prepareAnon connection sql parameters transaction
+        comm.ExecuteNonQuery()
+    
+    /// A bespoke query, the caller needs to provide a mapping function. This returns a list of 'T.    
+    let bespoke<'T>(connection: SqliteConnection) (sql: string) (parameters: obj list) (mapper: SqliteDataReader -> 'T list) (transaction: SqliteTransaction option)  =
+        let comm = prepareAnon connection sql parameters transaction
+        use reader = comm.ExecuteReader()
+        mapper reader
+        
+    /// A bespoke query, the caller needs to provide a mapping function. This returns a single 'T.
+    let bespokeSingle<'T>(connection: SqliteConnection) (sql: string) (parameters: obj list) (mapper: SqliteDataReader -> 'T) (transaction: SqliteTransaction option)  =
+        let comm = prepareAnon connection sql parameters transaction
+        use reader = comm.ExecuteReader()
+        mapper reader
+        
+        
     let create<'T> (tableName: string) (connection: SqliteConnection) (transaction: SqliteTransaction option) =
         let mappedObj = MappedObject.Create<'T>()
 
@@ -179,6 +212,15 @@ module private QueryHelpers =
 
         mapResults<'T> tMappedObj reader
 
+    let selectAnon<'T>  (sql: string) (connection: SqliteConnection) (parameters: obj list) (transaction: SqliteTransaction option) =
+        let tMappedObj = MappedObject.Create<'T>()
+        let comm =
+            prepareAnon connection sql parameters transaction
+
+        use reader = comm.ExecuteReader()
+
+        mapResults<'T> tMappedObj reader
+       
     let selectSingle<'T, 'P> (sql: string) (connection: SqliteConnection) (parameters: 'P) (transaction: SqliteTransaction option) =
         let tMappedObj = MappedObject.Create<'T>()
         let pMappedObj = MappedObject.Create<'P>()
@@ -192,8 +234,11 @@ module private QueryHelpers =
         use reader = comm.ExecuteReader()
 
         mapResults<'T> tMappedObj reader
-
-        
+      
+    let executeScalar<'T>(sql: string) (connection: SqliteConnection) (transaction: SqliteTransaction option) =
+        let comm = noParam connection sql transaction
+        comm.ExecuteScalar() :?> 'T
+       
     let selectSql<'T> (sql: string) (connection: SqliteConnection) (transaction: SqliteTransaction option) =
         let tMappedObj = MappedObject.Create<'T>()
 
@@ -338,6 +383,10 @@ type QueryHandler(connection: SqliteConnection, transaction: SqliteTransaction o
 
         QueryHandler(conn, None)
 
+    member _.Close() =
+       connection.Close()
+       connection.Dispose()
+    
     member handler.Select<'T> tableName =
         QueryHelpers.selectAll<'T> tableName connection transaction
 
@@ -345,6 +394,16 @@ type QueryHandler(connection: SqliteConnection, transaction: SqliteTransaction o
     member handler.SelectVerbatim<'T, 'P>(sql, parameters) =
         QueryHelpers.select<'T, 'P> sql connection parameters transaction
 
+    member handler.SelectAnon<'T>(sql, parameters) =
+        QueryHelpers.selectAnon<'T> sql connection parameters transaction
+        
+    
+    member handler.SelectSingleAnon<'T>(sql, parameters) =
+        let r = handler.SelectAnon<'T>(sql, parameters)
+        match r.Length > 0 with
+        | true -> r.Head |> Some
+        | false -> None
+           
     member handler.SelectSql<'T> sql =
         QueryHelpers.selectSql<'T>(sql) connection transaction
     
@@ -369,6 +428,9 @@ type QueryHandler(connection: SqliteConnection, transaction: SqliteTransaction o
     /// Execute a verbatim non query. The parameters passed will be mapped to the sql query.
     member handler.ExecuteVerbatimNonQuery<'P>(sql: string, parameters: 'P) =
         QueryHelpers.verbatimNonQuery connection sql parameters transaction
+        
+    member handler.ExecuteVerbatimNonQueryAnon(sql: string, parameters: obj list) =
+        QueryHelpers.verbatimNonQueryAnon connection sql parameters transaction
     
     /// Execute an insert query.
     member handler.Insert<'T>(tableName: string, value: 'T) =
@@ -399,3 +461,9 @@ type QueryHandler(connection: SqliteConnection, transaction: SqliteTransaction o
         | _ ->
             transaction.Rollback()
             Error "Could not complete transaction"
+                 
+    member handler.ExecuteScalar<'T>(sql) =
+        QueryHelpers.executeScalar<'T> sql connection transaction
+                       
+    member handler.Bespoke<'T>(sql, parameters, (mapper: SqliteDataReader -> 'T list)) =
+        QueryHelpers.bespoke connection sql  parameters  mapper transaction
