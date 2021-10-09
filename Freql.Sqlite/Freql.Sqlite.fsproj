@@ -4,6 +4,9 @@
         <TargetFramework>net5.0</TargetFramework>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
         <WarnOn>3390;$(WarnOn)</WarnOn>
+        <PackageVersion>0.1.0</PackageVersion>
+        <RepositoryUrl>https://github.com/mc738/Freql</RepositoryUrl>
+        <Authors>Max Clifford</Authors>
     </PropertyGroup>
 
     <ItemGroup>
