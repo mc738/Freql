@@ -1,12 +1,14 @@
 ﻿namespace Freql.MySql
 
 open System
+open System.Data
 open System.IO
 open System.Text.Json
 open Freql.Core.Common
 open Freql.Core.Common.Mapping
 open MySql.Data
 open Freql.Core.Utils
+open MySql.Data.MySqlClient
 open MySql.Data.MySqlClient
 
 module private QueryHelpers =
@@ -46,21 +48,21 @@ module private QueryHelpers =
                 | true -> None :> obj
                 | false ->
                     match st with
-                    | SupportedType.Boolean -> Some (reader.GetBoolean(o)) :> obj
-                    | SupportedType.Byte -> Some (reader.GetByte(o)) :> obj
-                    | SupportedType.Char -> Some (reader.GetChar(o)) :> obj
-                    | SupportedType.Decimal -> Some (reader.GetDecimal(o)) :> obj
-                    | SupportedType.Double -> Some (reader.GetDouble(o)) :> obj
-                    | SupportedType.Float -> Some (reader.GetFloat(o)) :> obj
-                    | SupportedType.Int -> Some (reader.GetInt32(o)) :> obj
-                    | SupportedType.Short -> Some (reader.GetInt16(o)) :> obj
-                    | SupportedType.Long -> Some (reader.GetInt64(o)) :> obj
-                    | SupportedType.String -> Some (reader.GetString(o)) :> obj
-                    | SupportedType.DateTime -> Some (reader.GetDateTime(o)) :> obj
-                    | SupportedType.Guid -> Some (reader.GetGuid(o)) :> obj
-                    | SupportedType.Blob -> Some (BlobField.FromStream(reader.GetStream(o))) :> obj
-                    | SupportedType.Option _ -> None :> obj // Nested options not allowed.        
-        
+                    | SupportedType.Boolean -> Some(reader.GetBoolean(o)) :> obj
+                    | SupportedType.Byte -> Some(reader.GetByte(o)) :> obj
+                    | SupportedType.Char -> Some(reader.GetChar(o)) :> obj
+                    | SupportedType.Decimal -> Some(reader.GetDecimal(o)) :> obj
+                    | SupportedType.Double -> Some(reader.GetDouble(o)) :> obj
+                    | SupportedType.Float -> Some(reader.GetFloat(o)) :> obj
+                    | SupportedType.Int -> Some(reader.GetInt32(o)) :> obj
+                    | SupportedType.Short -> Some(reader.GetInt16(o)) :> obj
+                    | SupportedType.Long -> Some(reader.GetInt64(o)) :> obj
+                    | SupportedType.String -> Some(reader.GetString(o)) :> obj
+                    | SupportedType.DateTime -> Some(reader.GetDateTime(o)) :> obj
+                    | SupportedType.Guid -> Some(reader.GetGuid(o)) :> obj
+                    | SupportedType.Blob -> Some(BlobField.FromStream(reader.GetStream(o))) :> obj
+                    | SupportedType.Option _ -> None :> obj // Nested options not allowed.
+
         [ while reader.Read() do
               mappedObj.Fields
               |> List.map
@@ -72,21 +74,33 @@ module private QueryHelpers =
 
     let noParam (connection: MySqlConnection) (sql: string) (transaction: MySqlTransaction option) =
 
-        connection.Open()
+        if connection.State = ConnectionState.Closed then
+            connection.Open()
+
         use comm =
             match transaction with
             | Some t -> new MySqlCommand(sql, connection, t)
             | None -> new MySqlCommand(sql, connection)
+
         comm
 
-    let prepare<'P> (connection: MySqlConnection) (sql: string) (mappedObj: MappedObject) (parameters: 'P) (transaction: MySqlTransaction option) =
-        connection.Open()
-        
+    let prepare<'P>
+        (connection: MySqlConnection)
+        (sql: string)
+        (mappedObj: MappedObject)
+        (parameters: 'P)
+        (transaction: MySqlTransaction option)
+        =
+
+        if connection.State = ConnectionState.Closed then
+            connection.Open()
+
+
         use comm =
             match transaction with
-                | Some t -> new MySqlCommand(sql, connection, t)
-                | None -> new MySqlCommand(sql, connection)
-       
+            | Some t -> new MySqlCommand(sql, connection, t)
+            | None -> new MySqlCommand(sql, connection)
+
         parameters
         |> mapParameters<'P> mappedObj
         |> Map.map (fun k v -> comm.Parameters.AddWithValue(k, v))
@@ -96,15 +110,18 @@ module private QueryHelpers =
         comm
 
     let rawNonQuery connection sql transaction =
-        let comm =  noParam connection sql transaction
+        let comm = noParam connection sql transaction
 
         comm.ExecuteNonQuery()
 
-    let verbatimNonQuery<'P> connection sql (parameters: 'P) transaction  =
+    let verbatimNonQuery<'P> connection sql (parameters: 'P) transaction =
         let mappedObj = MappedObject.Create<'P>()
-        let comm = prepare connection sql mappedObj parameters transaction
+
+        let comm =
+            prepare connection sql mappedObj parameters transaction
+
         comm.ExecuteNonQuery()
-    
+
     let create<'T> (tableName: string) connection transaction =
         let mappedObj = MappedObject.Create<'T>()
 
@@ -179,7 +196,7 @@ module private QueryHelpers =
         let r = mapResults<'T> tMappedObj reader
         connection.Close()
         r
-    
+
     let selectSql<'T> (sql: string) connection transaction =
         let tMappedObj = MappedObject.Create<'T>()
 
@@ -200,14 +217,14 @@ module private QueryHelpers =
 
         /// Create an insert query and return the sql and a list of `InsertBlobCallback`'s.
         let createQuery<'T> (tableName: string) (mappedObj: MappedObject) (data: 'T) =
-            let fieldNames, parameterNames =                
+            let fieldNames, parameterNames =
                 mappedObj.Fields
                 |> List.fold
                     (fun (fn, pn) f ->
 
                         match f.Type with
                         | SupportedType.Blob -> failwith "Blobs not supported in MySql."
-                            // Get the blob.
+                        // Get the blob.
                         | _ -> (fn @ [ f.MappingName ], pn @ [ $"@{f.MappingName}" ]))
                     ([], [])
 
@@ -218,15 +235,22 @@ module private QueryHelpers =
                 $"""
             INSERT INTO {tableName} ({fields})
             VALUES ({parameters});
-            SELECT last_insert_rowid();
             """
 
             sql
 
         /// Prepare the `INSERT` query and return a `SqliteCommand` ready for execution.
         /// `BlobField` types will be skipped over, due to being handled separately.
-        let prepareQuery<'P> (connection: MySqlConnection) (sql: string) (mappedObj: MappedObject) (parameters: 'P) (transaction: MySqlTransaction option) =
-            connection.Open()
+        let prepareQuery<'P>
+            (connection: MySqlConnection)
+            (sql: string)
+            (mappedObj: MappedObject)
+            (parameters: 'P)
+            (transaction: MySqlTransaction option)
+            =
+
+            if connection.State = ConnectionState.Closed then
+                connection.Open()
 
             use comm =
                 match transaction with
@@ -240,16 +264,13 @@ module private QueryHelpers =
                     match f.Type with
                     | SupportedType.Blob -> acc // Skip blob types, they will be handled with `BlobCallBacks`.
                     | SupportedType.Option _ ->
-                        match mappedObj.Type.GetProperty(f.FieldName).GetValue(parameters) with
-                        | null ->
-                            acc
-                            @ [ f.MappingName, DBNull.Value :> obj ]
-                        | SomeObj(v1) ->
-                            acc
-                            @ [ f.MappingName, v1 ]
-                        | _ ->
-                            acc
-                            @ [ f.MappingName, DBNull.Value :> obj ]
+                        match mappedObj
+                                  .Type
+                                  .GetProperty(f.FieldName)
+                                  .GetValue(parameters) with
+                        | null -> acc @ [ f.MappingName, DBNull.Value :> obj ]
+                        | SomeObj (v1) -> acc @ [ f.MappingName, v1 ]
+                        | _ -> acc @ [ f.MappingName, DBNull.Value :> obj ]
                     | _ ->
                         acc
                         @ [ f.MappingName,
@@ -268,21 +289,30 @@ module private QueryHelpers =
     let insert<'T> (tableName: string) connection (data: 'T) transaction =
         let mappedObj = MappedObject.Create<'T>()
 
-        let sql = Insert.createQuery tableName mappedObj data
+        let sql =
+            Insert.createQuery tableName mappedObj data
 
         // Get the last inserted id.
-        let comm = Insert.prepareQuery connection sql mappedObj data transaction
+        let comm =
+            Insert.prepareQuery connection sql mappedObj data transaction
 
-        let rowId = comm.ExecuteScalar() :?> int64
+        comm.ExecuteNonQuery() |> ignore
+        
+        
+        let idSql = "SELECT LAST_INSERT_ID();"
+        use idComm =
+                match transaction with
+                | Some t -> new MySqlCommand(idSql, connection, t)
+                | None -> new MySqlCommand(idSql, connection)
+        let rowId = idComm.ExecuteScalar() :?> uint64
 
-        Ok rowId
+        rowId
 
 type MySqlContext(connection, transaction) =
 
     static member Connect(connectionString: string) =
 
-        use conn =
-            new MySqlConnection(connectionString)
+        use conn = new MySqlConnection(connectionString)
 
         MySqlContext(conn, None)
 
@@ -294,12 +324,14 @@ type MySqlContext(connection, transaction) =
         QueryHelpers.select<'T, 'P> sql connection parameters transaction
 
     member handler.SelectSql<'T> sql =
-        QueryHelpers.selectSql<'T>(sql) connection transaction
-    
+        QueryHelpers.selectSql<'T> (sql) connection transaction
+
     member handler.SelectSingle<'T> tableName = handler.Select<'T>(tableName).Head
 
     member handler.SelectSingleVerbatim<'T, 'P>(sql: string, parameters: 'P) =
-        let result = handler.SelectVerbatim<'T, 'P>(sql, parameters)
+        let result =
+            handler.SelectVerbatim<'T, 'P>(sql, parameters)
+
         match List.isEmpty result with
         | true -> None
         | false -> Some result.Head
@@ -316,7 +348,7 @@ type MySqlContext(connection, transaction) =
     /// Execute a verbatim non query. The parameters passed will be mapped to the sql query.
     member handler.ExecuteVerbatimNonQuery<'P>(sql: string, parameters: 'P) =
         QueryHelpers.verbatimNonQuery connection sql parameters transaction
-    
+
     /// Execute an insert query.
     member handler.Insert<'T>(tableName: string, value: 'T) =
         QueryHelpers.insert<'T> tableName connection value transaction
@@ -333,16 +365,23 @@ type MySqlContext(connection, transaction) =
     /// This is no check for this for this is not thread safe.
     /// Also be warned, this use general error handling so an exception will roll the transaction back.
     member handler.ExecuteInTransaction<'R>(transactionFn: MySqlContext -> 'R) =
-        connection.Open()
+        if connection.State = ConnectionState.Closed then
+            connection.Open()
+
         use transaction = connection.BeginTransaction()
-        
-        let qh = MySqlContext(connection, Some transaction)
-        
+
+        let qh =
+            MySqlContext(connection, Some transaction)
+
         try
             let r = transactionFn qh
             transaction.Commit()
             Ok r
         with
-        | _ ->
+        | exn ->
+            // Needed? ensures open for rollback?
+            if connection.State = ConnectionState.Closed then
+                connection.Open()
+                
             transaction.Rollback()
-            Error "Could not complete transaction"
+            Error $"Could not complete transaction. Error: {exn.Message}"
