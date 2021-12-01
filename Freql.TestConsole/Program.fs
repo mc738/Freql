@@ -1,6 +1,7 @@
 ﻿// Learn more about F# at http://docs.microsoft.com/dotnet/fsharp
 
 open System
+open System.IO
 open System.Text.RegularExpressions
 open System.Text.RegularExpressions
 open Freql.Core.Utils
@@ -10,6 +11,7 @@ open Freql.Sqlite.Tools
 open Freql.Sqlite.Tools.CodeGen
 open Freql.Sqlite.Tools.Metadata
 open MySqlX.XDevAPI.Relational
+
 
 // Convert an obj to amd obj option.
 let (|SomeObj|_|) =
@@ -83,17 +85,22 @@ let optionTest _ =
 
 let typeReplacements =
     ([ { Match = MatchType.Regex "created_on"
-         ReplacementType = "DateTime" }
+         ReplacementType = "DateTime"
+         Initialization = Some "DateTime.UtcNow" }
        { Match = MatchType.Regex "updated_on"
-         ReplacementType = "DateTime" }
+         ReplacementType = "DateTime"
+         Initialization = Some "DateTime.UtcNow" }
        { Match = MatchType.String "reference"
-         ReplacementType = "Guid" }
+         ReplacementType = "Guid"
+         Initialization = Some "Guid.NewGuid()" }
        { Match = MatchType.String "active"
-         ReplacementType = "bool" } ]: TypeReplacement list)
+         ReplacementType = "bool"
+         Initialization = Some "true" } ]: TypeReplacement list)
 
 [<EntryPoint>]
 let main argv =
     
+    (*
     let context = MySqlContext.Connect("Server=localhost;Database=community_bridges_dev;Uid=max;Pwd=letmein;")
     
     let tables = Freql.MySql.Tools.MetaData.getTableData "community_bridges_dev" context
@@ -107,16 +114,17 @@ let main argv =
     let constraints = Freql.MySql.Tools.MetaData.getConstraints "community_bridges_dev" context
     
     printfn "%A" constraints
-    
+    *)
     let qh =
-        QueryHandler.Open("C:\\ProjectData\\Fiket\\data\\dev\\Events\\event_store.db")
+        QueryHandler.Open("C:\\ProjectData\\Fiket\\prototypes\\workspace_v1.db")
 
     let dbd = Metadata.get qh
-
 
     let gen =
         CodeGen.createRecords "Records" "My.Test.App" typeReplacements true dbd
 
     printfn $"{gen}"
+    
+    File.WriteAllText("C:\\Users\\44748\\fiket.io\\dotnet\\Fiket.Workspaces\\Records.fs", gen)
 
     0 // return an integer exit code

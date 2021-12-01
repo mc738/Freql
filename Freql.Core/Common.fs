@@ -12,6 +12,9 @@ module Types =
     /// A blob field.
     type BlobField =
         { Value: Stream }
+        
+        static member Empty() = { Value = Stream.Null }
+        
         static member FromStream(stream: Stream) = { Value = stream }
 
         static member FromBytes(ms: MemoryStream) = BlobField.FromStream(ms)
@@ -41,8 +44,6 @@ module Types =
 
         //static member FromStream<'T>
     *)
-
-
 
     module private TypeHelpers =
         let getName<'T> = typeof<'T>.FullName

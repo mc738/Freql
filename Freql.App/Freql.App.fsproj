@@ -1,0 +1,28 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net5.0</TargetFramework>
+        <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <Compile Include="Program.fs" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Content Include=".dockerignore" />
+      <Content Include="Dockerfile" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\Freql.Core\Freql.Core.fsproj" />
+      <ProjectReference Include="..\Freql.MySql.Tools\Freql.MySql.Tools.fsproj" />
+      <ProjectReference Include="..\Freql.MySql\Freql.MySql.fsproj" />
+      <ProjectReference Include="..\Freql.Sqlite.Tools\Freql.Sqlite.Tools.fsproj" />
+      <ProjectReference Include="..\Freql.Sqlite\Freql.Sqlite.fsproj" />
+      <ProjectReference Include="..\Freql.SqlServer\Freql.SqlServer.fsproj" />
+      <ProjectReference Include="..\Freql.Tools\Freql.Tools.fsproj" />
+    </ItemGroup>
+
+</Project>

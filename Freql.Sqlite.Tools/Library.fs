@@ -2,8 +2,10 @@
 
 open System
 open System.Text.RegularExpressions
+open Freql.Core.Common.Types
 open Freql.Core.Utils
 open Freql.Sqlite
+open MySqlX.XDevAPI.Relational
 open Org.BouncyCastle.Bcpg.OpenPgp
 
 module Metadata =
@@ -62,8 +64,6 @@ module Metadata =
 
         let getFunctionRecords (qh: QueryHandler) =
             qh.Select<FunctionRecord>("PRAGMA function_list;")
-
-
 
     [<RequireQualifiedAccess>]
     type ColumnType =
@@ -185,17 +185,24 @@ module CodeGen =
 
     type TypeReplacement =
         { Match: MatchType
-          ReplacementType: string }
+          ReplacementType: string
+          Initialization: string option }
 
         member tr.Attempt(name: string, typeString: string) =
             match tr.Match.Test name with
             | true -> tr.ReplacementType
             | false -> typeString
 
+        member tr.AttemptInitReplacement(name: string, initValue: string) =
+            match tr.Initialization, tr.Match.Test name with
+            | Some init, true -> init
+            | _ -> initValue
+    
 
     let getType (typeReplacements: TypeReplacement list) (cd: ColumnDefinition) =
         match cd.Type with
         | "TEXT" -> "string"
+        | "INTEGER" -> "int64"
         | "NUMBER" -> "int64"
         | "REAL" -> "decimal"
         | "BLOB" -> "BlobField"
@@ -208,6 +215,21 @@ module CodeGen =
             | true -> s
             | false -> $"{s} option"
 
+    let getTypeInit (typeReplacements: TypeReplacement list) (cd: ColumnDefinition) =
+        match cd.NotNull with
+        | true ->
+            match cd.Type with
+            | "TEXT" -> "String.Empty"
+            | "INTEGER" -> "0L"
+            | "NUMBER" -> "0L"
+            | "REAL" -> "0m"
+            | "BLOB" -> "BlobField.Empty()"
+            | _ -> failwith $"Unknown type: {cd.Type}"
+            |> fun ts ->
+                typeReplacements
+                |> List.fold (fun ts tr -> tr.AttemptInitReplacement(cd.Name, ts)) ts
+        | false -> "None"
+  
     let createRecord (typeReplacements: TypeReplacement list) (includeJsonAttribute: bool) (table: TableDefinition) =
         let fields =
             table.Columns
@@ -226,13 +248,56 @@ module CodeGen =
                     | _ when i = table.Columns.Length - 1 -> $"      {name} }}"
                     | _ -> $"      {name}")
 
+        (*
+            static member Blank =
+                { Bar = ""
+                  Baz = ""
+                  AnotherOne = ""
+                  OneMoreOneWithALongName = "" }
+        *)
 
+        let blank =
+            table.Columns
+            |> List.mapi
+                (fun i cd ->
+                    let name = cd.Name.ToPascalCase()
+                    
+                    let content = $"{name} = {getTypeInit typeReplacements cd}"
+                    
+                    match i with
+                    | 0 -> $"        {{ {content}"
+                    | _ when i = table.Columns.Length - 1 -> $"          {content} }}"
+                    | _ -> $"          {content}")
+            |> fun r -> [ "    static member Blank() =" ] @ r
+
+        let createSql = [
+            "    static member CreateTableSql() = \"\"\""
+            $"    {table.Sql}" 
+            "    \"\"\""
+        ]
+        
+        let selectFields = table.Columns |> List.map (fun cd -> $"          {cd.Name}") |> String.concat $",{Environment.NewLine}    "
+        
+        let selectSql = [
+            "    static member SelectSql() = \"\"\""
+            $"    SELECT"
+            $"{selectFields}"
+            $"    FROM {table.Name}"
+            "    \"\"\""
+        ]
+        
         match fields.Length with
         | 0 -> []
         | 1 -> [ $"type {table.Name.ToPascalCase()} = {fields.[0].Trim()} }}" ]
         | _ ->
             [ $"type {table.Name.ToPascalCase()} ="
-              yield! fields ]
+              yield! fields
+              ""
+              yield! blank
+              ""
+              yield! createSql
+              ""
+              yield! selectSql ]
 
     let indent value (text: string) = $"{String(' ', value * 4)}{text}"
 
@@ -246,6 +311,7 @@ module CodeGen =
         (database: DatabaseDefinition)
         =
 
+        // Create the core record.
         let records =
             database.Tables
             |> List.map
@@ -255,14 +321,15 @@ module CodeGen =
             |> List.concat
             |> List.map indent1
 
-        [ ns
+        [ $"namespace {ns}"
           ""
           "open System"
           if includeJsonAttributes then
-              "open System.Text.Json"
-          "open Freql.Core.Utils"
+              "open System.Text.Json.Serialization"
+          "open Freql.Core.Common"
           "open Freql.Sqlite"
           ""
+          $"/// Module generated on {DateTime.UtcNow} (utc) via Freql.Sqlite.Tools."
           $"module {name} =" ]
         @ records
         |> String.concat Environment.NewLine
@@ -312,10 +379,8 @@ module StructureComparison =
             | false -> TableAlteration.ColumnAltered r |> Some
 
     let compareForeignKeys (fkA: ForeignKeyDefinition) (fkB: ForeignKeyDefinition) =
-        [
-            if (fkA.From = fkB.From) |> not then ""
-        ]
-    
+        [ if (fkA.From = fkB.From) |> not then "" ]
+
     let compareTables (tableA: TableDefinition) (tableB: TableDefinition) =
         //let tableAMap = tableA.Columns |> List.map (fun cd -> cd.Name, cd) |> Map.ofList
         let tableBMap =
