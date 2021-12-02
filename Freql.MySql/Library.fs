@@ -109,6 +109,21 @@ module private QueryHelpers =
         comm.Prepare()
         comm
 
+    let prepareAnon (connection: MySqlConnection) (sql: string) (parameters: obj list) (transaction: MySqlTransaction option) =
+        connection.Open()
+        
+        use comm =
+            match transaction with
+                | Some t -> new MySqlCommand(sql, connection, t)
+                | None -> new MySqlCommand(sql, connection)
+       
+        parameters
+        |> List.mapi (fun i v -> comm.Parameters.AddWithValue($"@{i}", v))
+        |> ignore
+
+        comm.Prepare()
+        comm
+
     let rawNonQuery connection sql transaction =
         let comm = noParam connection sql transaction
 
@@ -122,6 +137,23 @@ module private QueryHelpers =
 
         comm.ExecuteNonQuery()
 
+    let verbatimNonQueryAnon<'P> connection (sql: string) (parameters: obj list) transaction  =
+        let comm = prepareAnon connection sql parameters transaction
+        comm.ExecuteNonQuery()
+        
+    /// A bespoke query, the caller needs to provide a mapping function. This returns a list of 'T.    
+    let bespoke<'T> connection (sql: string) (parameters: obj list) (mapper: MySqlDataReader -> 'T list) transaction  =
+        let comm = prepareAnon connection sql parameters transaction
+        use reader = comm.ExecuteReader()
+        mapper reader
+        
+    /// A bespoke query, the caller needs to provide a mapping function. This returns a single 'T.
+    let bespokeSingle<'T> connection (sql: string) (parameters: obj list) (mapper: MySqlDataReader -> 'T) transaction  =
+        let comm = prepareAnon connection sql parameters transaction
+        use reader = comm.ExecuteReader()
+        mapper reader
+
+    
     let create<'T> (tableName: string) connection transaction =
         let mappedObj = MappedObject.Create<'T>()
 
@@ -197,6 +229,34 @@ module private QueryHelpers =
         connection.Close()
         r
 
+    let selectAnon<'T>  (sql: string) connection (parameters: obj list) transaction =
+        let tMappedObj = MappedObject.Create<'T>()
+        let comm =
+            prepareAnon connection sql parameters transaction
+
+        use reader = comm.ExecuteReader()
+
+        mapResults<'T> tMappedObj reader
+       
+    let selectSingle<'T, 'P> (sql: string) connection (parameters: 'P) transaction =
+        let tMappedObj = MappedObject.Create<'T>()
+        let pMappedObj = MappedObject.Create<'P>()
+
+        let comm =
+            prepare connection sql pMappedObj parameters transaction
+
+        let r = comm.ExecuteScalar()
+        
+        
+        use reader = comm.ExecuteReader()
+
+        mapResults<'T> tMappedObj reader
+      
+    let executeScalar<'T>(sql: string) connection transaction =
+        let comm = noParam connection sql transaction
+        comm.ExecuteScalar() :?> 'T
+       
+    
     let selectSql<'T> (sql: string) connection transaction =
         let tMappedObj = MappedObject.Create<'T>()
 
@@ -208,6 +268,8 @@ module private QueryHelpers =
         connection.Close()
         r
 
+    
+    
     [<RequireQualifiedAccess>]
     /// Special handling is needed for `INSERT` query to accommodate blobs.
     /// This module aims to wrap as much of that up to in one place.
@@ -323,9 +385,19 @@ type MySqlContext(connection, transaction) =
     member handler.SelectVerbatim<'T, 'P>(sql, parameters) =
         QueryHelpers.select<'T, 'P> sql connection parameters transaction
 
+    member handler.SelectAnon<'T>(sql, parameters) =
+        QueryHelpers.selectAnon<'T> sql connection parameters transaction
+            
+    member handler.SelectSingleAnon<'T>(sql, parameters) =
+        let r = handler.SelectAnon<'T>(sql, parameters)
+        match r.Length > 0 with
+        | true -> r.Head |> Some
+        | false -> None
+           
     member handler.SelectSql<'T> sql =
         QueryHelpers.selectSql<'T> (sql) connection transaction
 
+    
     member handler.SelectSingle<'T> tableName = handler.Select<'T>(tableName).Head
 
     member handler.SelectSingleVerbatim<'T, 'P>(sql: string, parameters: 'P) =
@@ -385,3 +457,12 @@ type MySqlContext(connection, transaction) =
                 
             transaction.Rollback()
             Error $"Could not complete transaction. Error: {exn.Message}"
+            
+                 
+    member handler.ExecuteScalar<'T>(sql) =
+        QueryHelpers.executeScalar<'T> sql connection transaction
+                       
+    member handler.Bespoke<'T>(sql, parameters, (mapper: MySqlDataReader -> 'T list)) =
+        QueryHelpers.bespoke connection sql  parameters  mapper transaction
+
+    member handler.TestConnection = QueryHelpers.executeScalar<int64> "SELECT 1" connection transaction

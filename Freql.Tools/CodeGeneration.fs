@@ -171,6 +171,8 @@ module CodeGeneration =
               $"    FROM {table.Name}"
               "    \"\"\"" ]
 
+        let tableName = $"    static member TableName() = \"{table.Name}\""
+        
         match fields.Length with
         | 0 -> []
         //| 1 -> [ $"type {table.Name.ToPascalCase()} = {fields.[0].Trim()} }}" ]
@@ -189,7 +191,9 @@ module CodeGeneration =
               ""
               yield! createSql
               ""
-              yield! selectSql ]
+              yield! selectSql
+              ""
+              tableName ]
 
     let indent value (text: string) = $"{String(' ', value * 4)}{text}"
 

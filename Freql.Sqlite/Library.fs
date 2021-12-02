@@ -467,3 +467,5 @@ type QueryHandler(connection: SqliteConnection, transaction: SqliteTransaction o
                        
     member handler.Bespoke<'T>(sql, parameters, (mapper: SqliteDataReader -> 'T list)) =
         QueryHelpers.bespoke connection sql  parameters  mapper transaction
+        
+    member handler.TestConnection = QueryHelpers.executeScalar<int64> "SELECT 1" connection transaction
