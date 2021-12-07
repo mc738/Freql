@@ -92,6 +92,7 @@ module CodeGeneration =
                             |> fun n -> $"{n}: {rf.Type}"
 
                         match i with
+                        | 0 when record.Fields.Length = 1 -> $"    {{ {name} }}"
                         | 0 -> $"    {{ {name}"
                         | _ when i = record.Fields.Length - 1 -> $"      {name} }}"
                         | _ -> $"      {name}")
@@ -105,6 +106,7 @@ module CodeGeneration =
                         let content = $"{name} = {rf.Initialization}"
 
                         match i with
+                        | 0 when record.Fields.Length = 1 -> $"        {{ {content} }}"
                         | 0 -> $"        {{ {content}"
                         | _ when i = record.Fields.Length - 1 -> $"          {content} }}"
                         | _ -> $"          {content}")
@@ -314,7 +316,6 @@ module CodeGeneration =
               $"    context.Insert(\"{table.Name}\", parameters)" ]
 
         [ yield! parametersRecords
-          ""
           yield! insertFunction ]
 
 

@@ -134,6 +134,7 @@ module GenerationActions =
                     match t with
                     | DatabaseType.MySql ->
                         try
+                            printfn $"{dbc.ConnectionString}"
                             let context =
                                 MySqlContext.Connect dbc.ConnectionString
 
