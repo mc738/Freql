@@ -8,9 +8,8 @@ open System.Text.Json.Serialization
 
 module CodeGeneration =
 
-
     module Configuration =
-        
+
         type DatabaseConfiguration =
             { [<JsonPropertyName("name")>]
               Name: string
@@ -63,6 +62,71 @@ module CodeGeneration =
               [<JsonPropertyName("replacementName")>]
               ReplacementName: string }
 
+    module Records =
+
+        open Freql.Core.Utils.Extensions
+
+        type RecordField =
+            { Name: string
+              Type: string
+              Initialization: string }
+
+        type Record =
+            { Name: string
+              Fields: RecordField list
+              IncludeBlank: bool
+              AdditionMethods: string list }
+
+        let create (profile: Configuration.GeneratorProfile) (record: Record) =
+            let fields =
+                record.Fields
+                |> List.mapi
+                    (fun i rf ->
+                        let name =
+                            rf.Name
+                            |> fun n -> n.ToPascalCase()
+                            |> fun n ->
+                                match profile.IncludeJsonAttributes with
+                                | true -> $"[<JsonPropertyName(\"{n.ToCamelCase()}\")>] {n}"
+                                | false -> n
+                            |> fun n -> $"{n}: {rf.Type}"
+
+                        match i with
+                        | 0 -> $"    {{ {name}"
+                        | _ when i = record.Fields.Length - 1 -> $"      {name} }}"
+                        | _ -> $"      {name}")
+
+            let blank =
+                record.Fields
+                |> List.mapi
+                    (fun i rf ->
+                        let name = rf.Name |> fun n -> n.ToPascalCase()
+
+                        let content = $"{name} = {rf.Initialization}"
+
+                        match i with
+                        | 0 -> $"        {{ {content}"
+                        | _ when i = record.Fields.Length - 1 -> $"          {content} }}"
+                        | _ -> $"          {content}")
+                |> fun r -> [ "    static member Blank() =" ] @ r
+
+            match fields.Length with
+            | 0 -> []
+            //| 1 -> [ $"type {table.Name.ToPascalCase()} = {fields.[0].Trim()} }}" ]
+            | _ ->
+                [ $"type {record.Name.ToPascalCase()} ="
+                  yield! fields
+                  ""
+                  yield! blank
+                  ""
+                  yield! record.AdditionMethods ]
+
+
+
+    module Functions =
+
+        let create = ()
+
     open System.Text.RegularExpressions
     open Freql.Core.Utils
 
@@ -89,8 +153,6 @@ module CodeGeneration =
               ReplacementType = config.ReplacementValue
               Initialization = Some config.ReplacementInitValue }
 
-
-
         member tr.Attempt(name: string, typeString: string) =
             match tr.Match.Test name with
             | true -> tr.ReplacementType
@@ -107,7 +169,9 @@ module CodeGeneration =
           TypeReplacements: TypeReplacement list
           TypeHandler: TypeReplacement list -> 'Col -> string
           TypeInitHandler: TypeReplacement list -> 'Col -> string
-          NameHandler: 'Col -> string }
+          NameHandler: 'Col -> string
+          InsertColumnFilter: 'Col -> bool
+          ContextTypeName: string }
 
     type TableDetails<'Col> =
         { Name: string
@@ -119,40 +183,16 @@ module CodeGeneration =
         (settings: GeneratorSettings<'Col>)
         (table: TableDetails<'Col>)
         =
+
         let fields =
             table.Columns
-            |> List.mapi
-                (fun i cd ->
-                    let name =
-                        settings.NameHandler cd
-                        |> fun n -> n.ToPascalCase()
-                        |> fun n ->
-                            match settings.IncludeJsonAttributes with
-                            | true -> $"[<JsonPropertyName(\"{n.ToCamelCase()}\")>] {n}"
-                            | false -> n
-                        |> fun n -> $"{n}: {settings.TypeHandler settings.TypeReplacements cd}"
-
-                    match i with
-                    | 0 -> $"    {{ {name}"
-                    | _ when i = table.Columns.Length - 1 -> $"      {name} }}"
-                    | _ -> $"      {name}")
-
-        let blank =
-            table.Columns
-            |> List.mapi
-                (fun i cd ->
-                    let name =
-                        settings.NameHandler cd
-                        |> fun n -> n.ToPascalCase()
-
-                    let content =
-                        $"{name} = {settings.TypeInitHandler settings.TypeReplacements cd}"
-
-                    match i with
-                    | 0 -> $"        {{ {content}"
-                    | _ when i = table.Columns.Length - 1 -> $"          {content} }}"
-                    | _ -> $"          {content}")
-            |> fun r -> [ "    static member Blank() =" ] @ r
+            |> List.map
+                (fun cd ->
+                    ({ Name =
+                           settings.NameHandler cd
+                           |> fun n -> n.ToPascalCase()
+                       Type = settings.TypeHandler settings.TypeReplacements cd
+                       Initialization = settings.TypeInitHandler settings.TypeReplacements cd }: Records.RecordField))
 
         let createSql =
             [ "    static member CreateTableSql() = \"\"\""
@@ -171,29 +211,24 @@ module CodeGeneration =
               $"    FROM {table.Name}"
               "    \"\"\"" ]
 
-        let tableName = $"    static member TableName() = \"{table.Name}\""
-        
-        match fields.Length with
-        | 0 -> []
-        //| 1 -> [ $"type {table.Name.ToPascalCase()} = {fields.[0].Trim()} }}" ]
-        | _ ->
-            let name =
-                match profile.TableNameReplacements
-                      |> List.ofSeq
-                      |> List.tryFind (fun tnr -> String.Equals(tnr.Name, table.Name, StringComparison.Ordinal)) with
-                | Some tnr -> $"{tnr.ReplacementName.ToPascalCase()}{profile.NameSuffix}"
-                | None -> $"{table.Name.ToPascalCase()}{profile.NameSuffix}"
+        let tableName =
+            $"    static member TableName() = \"{table.Name}\""
 
-            [ $"type {name} ="
-              yield! fields
-              ""
-              yield! blank
-              ""
-              yield! createSql
-              ""
-              yield! selectSql
-              ""
-              tableName ]
+        ({ Name =
+               match profile.TableNameReplacements
+                     |> List.ofSeq
+                     |> List.tryFind (fun tnr -> String.Equals(tnr.Name, table.Name, StringComparison.Ordinal)) with
+               | Some tnr -> $"{tnr.ReplacementName.ToPascalCase()}{profile.NameSuffix}"
+               | None -> $"{table.Name.ToPascalCase()}{profile.NameSuffix}"
+           Fields = fields
+           IncludeBlank = true
+           AdditionMethods =
+               [ yield! createSql
+                 ""
+                 yield! selectSql
+                 ""
+                 tableName ] }: Records.Record)
+        |> Records.create profile
 
     let indent value (text: string) = $"{String(' ', value * 4)}{text}"
 
@@ -224,4 +259,79 @@ module CodeGeneration =
           $"/// Module generated on {DateTime.UtcNow} (utc) via Freql.Sqlite.Tools."
           $"module {profile.ModuleName} =" ]
         @ records
-        |> String.concat Environment.NewLine
+
+
+    // Generate records/code for insert etc.
+    //
+    // Need -
+    // Configuration change
+    // * Property for skip fields (i.e. id which could be auto increment and not needed on inserts)
+    //  "operations": [
+    //      {
+    //          "name": "test",
+    //          "tableFilter": "",
+    //          "init":
+    //      }
+    //  ]
+    //
+    // Example:
+    // let insertFoo (parameters: AddFooParameters) (context: MySqlContext) =
+    //     context.insert(Records.FooRecord.TableName(), parameters)
+
+    let generateInsertOperation<'Col>
+        (profile: Configuration.GeneratorProfile)
+        (settings: GeneratorSettings<'Col>)
+        (table: TableDetails<'Col>)
+        =
+
+        let name =
+            match profile.TableNameReplacements
+                  |> List.ofSeq
+                  |> List.tryFind (fun tnr -> String.Equals(tnr.Name, table.Name, StringComparison.Ordinal)) with
+            | Some tnr -> $"{tnr.ReplacementName.ToPascalCase()}"
+            | None -> $"{table.Name.ToPascalCase()}"
+
+        let parametersRecords =
+            table.Columns
+            |> List.filter settings.InsertColumnFilter
+            |> List.map
+                (fun cd ->
+                    ({ Name =
+                           settings.NameHandler cd
+                           |> fun n -> n.ToPascalCase()
+                       Type = settings.TypeHandler settings.TypeReplacements cd
+                       Initialization = settings.TypeInitHandler settings.TypeReplacements cd }: Records.RecordField))
+            |> fun f ->
+                ({ Name = $"Add{name}Parameters"
+                   Fields = f
+                   IncludeBlank = true
+                   AdditionMethods = [] }: Records.Record)
+            |> Records.create profile
+
+
+        let insertFunction =
+            [ $"let insert{name} (parameters: Add{name}Parameters) (context: {settings.ContextTypeName}) ="
+              $"    context.Insert(\"{table.Name}\", parameters)" ]
+
+        [ yield! parametersRecords
+          ""
+          yield! insertFunction ]
+
+
+    let generateInsertOperations<'Col>
+        (profile: Configuration.GeneratorProfile)
+        (settings: GeneratorSettings<'Col>)
+        (tables: TableDetails<'Col> list)
+        =
+
+        // Create the core record.
+        let ops =
+            tables
+            |> List.map
+                (fun t ->
+                    generateInsertOperation profile settings t
+                    @ [ "" ])
+            |> List.concat
+            |> List.map indent1
+
+        [ $"module Operations =" ] @ ops

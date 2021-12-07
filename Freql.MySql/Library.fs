@@ -110,7 +110,9 @@ module private QueryHelpers =
         comm
 
     let prepareAnon (connection: MySqlConnection) (sql: string) (parameters: obj list) (transaction: MySqlTransaction option) =
-        connection.Open()
+        
+        if connection.State = ConnectionState.Closed then
+            connection.Open()
         
         use comm =
             match transaction with
@@ -421,6 +423,11 @@ type MySqlContext(connection, transaction) =
     member handler.ExecuteVerbatimNonQuery<'P>(sql: string, parameters: 'P) =
         QueryHelpers.verbatimNonQuery connection sql parameters transaction
 
+    
+    /// Execute a verbatim non query. The parameters passed will be mapped to the sql query.
+    member handler.ExecuteAnonNonQuery<'P>(sql: string, parameters) =
+        QueryHelpers.verbatimNonQueryAnon connection sql parameters transaction
+
     /// Execute an insert query.
     member handler.Insert<'T>(tableName: string, value: 'T) =
         QueryHelpers.insert<'T> tableName connection value transaction
@@ -465,4 +472,4 @@ type MySqlContext(connection, transaction) =
     member handler.Bespoke<'T>(sql, parameters, (mapper: MySqlDataReader -> 'T list)) =
         QueryHelpers.bespoke connection sql  parameters  mapper transaction
 
-    member handler.TestConnection = QueryHelpers.executeScalar<int64> "SELECT 1" connection transaction
+    member handler.TestConnection() = QueryHelpers.executeScalar<int64> "SELECT 1" connection transaction

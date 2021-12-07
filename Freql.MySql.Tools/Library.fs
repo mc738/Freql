@@ -1,6 +1,7 @@
 ﻿namespace Freql.MySql.Tools
 
 open System
+open System
 open System.Configuration
 open System.Configuration
 open System.IO
@@ -438,14 +439,15 @@ module MySqlCodeGeneration =
                 |> List.fold (fun ts tr -> tr.AttemptInitReplacement(cd.Name, ts)) ts
         | false -> "None"
 
-
     let generatorSettings (profile: Configuration.GeneratorProfile) =
         ({ Imports = [ "Freql.Core.Common"; "Freql.MySql" ]
            IncludeJsonAttributes = true
            TypeReplacements = profile.TypeReplacements |> List.ofSeq |> List.map (fun tr -> TypeReplacement.Create tr)
            TypeHandler = getType
            TypeInitHandler = getTypeInit
-           NameHandler = fun cd -> cd.Name }: GeneratorSettings<MySqlColumnDefinition>)
+           NameHandler = fun cd -> cd.Name
+           InsertColumnFilter = fun cd -> String.Equals(cd.Name, "id", StringComparison.InvariantCulture) |> not
+           ContextTypeName = "MySqlContext" }: GeneratorSettings<MySqlColumnDefinition>)
 
     let createTableDetails (table: MySqlTableDefinition) =
         ({ Name = table.Name
@@ -456,4 +458,11 @@ module MySqlCodeGeneration =
     let generate (profile: Configuration.GeneratorProfile) (database: MySqlDatabaseDefinition) =
         database.Tables
         |> List.map (fun t -> createTableDetails t)
-        |> createRecords profile (generatorSettings profile)
+        |> fun t ->
+           let settings = generatorSettings profile
+           
+           createRecords profile settings t
+           @ generateInsertOperations profile settings t
+        |> String.concat Environment.NewLine
+        
+        
