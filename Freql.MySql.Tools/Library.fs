@@ -300,7 +300,10 @@ module MySqlMetaData =
     type MySqlColumnDefinition =
         { Name: string
           NotNull: bool
-          DataType: string }
+          DataType: string
+          ColumnType: string
+          DefaultValue: string option
+          Key: string option }
 
     type MySqlTableDefinition =
         { Name: string
@@ -326,7 +329,10 @@ module MySqlMetaData =
                             (fun c ->
                                 ({ Name = c.ColumnName
                                    NotNull = String.Equals(c.IsNullable, "NO", StringComparison.OrdinalIgnoreCase)
-                                   DataType = c.DataType }: MySqlColumnDefinition))
+                                   DataType = c.DataType
+                                   ColumnType = c.ColumnType
+                                   DefaultValue = c.ColumnDefault
+                                   Key = c.ColumnKey }: MySqlColumnDefinition))
 
                     ({ Name = tr.TableName
                        // TODO - MySql creation sql.

@@ -1,16 +1,11 @@
 ﻿// Learn more about F# at http://docs.microsoft.com/dotnet/fsharp
 
 open System
-open System.IO
 open System.Text.RegularExpressions
-open System.Text.RegularExpressions
-open Freql.Core.Utils
 open Freql.MySql
 open Freql.Sqlite
-open Freql.Sqlite.Tools
 open Freql.Sqlite.Tools.CodeGen
-open Freql.Sqlite.Tools.Metadata
-open MySqlX.XDevAPI.Relational
+open Freql.Tools.DatabaseComparisons
 
 
 // Convert an obj to amd obj option.
@@ -97,9 +92,74 @@ let typeReplacements =
          ReplacementType = "bool"
          Initialization = Some "true" } ]: TypeReplacement list)
 
+let printDiff (results: TableComparisonResult list) =
+      
+    let cprintfn color str =
+        Console.ForegroundColor <- color
+        printfn $"{str}"
+        Console.ResetColor()
+
+    let printRemove str = cprintfn ConsoleColor.Red str
+
+    let printAdd str = cprintfn ConsoleColor.Green str
+    
+    let printAltered str = cprintfn ConsoleColor.DarkYellow str
+    
+    results
+    |> List.map (fun t ->
+        match t.Type with
+        | TableComparisonResultType.Added ->
+            printAdd $"+ Table `{t.Name}` added"
+        | TableComparisonResultType.Altered ->
+            printAltered $"! Table `{t.Name}` altered"
+
+            t.Columns
+            |> List.map (fun c ->
+                match c.Type with
+                | ColumnComparisonResultType.Added ->
+                    printAdd $"+     Column `{c.Name}` added."
+                | ColumnComparisonResultType.Altered columnDifferences ->
+                    printAltered $"!     Column `{c.Name}` altered."
+                    columnDifferences
+                    |> List.map (fun cd ->
+                        match cd with
+                        | Type (o, n) ->
+                            printAltered $"!         Type changed. Old: {o} new: {n}"
+                        | DefaultValue (o, n) ->
+                            printAltered $"!         Default value changed. Old: {o} new: {n}"
+                        | NotNull (o, n) ->
+                            printAltered $"!         Not null changed. Old: {o} new: {n}"
+                        | Key (o, n) ->
+                            printAltered $"!         Key changed. Old: {o} new: {n}")
+                    |> ignore
+                | ColumnComparisonResultType.Removed ->
+                    printRemove $"-     Column `{c.Name}` removed."
+                | ColumnComparisonResultType.NoChange ->
+                    printfn $"      Column `{c.Name}` unaltered.")
+            |> ignore
+        | TableComparisonResultType.Removed ->
+            printRemove $"- Table `{t.Name}` removed."
+        | TableComparisonResultType.NoChange ->
+            printfn $"  Table `{t.Name}` unaltered.")
+    |> ignore
+    
+
 [<EntryPoint>]
 let main argv =
+
+    let context = MySqlContext.Connect("Server=localhost;Database=community_bridges_dev;Uid=max;Pwd=letmein;")
     
+    let foo = Freql.MySql.Tools.MySqlMetaData.get "test_db_1" context
+    let bar = Freql.MySql.Tools.MySqlMetaData.get "test_db_2" context
+    
+    
+    //let diff = Freql.MySql.Tools.StructuralComparison.compareDatabases foo bar
+    
+    let diff = Freql.Tools.DatabaseComparisons.compare Freql.MySql.Tools.MySqlDatabaseComparison.settings foo bar
+    
+    printDiff diff
+        
+        
     (*
     let context = MySqlContext.Connect("Server=localhost;Database=community_bridges_dev;Uid=max;Pwd=letmein;")
     
@@ -114,7 +174,7 @@ let main argv =
     let constraints = Freql.MySql.Tools.MetaData.getConstraints "community_bridges_dev" context
     
     printfn "%A" constraints
-    *)
+    
     let qh =
         QueryHandler.Open("C:\\ProjectData\\Fiket\\prototypes\\workspace_v1.db")
 
@@ -127,4 +187,6 @@ let main argv =
     
     File.WriteAllText("C:\\Users\\44748\\fiket.io\\dotnet\\Fiket.Workspaces\\Records.fs", gen)
 
+    *)
+    
     0 // return an integer exit code
