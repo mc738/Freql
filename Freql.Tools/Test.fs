@@ -5,7 +5,7 @@ open System.Text.Json.Serialization
 open Freql.Core.Common
 open Freql.MySql
 
-/// Module generated on 07/12/2021 23:46:13 (utc) via Freql.Sqlite.Tools.
+/// Module generated on 09/12/2021 23:30:28 (utc) via Freql.Sqlite.Tools.
 module Records =
     type AttendingAccessTypesRecord =
         { [<JsonPropertyName("id")>] Id: int
@@ -16,7 +16,12 @@ module Records =
               Name = String.Empty }
     
         static member CreateTableSql() = """
-        TODO
+        CREATE TABLE `attending_access_types` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `name` varchar(100) NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `attending_access_types_UN` (`name`)
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb3
         """
     
         static member SelectSql() = """
@@ -37,7 +42,12 @@ module Records =
               Name = String.Empty }
     
         static member CreateTableSql() = """
-        TODO
+        CREATE TABLE `attending_types` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `name` varchar(100) NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `attending_types_UN` (`name`)
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb3
         """
     
         static member SelectSql() = """
@@ -60,7 +70,12 @@ module Records =
               Reference = String.Empty }
     
         static member CreateTableSql() = """
-        TODO
+        CREATE TABLE `categories` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `name` varchar(100) NOT NULL,
+  `reference` varchar(36) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=33 DEFAULT CHARSET=utf8mb3
         """
     
         static member SelectSql() = """
@@ -88,7 +103,17 @@ module Records =
               Language = None }
     
         static member CreateTableSql() = """
-        TODO
+        CREATE TABLE `contact_phone_numbers` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `reference` varchar(36) NOT NULL,
+  `contact_id` int NOT NULL,
+  `number` varchar(100) NOT NULL,
+  `language` varchar(100) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `phone_numbers_UN` (`reference`),
+  KEY `phone_numbers_FK` (`contact_id`),
+  CONSTRAINT `phone_numbers_FK` FOREIGN KEY (`contact_id`) REFERENCES `service_contacts` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3
         """
     
         static member SelectSql() = """
@@ -124,7 +149,20 @@ module Records =
               AmountDescription = None }
     
         static member CreateTableSql() = """
-        TODO
+        CREATE TABLE `cost_options` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `reference` varchar(36) NOT NULL,
+  `service_id` int NOT NULL,
+  `valid_from` datetime DEFAULT NULL,
+  `valid_to` datetime DEFAULT NULL,
+  `option` varchar(100) DEFAULT NULL,
+  `amount` decimal(10,0) DEFAULT NULL,
+  `amount_description` varchar(100) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `cost_options_UN` (`reference`),
+  KEY `cost_options_FK` (`service_id`),
+  CONSTRAINT `cost_options_FK` FOREIGN KEY (`service_id`) REFERENCES `services` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3
         """
     
         static member SelectSql() = """
@@ -151,7 +189,12 @@ module Records =
               Name = None }
     
         static member CreateTableSql() = """
-        TODO
+        CREATE TABLE `deliverable_types` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `name` varchar(100) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `deliverable_types_UN` (`name`)
+) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb3 COMMENT='Seeded table for deliverable types.'
         """
     
         static member SelectSql() = """
@@ -180,7 +223,18 @@ module Records =
               MaximumAge = 0 }
     
         static member CreateTableSql() = """
-        TODO
+        CREATE TABLE `eligibilities` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `reference` varchar(36) NOT NULL,
+  `service_id` int NOT NULL,
+  `eligibility` varchar(100) NOT NULL,
+  `minimum_age` int NOT NULL,
+  `maximum_age` int NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `eligibilities_UN` (`reference`),
+  KEY `eligibilities_FK` (`service_id`),
+  CONSTRAINT `eligibilities_FK` FOREIGN KEY (`service_id`) REFERENCES `services` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3
         """
     
         static member SelectSql() = """
@@ -209,7 +263,16 @@ module Records =
               Source = String.Empty }
     
         static member CreateTableSql() = """
-        TODO
+        CREATE TABLE `funding` (
+  `id` int NOT NULL,
+  `reference` varchar(36) NOT NULL,
+  `service_id` int NOT NULL,
+  `source` varchar(100) NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `funding_UN` (`reference`),
+  KEY `funding_FK` (`service_id`),
+  CONSTRAINT `funding_FK` FOREIGN KEY (`service_id`) REFERENCES `services` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3
         """
     
         static member SelectSql() = """
@@ -244,7 +307,20 @@ module Records =
               EndDate = None }
     
         static member CreateTableSql() = """
-        TODO
+        CREATE TABLE `holiday_schedule` (
+  `id` int NOT NULL,
+  `reference` varchar(36) NOT NULL,
+  `service_location_id` int NOT NULL,
+  `closed` tinyint(1) NOT NULL,
+  `opens_at` datetime DEFAULT NULL,
+  `closes_at` datetime DEFAULT NULL,
+  `start_date` datetime DEFAULT NULL,
+  `end_date` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `holiday_schedule_UN` (`reference`),
+  KEY `holiday_schedule_FK` (`service_location_id`),
+  CONSTRAINT `holiday_schedule_FK` FOREIGN KEY (`service_location_id`) REFERENCES `service_locations` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3
         """
     
         static member SelectSql() = """
@@ -271,7 +347,12 @@ module Records =
               Name = String.Empty }
     
         static member CreateTableSql() = """
-        TODO
+        CREATE TABLE `keywords` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `keywords_UN` (`name`)
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb3
         """
     
         static member SelectSql() = """
@@ -298,7 +379,17 @@ module Records =
               TaxonomyId = 0 }
     
         static member CreateTableSql() = """
-        TODO
+        CREATE TABLE `link_taxonomies` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `reference` varchar(36) NOT NULL,
+  `link_type` varchar(100) NOT NULL,
+  `link_reference` varchar(36) NOT NULL,
+  `taxonomy_id` int NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `link_taxonomies_UN` (`reference`),
+  KEY `link_taxonomies_FK` (`taxonomy_id`),
+  CONSTRAINT `link_taxonomies_FK` FOREIGN KEY (`taxonomy_id`) REFERENCES `taxonomies` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3
         """
     
         static member SelectSql() = """
@@ -330,7 +421,16 @@ module Records =
               Longitude = None }
     
         static member CreateTableSql() = """
-        TODO
+        CREATE TABLE `locations` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `reference` varchar(36) NOT NULL,
+  `name` varchar(100) NOT NULL,
+  `description` varchar(1000) NOT NULL,
+  `latitude` decimal(10,0) DEFAULT NULL,
+  `longitude` decimal(10,0) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `locations_UN` (`reference`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3
         """
     
         static member SelectSql() = """
@@ -363,7 +463,17 @@ module Records =
               ReturnCode = 0 }
     
         static member CreateTableSql() = """
-        TODO
+        CREATE TABLE `logs` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `created_on` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `success` tinyint(1) NOT NULL,
+  `user_id` int DEFAULT NULL,
+  `message` varchar(1000) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `return_code` int NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `logs_FK` (`user_id`),
+  CONSTRAINT `logs_FK` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=2373 DEFAULT CHARSET=utf8mb3
         """
     
         static member SelectSql() = """
@@ -390,7 +500,12 @@ module Records =
               Message = String.Empty }
     
         static member CreateTableSql() = """
-        TODO
+        CREATE TABLE `organisation_action_type` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `message` varchar(250) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=21 DEFAULT CHARSET=utf8mb3
         """
     
         static member SelectSql() = """
@@ -418,7 +533,20 @@ module Records =
               CreatedOn = DateTime.UtcNow }
     
         static member CreateTableSql() = """
-        TODO
+        CREATE TABLE `organisation_actions` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `organisation_id` int NOT NULL,
+  `user_id` int NOT NULL,
+  `type_id` int NOT NULL,
+  `created_on` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `organisation_actions_FK` (`organisation_id`),
+  KEY `organisation_actions_FK_1` (`user_id`),
+  KEY `organisation_actions_FK_2` (`type_id`),
+  CONSTRAINT `organisation_actions_FK` FOREIGN KEY (`organisation_id`) REFERENCES `organisations` (`id`),
+  CONSTRAINT `organisation_actions_FK_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`),
+  CONSTRAINT `organisation_actions_FK_2` FOREIGN KEY (`type_id`) REFERENCES `organisation_action_type` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=2531 DEFAULT CHARSET=utf8mb3
         """
     
         static member SelectSql() = """
@@ -442,7 +570,14 @@ module Records =
               CategoryId = 0 }
     
         static member CreateTableSql() = """
-        TODO
+        CREATE TABLE `organisation_categories` (
+  `organisation_id` int NOT NULL,
+  `category_id` int NOT NULL,
+  PRIMARY KEY (`organisation_id`,`category_id`),
+  KEY `organisation_categories_FK_1` (`category_id`),
+  CONSTRAINT `organisation_categories_FK` FOREIGN KEY (`organisation_id`) REFERENCES `organisations` (`id`),
+  CONSTRAINT `organisation_categories_FK_1` FOREIGN KEY (`category_id`) REFERENCES `categories` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3
         """
     
         static member SelectSql() = """
@@ -463,7 +598,14 @@ module Records =
               KeywordId = 0 }
     
         static member CreateTableSql() = """
-        TODO
+        CREATE TABLE `organisation_keywords` (
+  `organisation_id` int NOT NULL,
+  `keyword_id` int NOT NULL,
+  PRIMARY KEY (`organisation_id`,`keyword_id`),
+  KEY `organisation_key_words_FK_1` (`keyword_id`),
+  CONSTRAINT `organisation_key_words_FK` FOREIGN KEY (`organisation_id`) REFERENCES `organisations` (`id`),
+  CONSTRAINT `organisation_key_words_FK_1` FOREIGN KEY (`keyword_id`) REFERENCES `keywords` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3
         """
     
         static member SelectSql() = """
@@ -484,7 +626,14 @@ module Records =
               ResourceId = 0 }
     
         static member CreateTableSql() = """
-        TODO
+        CREATE TABLE `organisation_resources` (
+  `organisation_id` int NOT NULL,
+  `resource_id` int NOT NULL,
+  PRIMARY KEY (`organisation_id`,`resource_id`),
+  KEY `organisation_resources_FK_1` (`resource_id`),
+  CONSTRAINT `organisation_resources_FK` FOREIGN KEY (`organisation_id`) REFERENCES `organisations` (`id`),
+  CONSTRAINT `organisation_resources_FK_1` FOREIGN KEY (`resource_id`) REFERENCES `resources` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3
         """
     
         static member SelectSql() = """
@@ -541,7 +690,36 @@ module Records =
               Active = 0uy }
     
         static member CreateTableSql() = """
-        TODO
+        CREATE TABLE `organisation_updates` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `org_id` int NOT NULL,
+  `new_name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `new_description` varchar(1000) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `new_website` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `new_phone` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `new_email` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_on` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `created_by` int NOT NULL,
+  `approved` tinyint(1) NOT NULL DEFAULT '0',
+  `approved_on` datetime DEFAULT NULL,
+  `approved_by` int DEFAULT NULL,
+  `applied` tinyint(1) NOT NULL DEFAULT '0',
+  `applied_on` datetime DEFAULT NULL,
+  `rejection_reason` varchar(1000) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `reference` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `last_updated` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `rejected_by` double DEFAULT NULL,
+  `rejected_on` datetime DEFAULT CURRENT_TIMESTAMP,
+  `active` tinyint(1) NOT NULL DEFAULT '1',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `organisation_updates_UN` (`reference`),
+  KEY `organisation_updates_FK` (`org_id`),
+  KEY `organisation_updates_FK_1` (`created_by`),
+  KEY `organisation_updates_FK_2` (`approved_by`),
+  CONSTRAINT `organisation_updates_FK` FOREIGN KEY (`org_id`) REFERENCES `organisations` (`id`),
+  CONSTRAINT `organisation_updates_FK_1` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`),
+  CONSTRAINT `organisation_updates_FK_2` FOREIGN KEY (`approved_by`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=126 DEFAULT CHARSET=utf8mb3
         """
     
         static member SelectSql() = """
@@ -612,7 +790,34 @@ module Records =
               FromPublic = 0uy }
     
         static member CreateTableSql() = """
-        TODO
+        CREATE TABLE `organisations` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `reference` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `phone` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `email` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `website` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `description` varchar(1000) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_on` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `created_by` int NOT NULL,
+  `approved_on` datetime DEFAULT NULL,
+  `approved_by` int DEFAULT NULL,
+  `active` tinyint(1) NOT NULL DEFAULT '1',
+  `approved` tinyint(1) NOT NULL DEFAULT '0',
+  `rejected_on` datetime DEFAULT NULL,
+  `rejected_by` int DEFAULT NULL,
+  `rejection_reason` varchar(1000) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `last_updated` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `from_public` tinyint(1) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `organisations_UN` (`reference`),
+  KEY `organisations_FK` (`created_by`),
+  KEY `organisations_FK_1` (`approved_by`),
+  KEY `organisations_FK_2` (`rejected_by`),
+  CONSTRAINT `organisations_FK` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`),
+  CONSTRAINT `organisations_FK_1` FOREIGN KEY (`approved_by`) REFERENCES `users` (`id`),
+  CONSTRAINT `organisations_FK_2` FOREIGN KEY (`rejected_by`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=428 DEFAULT CHARSET=utf8mb3
         """
     
         static member SelectSql() = """
@@ -661,7 +866,20 @@ module Records =
               Country = None }
     
         static member CreateTableSql() = """
-        TODO
+        CREATE TABLE `physical_addresses` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `reference` varchar(36) NOT NULL,
+  `location_id` int NOT NULL,
+  `address_1` varchar(200) NOT NULL,
+  `city` varchar(100) NOT NULL,
+  `state_province` varchar(100) NOT NULL,
+  `postal_code` varchar(100) NOT NULL,
+  `country` varchar(100) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `physical_addresses_UN` (`reference`),
+  KEY `physical_addresses_FK` (`location_id`),
+  CONSTRAINT `physical_addresses_FK` FOREIGN KEY (`location_id`) REFERENCES `locations` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3
         """
     
         static member SelectSql() = """
@@ -698,7 +916,18 @@ module Records =
               OrganisationId = 0 }
     
         static member CreateTableSql() = """
-        TODO
+        CREATE TABLE `public_requests` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `reference` varchar(36) NOT NULL,
+  `requested_on` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `contact_email` varchar(100) NOT NULL,
+  `contact_first_name` varchar(100) NOT NULL,
+  `contact_last_name` varchar(100) NOT NULL,
+  `organisation_id` int NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `public_requests_FK` (`organisation_id`),
+  CONSTRAINT `public_requests_FK` FOREIGN KEY (`organisation_id`) REFERENCES `organisations` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=20 DEFAULT CHARSET=utf8mb3
         """
     
         static member SelectSql() = """
@@ -748,7 +977,26 @@ module Records =
               Description = None }
     
         static member CreateTableSql() = """
-        TODO
+        CREATE TABLE `regular_schedules` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `reference` varchar(36) NOT NULL,
+  `service_location_id` int NOT NULL,
+  `weekday` int NOT NULL,
+  `opens_at` datetime DEFAULT NULL,
+  `closes_at` date DEFAULT NULL,
+  `valid_from` datetime DEFAULT NULL,
+  `valid_to` datetime DEFAULT NULL,
+  `dtstart` datetime DEFAULT NULL,
+  `freq` varchar(10) DEFAULT NULL,
+  `interval` int DEFAULT NULL,
+  `byday` varchar(100) DEFAULT NULL,
+  `bymonthday` int DEFAULT NULL,
+  `description` varchar(1000) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `regular_schedules_UN` (`reference`),
+  KEY `regular_schedules_FK` (`service_location_id`),
+  CONSTRAINT `regular_schedules_FK` FOREIGN KEY (`service_location_id`) REFERENCES `service_locations` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3
         """
     
         static member SelectSql() = """
@@ -787,7 +1035,14 @@ module Records =
               FullDescription = String.Empty }
     
         static member CreateTableSql() = """
-        TODO
+        CREATE TABLE `resources` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `reference` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `url` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `brief_description` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `full_description` varchar(1000) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=46 DEFAULT CHARSET=utf8mb3
         """
     
         static member SelectSql() = """
@@ -815,7 +1070,16 @@ module Records =
               Accessibility = String.Empty }
     
         static member CreateTableSql() = """
-        TODO
+        CREATE TABLE `service_accessibility` (
+  `id` int NOT NULL,
+  `reference` varchar(36) NOT NULL,
+  `location_id` int NOT NULL,
+  `accessibility` varchar(100) NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `service_accessibility_UN` (`reference`),
+  KEY `service_accessibility_FK` (`location_id`),
+  CONSTRAINT `service_accessibility_FK` FOREIGN KEY (`location_id`) REFERENCES `locations` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3
         """
     
         static member SelectSql() = """
@@ -846,7 +1110,18 @@ module Records =
               Uri = String.Empty }
     
         static member CreateTableSql() = """
-        TODO
+        CREATE TABLE `service_areas` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `reference` varchar(36) NOT NULL,
+  `service_id` int NOT NULL,
+  `service_area` varchar(100) NOT NULL,
+  `extent` varchar(100) NOT NULL,
+  `uri` varchar(100) NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `service_areas_UN` (`reference`),
+  KEY `service_areas_FK` (`service_id`),
+  CONSTRAINT `service_areas_FK` FOREIGN KEY (`service_id`) REFERENCES `services` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3
         """
     
         static member SelectSql() = """
@@ -877,7 +1152,17 @@ module Records =
               Title = None }
     
         static member CreateTableSql() = """
-        TODO
+        CREATE TABLE `service_contacts` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `reference` varchar(36) NOT NULL,
+  `service_id` int NOT NULL,
+  `name` varchar(100) NOT NULL,
+  `title` varchar(100) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `service_contacts_UN` (`reference`),
+  KEY `service_contacts_FK` (`service_id`),
+  CONSTRAINT `service_contacts_FK` FOREIGN KEY (`service_id`) REFERENCES `services` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3
         """
     
         static member SelectSql() = """
@@ -905,7 +1190,16 @@ module Records =
               Language = String.Empty }
     
         static member CreateTableSql() = """
-        TODO
+        CREATE TABLE `service_langanges` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `reference` varchar(36) NOT NULL,
+  `service_id` int NOT NULL,
+  `language` varchar(100) NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `service_langanges_UN` (`reference`),
+  KEY `service_langanges_FK` (`service_id`),
+  CONSTRAINT `service_langanges_FK` FOREIGN KEY (`service_id`) REFERENCES `services` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3
         """
     
         static member SelectSql() = """
@@ -932,7 +1226,18 @@ module Records =
               LocationId = 0 }
     
         static member CreateTableSql() = """
-        TODO
+        CREATE TABLE `service_locations` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `reference` varchar(36) NOT NULL,
+  `service_id` int NOT NULL,
+  `location_id` int NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `service_locations_UN` (`reference`),
+  KEY `service_locations_FK` (`service_id`),
+  KEY `service_locations_FK_1` (`location_id`),
+  CONSTRAINT `service_locations_FK` FOREIGN KEY (`service_id`) REFERENCES `services` (`id`),
+  CONSTRAINT `service_locations_FK_1` FOREIGN KEY (`location_id`) REFERENCES `locations` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3
         """
     
         static member SelectSql() = """
@@ -971,7 +1276,24 @@ module Records =
               Widget = None }
     
         static member CreateTableSql() = """
-        TODO
+        CREATE TABLE `service_reviews` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `reference` varchar(36) NOT NULL,
+  `service_id` int NOT NULL,
+  `reivewer_organisation_id` int NOT NULL,
+  `title` varchar(100) NOT NULL,
+  `description` varchar(1000) NOT NULL,
+  `date` datetime NOT NULL,
+  `score` varchar(100) NOT NULL,
+  `url` varchar(100) NOT NULL,
+  `widget` varchar(100) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `service_reviews_UN` (`reference`),
+  KEY `service_reviews_FK` (`service_id`),
+  KEY `service_reviews_FK_1` (`reivewer_organisation_id`),
+  CONSTRAINT `service_reviews_FK` FOREIGN KEY (`service_id`) REFERENCES `services` (`id`),
+  CONSTRAINT `service_reviews_FK_1` FOREIGN KEY (`reivewer_organisation_id`) REFERENCES `organisations` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3
         """
     
         static member SelectSql() = """
@@ -1000,7 +1322,12 @@ module Records =
               Name = String.Empty }
     
         static member CreateTableSql() = """
-        TODO
+        CREATE TABLE `service_status` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `name` varchar(100) NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `service_status_UN` (`name`)
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb3 COMMENT='This is a seeded table of service status from Open Referral UK'
         """
     
         static member SelectSql() = """
@@ -1023,7 +1350,16 @@ module Records =
               TaxonomyId = 0 }
     
         static member CreateTableSql() = """
-        TODO
+        CREATE TABLE `service_taxonomies` (
+  `reference` varchar(36) NOT NULL,
+  `service_id` int NOT NULL,
+  `taxonomy_id` int NOT NULL,
+  PRIMARY KEY (`service_id`,`taxonomy_id`),
+  UNIQUE KEY `service_taxonomy_UN` (`reference`),
+  KEY `service_taxonomy_FK_1` (`taxonomy_id`),
+  CONSTRAINT `service_taxonomy_FK` FOREIGN KEY (`service_id`) REFERENCES `services` (`id`),
+  CONSTRAINT `service_taxonomy_FK_1` FOREIGN KEY (`taxonomy_id`) REFERENCES `taxonomies` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3
         """
     
         static member SelectSql() = """
@@ -1089,7 +1425,48 @@ module Records =
               RejectedReason = None }
     
         static member CreateTableSql() = """
-        TODO
+        CREATE TABLE `service_updates` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `reference` varchar(36) COLLATE utf8_unicode_ci NOT NULL,
+  `service_id` int NOT NULL,
+  `new_name` text COLLATE utf8_unicode_ci NOT NULL,
+  `new_description` varchar(1000) COLLATE utf8_unicode_ci NOT NULL,
+  `new_url` varchar(100) COLLATE utf8_unicode_ci DEFAULT NULL,
+  `new_email` varchar(100) COLLATE utf8_unicode_ci DEFAULT NULL,
+  `new_fees` varchar(100) COLLATE utf8_unicode_ci DEFAULT NULL,
+  `new_accreditations` varchar(100) COLLATE utf8_unicode_ci DEFAULT NULL,
+  `new_deliverable_type_id` int NOT NULL,
+  `new_assured_date` datetime DEFAULT NULL,
+  `new_attending_type_id` int NOT NULL,
+  `new_attending_access_id` int NOT NULL,
+  `created_on` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `created_by` int NOT NULL,
+  `active` tinyint(1) NOT NULL DEFAULT '1',
+  `approved` tinyint(1) NOT NULL DEFAULT '0',
+  `applied` tinyint(1) NOT NULL DEFAULT '0',
+  `approved_on` datetime DEFAULT NULL,
+  `approved_by` int DEFAULT NULL,
+  `applied_on` datetime DEFAULT NULL,
+  `rejected_on` datetime DEFAULT NULL,
+  `rejected_by` int DEFAULT NULL,
+  `rejected_reason` varchar(100) COLLATE utf8_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `service_updates_UN` (`reference`),
+  KEY `service_updates_FK` (`service_id`),
+  KEY `service_updates_FK_1` (`new_deliverable_type_id`),
+  KEY `service_updates_FK_2` (`new_attending_type_id`),
+  KEY `service_updates_FK_3` (`new_attending_access_id`),
+  KEY `service_updates_FK_4` (`created_by`),
+  KEY `service_updates_FK_5` (`approved_by`),
+  KEY `service_updates_FK_6` (`rejected_by`),
+  CONSTRAINT `service_updates_FK` FOREIGN KEY (`service_id`) REFERENCES `services` (`id`),
+  CONSTRAINT `service_updates_FK_1` FOREIGN KEY (`new_deliverable_type_id`) REFERENCES `deliverable_types` (`id`),
+  CONSTRAINT `service_updates_FK_2` FOREIGN KEY (`new_attending_type_id`) REFERENCES `attending_types` (`id`),
+  CONSTRAINT `service_updates_FK_3` FOREIGN KEY (`new_attending_access_id`) REFERENCES `attending_access_types` (`id`),
+  CONSTRAINT `service_updates_FK_4` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`),
+  CONSTRAINT `service_updates_FK_5` FOREIGN KEY (`approved_by`) REFERENCES `users` (`id`),
+  CONSTRAINT `service_updates_FK_6` FOREIGN KEY (`rejected_by`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb3 COLLATE=utf8_unicode_ci
         """
     
         static member SelectSql() = """
@@ -1176,7 +1553,50 @@ module Records =
               LastUpdated = None }
     
         static member CreateTableSql() = """
-        TODO
+        CREATE TABLE `services` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `reference` varchar(36) NOT NULL,
+  `organisation_id` int NOT NULL,
+  `name` text NOT NULL,
+  `description` varchar(1000) NOT NULL,
+  `url` varchar(100) DEFAULT NULL,
+  `email` varchar(100) DEFAULT NULL,
+  `status_id` int NOT NULL,
+  `fees` varchar(100) DEFAULT NULL,
+  `accreditations` varchar(100) DEFAULT NULL,
+  `deliverable_type_id` int NOT NULL,
+  `assured_date` datetime DEFAULT NULL,
+  `attending_type_id` int NOT NULL,
+  `attending_access_id` int NOT NULL,
+  `created_on` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `created_by` int NOT NULL,
+  `active` tinyint(1) NOT NULL DEFAULT '1',
+  `approved` tinyint(1) NOT NULL DEFAULT '0',
+  `approved_on` datetime DEFAULT NULL,
+  `approved_by` int DEFAULT NULL,
+  `rejected_on` datetime DEFAULT NULL,
+  `rejected_by` int DEFAULT NULL,
+  `rejected_reason` varchar(100) DEFAULT NULL,
+  `last_updated` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `services_UN` (`reference`),
+  KEY `services_FK` (`organisation_id`),
+  KEY `services_FK_1` (`status_id`),
+  KEY `services_FK_2` (`deliverable_type_id`),
+  KEY `services_FK_3` (`attending_type_id`),
+  KEY `services_FK_4` (`attending_access_id`),
+  KEY `services_FK_5` (`created_by`),
+  KEY `services_FK_6` (`approved_by`),
+  KEY `services_FK_7` (`rejected_by`),
+  CONSTRAINT `services_FK` FOREIGN KEY (`organisation_id`) REFERENCES `organisations` (`id`),
+  CONSTRAINT `services_FK_1` FOREIGN KEY (`status_id`) REFERENCES `service_status` (`id`),
+  CONSTRAINT `services_FK_2` FOREIGN KEY (`deliverable_type_id`) REFERENCES `deliverable_types` (`id`),
+  CONSTRAINT `services_FK_3` FOREIGN KEY (`attending_type_id`) REFERENCES `attending_types` (`id`),
+  CONSTRAINT `services_FK_4` FOREIGN KEY (`attending_access_id`) REFERENCES `attending_access_types` (`id`),
+  CONSTRAINT `services_FK_5` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`),
+  CONSTRAINT `services_FK_6` FOREIGN KEY (`approved_by`) REFERENCES `users` (`id`),
+  CONSTRAINT `services_FK_7` FOREIGN KEY (`rejected_by`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb3
         """
     
         static member SelectSql() = """
@@ -1225,7 +1645,17 @@ module Records =
               Vocabulary = String.Empty }
     
         static member CreateTableSql() = """
-        TODO
+        CREATE TABLE `taxonomies` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `reference` varchar(36) NOT NULL,
+  `name` varchar(100) NOT NULL,
+  `parent_id` int DEFAULT NULL,
+  `vocabulary` varchar(100) NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `taxonomies_UN` (`reference`),
+  KEY `taxonomies_FK` (`parent_id`),
+  CONSTRAINT `taxonomies_FK` FOREIGN KEY (`parent_id`) REFERENCES `taxonomies` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3
         """
     
         static member SelectSql() = """
@@ -1255,7 +1685,17 @@ module Records =
               CanAddServices = 0uy }
     
         static member CreateTableSql() = """
-        TODO
+        CREATE TABLE `user_organisation_permissions` (
+  `organisation_id` int NOT NULL,
+  `user_id` int NOT NULL,
+  `can_edit` tinyint(1) NOT NULL DEFAULT '0' COMMENT 'Can edit organisation details (still needs system approval to go public)',
+  `org_admin` tinyint(1) NOT NULL DEFAULT '0' COMMENT 'Organisation admins have all permissions',
+  `can_add_services` tinyint(1) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`organisation_id`,`user_id`),
+  KEY `user_organisation_permissions_FK_1` (`user_id`),
+  CONSTRAINT `user_organisation_permissions_FK` FOREIGN KEY (`organisation_id`) REFERENCES `organisations` (`id`),
+  CONSTRAINT `user_organisation_permissions_FK_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3
         """
     
         static member SelectSql() = """
@@ -1299,7 +1739,21 @@ module Records =
               Active = 0uy }
     
         static member CreateTableSql() = """
-        TODO
+        CREATE TABLE `users` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `reference` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `password` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `salt` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_on` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `last_logged_in` datetime DEFAULT NULL,
+  `email` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `can_log_in` tinyint(1) NOT NULL DEFAULT '0',
+  `is_admin` tinyint(1) NOT NULL DEFAULT '0',
+  `can_add_orgs` tinyint(1) NOT NULL DEFAULT '0',
+  `active` tinyint(1) NOT NULL DEFAULT '1',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb3
         """
     
         static member SelectSql() = """

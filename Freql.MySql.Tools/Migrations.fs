@@ -1,123 +1,70 @@
 ﻿namespace Freql.MySql.Tools
 
+open System
 open Freql.MySql.Tools.MySqlMetaData
+open Freql.Tools.DatabaseComparisons
 
+module Migrations =
 
-module StructuralComparison =
-        
-    type ColumnDifference =
-        | Type of string * string
-        | DefaultValue of string option * string option
-        | NotNull of bool * bool
-        | Key of string option * string option
-
-    type ForeignKeyDifference =
-        | From of string * string
-        | To of string * string
-
-    type TableAlteration =
-        | ColumnRemoved of string
-        | ColumnAdded of string
-        | ColumnAltered of string * ColumnDifference list
-        | IndexRemoved of string
-        | IndexAdded of string
-        | IndexAltered of string
-        | ForeignKeyRemoved of string
-        | ForeignKeyAdded of string
-        | ForeignKeyAltered of string
-
-    type TableComparisonResult =
-        | TableRemoved of string
-        | TableAdded of string
-        | TableAltered of string * TableAlteration list
- 
-    let compareColumns (colA: MySqlColumnDefinition) (colB: MySqlColumnDefinition) =
-        [ if (colA.ColumnType = colB.ColumnType) |> not then
-              ColumnDifference.Type(colA.ColumnType, colB.ColumnType)
-          if (colA.DefaultValue = colB.DefaultValue) |> not then
-              ColumnDifference.DefaultValue(colA.DefaultValue, colB.DefaultValue)
-          if (colA.NotNull = colB.NotNull) |> not then
-              ColumnDifference.NotNull(colA.NotNull, colB.NotNull)
-          if (colA.Key = colB.Key) |> not then
-              ColumnDifference.Key(colA.Key, colB.Key) ]
-        |> fun r ->
-            match r.IsEmpty with
-            | true -> None
-            | false -> TableAlteration.ColumnAltered (colA.Name, r) |> Some
-
-    (*
-    let compareForeignKeys (fkA: ForeignKeyDefinition) (fkB: ForeignKeyDefinition) =
-        [ if (fkA.From = fkB.From) |> not then "" ]
-    *)
-
-    let compareTables (tableA: MySqlTableDefinition) (tableB: MySqlTableDefinition) =
-        //let tableAMap = tableA.Columns |> List.map (fun cd -> cd.Name, cd) |> Map.ofList
-        let tableBMap =
-            tableB.Columns
-            |> List.map (fun cd -> cd.Name, cd)
-            |> Map.ofList
-
-        tableA.Columns
-        |> List.fold
-            (fun (tbm: Map<string, MySqlColumnDefinition>, (acc: TableAlteration list)) cd ->
-                match tbm.TryFind cd.Name with
-                | Some tb ->
-                    // If found:
-                    // Compare columns.
-                    // Remove from tbm (table b map).
-                    let newTbm = tbm.Remove cd.Name
-
-                    match compareColumns cd tb with
-                    | Some r -> (newTbm, acc @ [ r ])
-                    | None -> (newTbm, acc)
-                | None -> (tbm, acc @ [ TableAlteration.ColumnRemoved cd.Name ]))
-            (tableBMap, [])
-        |> fun (notFound, results) ->
-            results
-            @ (notFound
-               |> Map.toList
-               |> List.map (fun (_, v) -> TableAlteration.ColumnAdded v.Name))
-        |> fun r ->
-            match r.IsEmpty with
-            | true -> None
-            | false -> TableComparisonResult.TableAltered (tableA.Name, r) |> Some
-
-    let compareDatabases (databaseA: MySqlDatabaseDefinition) (databaseB: MySqlDatabaseDefinition) =
-        let databaseBTableMap =
-            databaseB.Tables
+    // Table the metadata of a current database and a table comparison results and generate sql for the migration.
+    let generateSql (database: MySqlDatabaseDefinition) (diff: TableComparisonResult list) =
+        let tableMap =
+            database.Tables
             |> List.map (fun t -> t.Name, t)
             |> Map.ofList
 
-        databaseA.Tables
-        |> List.fold
-            (fun (tbm: Map<string, MySqlTableDefinition>, (acc: TableComparisonResult list)) td ->
-                match tbm.TryFind td.Name with
-                | Some tb ->
-                    // If found:
-                    // Compare columns.
-                    // Remove from tbm (table b map).
-                    let newTbm = tbm.Remove td.Name
+        diff
+        |> List.map
+            (fun tcr ->
+                match tableMap.TryFind tcr.Name, tcr.Type with
+                | Some table, TableComparisonResultType.Added ->
+                    tableMap.TryFind tcr.Name
+                    |> Option.bind (fun r -> Some r.Sql)
+                | Some table, TableComparisonResultType.Altered ->
+                    let colMap =
+                        table.Columns
+                        |> List.map (fun r -> r.Name, r)
+                        |> Map.ofList
 
-                    match compareTables td tb with
-                    | Some r -> (newTbm, acc @ [ r ])
-                    | None -> (newTbm, acc)
-                | None ->
-                    (tbm,
-                     acc
-                     @ [ TableComparisonResult.TableRemoved td.Name ]))
-            (databaseBTableMap, [])
-        |> fun (notFound, results) ->
-            results
-            @ (notFound
-               |> Map.toList
-               |> List.map (fun (_, v) -> TableComparisonResult.TableAdded v.Name))
+                    tcr.Columns
+                    |> List.map
+                        (fun c ->
+                            match c.Type with
+                            | ColumnComparisonResultType.Added ->
+                                //
+                                //
+                                match colMap.TryFind c.Name with
+                                | Some cd ->
+                                    let notNull = match cd.NotNull with true -> " NOT NULL" | false -> "";
 
-    
-module Migrations =
-    
-    
-    
-    
-    
-    ()
-
+                                    // TODO add keys
+                                                                        
+                                    [ $"ALTER TABLE {tcr.Name}"
+                                      $"ADD COLUMN {cd.Name} {cd.ColumnType}{notNull};" ]
+                                    |> String.concat Environment.NewLine
+                                    |> Some
+                                | None -> failwith $"Column `{table.Name}.{c.Name}` not found"
+                            | ColumnComparisonResultType.Altered columnDifferences ->
+                                match colMap.TryFind c.Name with
+                                | Some cd ->
+                                    let notNull = match cd.NotNull with true -> " NOT NULL" | false -> "";
+                                    [ $"ALTER TABLE {tcr.Name}"
+                                      $"CHANGE COLUMN {cd.Name} {cd.Name} {cd.ColumnType}{notNull};" ]
+                                    |> String.concat Environment.NewLine
+                                    |> Some
+                                | None -> failwith $"Column `{table.Name}.{c.Name}` not found"
+                            | ColumnComparisonResultType.Removed -> 
+                                    [ $"ALTER TABLE {tcr.Name}"
+                                      $"DROP COLUMN {c.Name};" ]
+                                    |> String.concat Environment.NewLine
+                                    |> Some
+                            | ColumnComparisonResultType.NoChange -> None)
+                    |> List.choose id
+                    |> String.concat Environment.NewLine
+                    |> Some
+                | Some _, TableComparisonResultType.Removed
+                | None, TableComparisonResultType.Removed -> Some $"DROP TABLE {tcr.Name};"
+                | Some _, TableComparisonResultType.NoChange                
+                | None, TableComparisonResultType.NoChange -> None
+                | None, _ -> failwith $"Table `{tcr.Name}` not found")
+        |> List.choose id

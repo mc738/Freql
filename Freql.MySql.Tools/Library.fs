@@ -246,6 +246,12 @@ module MySqlMetaData =
 
         type ByName = { Name: string }
 
+        type TableSql =
+            { [<MappedField("Table")>]
+              Name: string
+              [<MappedField("Create Table")>]
+              Sql: string }
+
         let getTableData (databaseName: string) (context: MySqlContext) =
             let sql =
                 """
@@ -255,6 +261,11 @@ module MySqlMetaData =
             """
 
             context.SelectVerbatim<TableRecord, ByName>(sql, { Name = databaseName })
+
+        let getTableSql (databaseName: string) (context: MySqlContext) =
+            // TODO this doesn't work with parameterized input.
+            let sql = $"show create table {databaseName};"
+            context.SelectSingleAnon<TableSql>(sql, [ databaseName ])
 
         let getProcedures (databaseName: string) (context: MySqlContext) =
             let sql =
@@ -336,7 +347,10 @@ module MySqlMetaData =
 
                     ({ Name = tr.TableName
                        // TODO - MySql creation sql.
-                       Sql = "TODO"
+                       Sql =
+                           Internal.getTableSql tr.TableName context
+                           |> Option.bind (fun r -> Some r.Sql)
+                           |> Option.defaultValue ""
                        Columns = tc }: MySqlTableDefinition))
 
         ({ Name = databaseName; Tables = tables }: MySqlDatabaseDefinition)
@@ -448,11 +462,17 @@ module MySqlCodeGeneration =
     let generatorSettings (profile: Configuration.GeneratorProfile) =
         ({ Imports = [ "Freql.Core.Common"; "Freql.MySql" ]
            IncludeJsonAttributes = true
-           TypeReplacements = profile.TypeReplacements |> List.ofSeq |> List.map (fun tr -> TypeReplacement.Create tr)
+           TypeReplacements =
+               profile.TypeReplacements
+               |> List.ofSeq
+               |> List.map (fun tr -> TypeReplacement.Create tr)
            TypeHandler = getType
            TypeInitHandler = getTypeInit
            NameHandler = fun cd -> cd.Name
-           InsertColumnFilter = fun cd -> String.Equals(cd.Name, "id", StringComparison.InvariantCulture) |> not
+           InsertColumnFilter =
+               fun cd ->
+                   String.Equals(cd.Name, "id", StringComparison.InvariantCulture)
+                   |> not
            ContextTypeName = "MySqlContext" }: GeneratorSettings<MySqlColumnDefinition>)
 
     let createTableDetails (table: MySqlTableDefinition) =
@@ -465,10 +485,8 @@ module MySqlCodeGeneration =
         database.Tables
         |> List.map (fun t -> createTableDetails t)
         |> fun t ->
-           let settings = generatorSettings profile
-           
-           createRecords profile settings t
-           @ generateInsertOperations profile settings t
-        |> String.concat Environment.NewLine
-        
-        
+            let settings = generatorSettings profile
+
+            createRecords profile settings t
+            @ generateInsertOperations profile settings t
+            |> String.concat Environment.NewLine

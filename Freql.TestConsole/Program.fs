@@ -147,10 +147,11 @@ let printDiff (results: TableComparisonResult list) =
 [<EntryPoint>]
 let main argv =
 
-    let context = MySqlContext.Connect("Server=localhost;Database=community_bridges_dev;Uid=max;Pwd=letmein;")
+    let context1 = MySqlContext.Connect("Server=localhost;Database=test_db_1;Uid=max;Pwd=letmein;")
+    let context2 = MySqlContext.Connect("Server=localhost;Database=test_db_2;Uid=max;Pwd=letmein;")
     
-    let foo = Freql.MySql.Tools.MySqlMetaData.get "test_db_1" context
-    let bar = Freql.MySql.Tools.MySqlMetaData.get "test_db_2" context
+    let foo = Freql.MySql.Tools.MySqlMetaData.get "test_db_1" context1
+    let bar = Freql.MySql.Tools.MySqlMetaData.get "test_db_2" context2
     
     
     //let diff = Freql.MySql.Tools.StructuralComparison.compareDatabases foo bar
@@ -159,7 +160,10 @@ let main argv =
     
     printDiff diff
         
-        
+    let migration = Freql.MySql.Tools.Migrations.generateSql bar diff
+    
+    migration |> List.map (fun m -> printfn $"{m}") |> ignore
+    
     (*
     let context = MySqlContext.Connect("Server=localhost;Database=community_bridges_dev;Uid=max;Pwd=letmein;")
     
