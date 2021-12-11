@@ -1,14 +1,11 @@
 ﻿namespace Freql.Sqlite.Tools
 
 open System
-open System.Text.RegularExpressions
-open Freql.Core.Common.Types
-open Freql.Core.Utils
+open System.Text.Json.Serialization
 open Freql.Sqlite
-open MySqlX.XDevAPI.Relational
-open Org.BouncyCastle.Bcpg.OpenPgp
+open Freql.Tools.DatabaseComparisons
 
-module Metadata =
+module SqliteMetadata =
 
     module Internal =
 
@@ -65,44 +62,39 @@ module Metadata =
         let getFunctionRecords (qh: QueryHandler) =
             qh.Select<FunctionRecord>("PRAGMA function_list;")
 
-    [<RequireQualifiedAccess>]
-    type ColumnType =
-        | Text
-        | Integer
-        | Real
-        | Blob
+    type SqliteColumnDefinition =
+        { [<JsonPropertyName("cid")>] CID: int
+          [<JsonPropertyName("name")>] Name: string
+          [<JsonPropertyName("type")>] Type: string
+          [<JsonPropertyName("notNull")>]  NotNull: bool
+          [<JsonPropertyName("defaultValue")>] DefaultValue: string option
+          [<JsonPropertyName("primaryKey")>] PrimaryKey: bool }
 
-    type ColumnDefinition =
-        { CID: int
-          Name: string
-          Type: string //ColumnType
-          NotNull: bool
-          DefaultValue: string option
-          PrimaryKey: bool }
+    type SqliteIndexDefinition =
+        { [<JsonPropertyName("tableName")>] TableName: string
+          [<JsonPropertyName("name")>] Name: string
+          [<JsonPropertyName("seqNo")>] SeqNo: int }
 
-    type IndexDefinition =
-        { TableName: string
-          Name: string
-          SeqNo: int }
+    type SqliteForeignKeyDefinition =
+        { [<JsonPropertyName("id")>] Id: int
+          [<JsonPropertyName("seq")>] Seq: int
+          [<JsonPropertyName("table")>] Table: string
+          [<JsonPropertyName("from")>] From: string
+          [<JsonPropertyName("to")>] To: string
+          [<JsonPropertyName("onUpdate")>] OnUpdate: string
+          [<JsonPropertyName("onDelete")>] OnDelete: string
+          [<JsonPropertyName("match")>] Match: string }
 
-    type ForeignKeyDefinition =
-        { Id: int
-          Seq: int
-          Table: string
-          From: string
-          To: string
-          OnUpdate: string
-          OnDelete: string
-          Match: string }
+    type SqliteTableDefinition =
+        { [<JsonPropertyName("name")>] Name: string
+          [<JsonPropertyName("sql")>] Sql: string
+          [<JsonPropertyName("columns")>] Columns: SqliteColumnDefinition seq
+          [<JsonPropertyName("foreignKeys")>] ForeignKeys: SqliteForeignKeyDefinition seq
+          [<JsonPropertyName("indexes")>] Indexes: SqliteIndexDefinition seq }
 
-    type TableDefinition =
-        { Name: string
-          Sql: string
-          Columns: ColumnDefinition list
-          ForeignKeys: ForeignKeyDefinition list
-          Indexes: IndexDefinition list }
-
-    type DatabaseDefinition = { Tables: TableDefinition list }
+    type SqliteDatabaseDefinition = {
+        [<JsonPropertyName("tables")>] Tables: SqliteTableDefinition seq
+    }
 
     let createIndexDefinition (tableName: string) (record: Internal.IndexRecord) =
         { TableName = tableName
@@ -147,7 +139,7 @@ module Metadata =
                                To = fkr.To
                                OnUpdate = fkr.OnUpdate
                                OnDelete = fkr.OnDelete
-                               Match = fkr.Match }: ForeignKeyDefinition))
+                               Match = fkr.Match }: SqliteForeignKeyDefinition))
 
                 let columns =
                     Internal.getTableRecord tmr.Name qh
@@ -159,47 +151,23 @@ module Metadata =
                                Type = tir.Type
                                NotNull = tir.Notnull
                                DefaultValue = tir.DfltValue
-                               PrimaryKey = tir.Pk }: ColumnDefinition))
+                               PrimaryKey = tir.Pk }: SqliteColumnDefinition))
 
                 ({ Name = tmr.TblName
                    Sql = tmr.Sql |> Option.defaultValue ""
                    Columns = columns
                    ForeignKeys = foreignKeys
-                   Indexes = indexes }: TableDefinition))
-        |> fun tdl -> ({ Tables = tdl }: DatabaseDefinition)
-
-module CodeGen =
-
-    open Metadata
+                   Indexes = indexes }: SqliteTableDefinition))
+        |> fun tdl -> ({ Tables = tdl }: SqliteDatabaseDefinition)
 
 
-    [<RequireQualifiedAccess>]
-    type MatchType =
-        | Regex of string
-        | String of string
+[<RequireQualifiedAccess>]
+module SqliteCodeGeneration =
+        
+    open Freql.Tools.CodeGeneration
+    open SqliteMetadata
 
-        member mt.Test(value: string) =
-            match mt with
-            | Regex pattern -> Regex.IsMatch(value, pattern)
-            | String str -> String.Equals(value, str)
-
-    type TypeReplacement =
-        { Match: MatchType
-          ReplacementType: string
-          Initialization: string option }
-
-        member tr.Attempt(name: string, typeString: string) =
-            match tr.Match.Test name with
-            | true -> tr.ReplacementType
-            | false -> typeString
-
-        member tr.AttemptInitReplacement(name: string, initValue: string) =
-            match tr.Initialization, tr.Match.Test name with
-            | Some init, true -> init
-            | _ -> initValue
-    
-
-    let getType (typeReplacements: TypeReplacement list) (cd: ColumnDefinition) =
+    let getType (typeReplacements: TypeReplacement list) (cd: SqliteColumnDefinition) =
         match cd.Type with
         | "TEXT" -> "string"
         | "INTEGER" -> "int64"
@@ -215,7 +183,7 @@ module CodeGen =
             | true -> s
             | false -> $"{s} option"
 
-    let getTypeInit (typeReplacements: TypeReplacement list) (cd: ColumnDefinition) =
+    let getTypeInit (typeReplacements: TypeReplacement list) (cd: SqliteColumnDefinition) =
         match cd.NotNull with
         | true ->
             match cd.Type with
@@ -229,216 +197,63 @@ module CodeGen =
                 typeReplacements
                 |> List.fold (fun ts tr -> tr.AttemptInitReplacement(cd.Name, ts)) ts
         | false -> "None"
-  
-    let createRecord (typeReplacements: TypeReplacement list) (includeJsonAttribute: bool) (table: TableDefinition) =
-        let fields =
-            table.Columns
-            |> List.mapi
-                (fun i cd ->
-                    let name =
-                        cd.Name.ToPascalCase()
-                        |> fun n ->
-                            match includeJsonAttribute with
-                            | true -> $"[<JsonPropertyName(\"{n.ToCamelCase()}\")>] {n}"
-                            | false -> n
-                        |> fun n -> $"{n}: {getType typeReplacements cd}"
+      
+    
+    let generatorSettings (profile: Configuration.GeneratorProfile) =
+        ({ Imports = [ "Freql.Core.Common"; "Freql.Sqlite" ]
+           IncludeJsonAttributes = true
+           TypeReplacements =
+               profile.TypeReplacements
+               |> List.ofSeq
+               |> List.map (fun tr -> TypeReplacement.Create tr)
+           TypeHandler = getType
+           TypeInitHandler = getTypeInit
+           NameHandler = fun cd -> cd.Name
+           InsertColumnFilter =
+               fun cd ->
+                   String.Equals(cd.Name, "id", StringComparison.InvariantCulture)
+                   |> not
+           ContextTypeName = "QueryHandler" }: GeneratorSettings<SqliteColumnDefinition>)
 
-                    match i with
-                    | 0 -> $"    {{ {name}"
-                    | _ when i = table.Columns.Length - 1 -> $"      {name} }}"
-                    | _ -> $"      {name}")
+    let createTableDetails (table: SqliteTableDefinition) =
+        ({ Name = table.Name
+           Sql = table.Sql
+           Columns = table.Columns |> List.ofSeq }: TableDetails<SqliteColumnDefinition>)
 
-        (*
-            static member Blank =
-                { Bar = ""
-                  Baz = ""
-                  AnotherOne = ""
-                  OneMoreOneWithALongName = "" }
-        *)
+    /// Generate F# records from a list of MySqlTableDefinition records.
+    let generate (profile: Configuration.GeneratorProfile) (database: SqliteDatabaseDefinition) =
+        database.Tables
+        |> List.ofSeq
+        |> List.map (fun t -> createTableDetails t)
+        |> fun t ->
+            let settings = generatorSettings profile
 
-        let blank =
-            table.Columns
-            |> List.mapi
-                (fun i cd ->
-                    let name = cd.Name.ToPascalCase()
-                    
-                    let content = $"{name} = {getTypeInit typeReplacements cd}"
-                    
-                    match i with
-                    | 0 -> $"        {{ {content}"
-                    | _ when i = table.Columns.Length - 1 -> $"          {content} }}"
-                    | _ -> $"          {content}")
-            |> fun r -> [ "    static member Blank() =" ] @ r
+            createRecords profile settings t
+            @ generateInsertOperations profile settings t
+            |> String.concat Environment.NewLine
 
-        let createSql = [
-            "    static member CreateTableSql() = \"\"\""
-            $"    {table.Sql}" 
-            "    \"\"\""
-        ]
-        
-        let selectFields = table.Columns |> List.map (fun cd -> $"          {cd.Name}") |> String.concat $",{Environment.NewLine}    "
-        
-        let selectSql = [
-            "    static member SelectSql() = \"\"\""
-            $"    SELECT"
-            $"{selectFields}"
-            $"    FROM {table.Name}"
-            "    \"\"\""
-        ]
-        
-        match fields.Length with
-        | 0 -> []
-        | 1 -> [ $"type {table.Name.ToPascalCase()} = {fields.[0].Trim()} }}" ]
-        | _ ->
-            [ $"type {table.Name.ToPascalCase()} ="
-              yield! fields
-              ""
-              yield! blank
-              ""
-              yield! createSql
-              ""
-              yield! selectSql ]
+[<RequireQualifiedAccess>]
+module SqliteDatabaseComparison =
+    
+    open SqliteMetadata
 
-    let indent value (text: string) = $"{String(' ', value * 4)}{text}"
-
-    let indent1 text = indent 1 text
-
-    let createRecords
-        (name: string)
-        (ns: string)
-        (typeReplacements: TypeReplacement list)
-        (includeJsonAttributes: bool)
-        (database: DatabaseDefinition)
-        =
-
-        // Create the core record.
-        let records =
-            database.Tables
-            |> List.map
-                (fun t ->
-                    createRecord typeReplacements includeJsonAttributes t
-                    @ [ "" ])
-            |> List.concat
-            |> List.map indent1
-
-        [ $"namespace {ns}"
-          ""
-          "open System"
-          if includeJsonAttributes then
-              "open System.Text.Json.Serialization"
-          "open Freql.Core.Common"
-          "open Freql.Sqlite"
-          ""
-          $"/// Module generated on {DateTime.UtcNow} (utc) via Freql.Sqlite.Tools."
-          $"module {name} =" ]
-        @ records
-        |> String.concat Environment.NewLine
-
-module StructureComparison =
-
-    open Metadata
-
-    type ColumnDifference =
-        | Type of string * string
-        | DefaultValue of string option * string option
-        | NotNull of bool * bool
-        | PrimaryKey of bool * bool
-
-    type ForeignKeyDifference =
-        | From of string * string
-        | To of string * string
-
-    type TableAlteration =
-        | ColumnRemoved of string
-        | ColumnAdded of string
-        | ColumnAltered of ColumnDifference list
-        | IndexRemoved of string
-        | IndexAdded of string
-        | IndexAltered of string
-        | ForeignKeyRemoved of string
-        | ForeignKeyAdded of string
-        | ForeignKeyAltered of string
-
-    type TableComparisonResult =
-        | TableRemoved of string
-        | TableAdded of string
-        | TableAltered of TableAlteration list
-
-    let compareColumns (colA: ColumnDefinition) (colB: ColumnDefinition) =
-        [ if (colA.Type = colB.Name) |> not then
+    let compareColumns (colA: SqliteColumnDefinition) (colB: SqliteColumnDefinition) =
+        [ if (colA.Type = colB.Type) |> not then
               ColumnDifference.Type(colA.Type, colB.Type)
           if (colA.DefaultValue = colB.DefaultValue) |> not then
               ColumnDifference.DefaultValue(colA.DefaultValue, colB.DefaultValue)
           if (colA.NotNull = colB.NotNull) |> not then
               ColumnDifference.NotNull(colA.NotNull, colB.NotNull)
           if (colA.PrimaryKey = colB.PrimaryKey) |> not then
-              ColumnDifference.PrimaryKey(colA.PrimaryKey, colB.PrimaryKey) ]
+              ColumnDifference.Key(colA.PrimaryKey.ToString() |> Some, colB.PrimaryKey.ToString() |> Some) ]
         |> fun r ->
             match r.IsEmpty with
-            | true -> None
-            | false -> TableAlteration.ColumnAltered r |> Some
+            | true -> ColumnComparisonResult.NoChange(colA.Name)
+            | false -> ColumnComparisonResult.Altered(colA.Name, r)
 
-    let compareForeignKeys (fkA: ForeignKeyDefinition) (fkB: ForeignKeyDefinition) =
-        [ if (fkA.From = fkB.From) |> not then "" ]
-
-    let compareTables (tableA: TableDefinition) (tableB: TableDefinition) =
-        //let tableAMap = tableA.Columns |> List.map (fun cd -> cd.Name, cd) |> Map.ofList
-        let tableBMap =
-            tableB.Columns
-            |> List.map (fun cd -> cd.Name, cd)
-            |> Map.ofList
-
-        tableA.Columns
-        |> List.fold
-            (fun (tbm: Map<string, ColumnDefinition>, (acc: TableAlteration list)) cd ->
-                match tbm.TryFind cd.Name with
-                | Some tb ->
-                    // If found:
-                    // Compare columns.
-                    // Remove from tbm (table b map).
-                    let newTbm = tbm.Remove cd.Name
-
-                    match compareColumns cd tb with
-                    | Some r -> (newTbm, acc @ [ r ])
-                    | None -> (newTbm, acc)
-                | None -> (tbm, acc @ [ TableAlteration.ColumnRemoved cd.Name ]))
-            (tableBMap, [])
-        |> fun (notFound, results) ->
-            results
-            @ (notFound
-               |> Map.toList
-               |> List.map (fun (_, v) -> TableAlteration.ColumnAdded v.Name))
-        |> fun r ->
-            match r.IsEmpty with
-            | true -> None
-            | false -> TableComparisonResult.TableAltered r |> Some
-
-    let compareDatabases (databaseA: DatabaseDefinition) (databaseB: DatabaseDefinition) =
-        let databaseBTableMap =
-            databaseB.Tables
-            |> List.map (fun t -> t.Name, t)
-            |> Map.ofList
-
-        databaseA.Tables
-        |> List.fold
-            (fun (tbm: Map<string, TableDefinition>, (acc: TableComparisonResult list)) td ->
-                match tbm.TryFind td.Name with
-                | Some tb ->
-                    // If found:
-                    // Compare columns.
-                    // Remove from tbm (table b map).
-                    let newTbm = tbm.Remove td.Name
-
-                    match compareTables td tb with
-                    | Some r -> (newTbm, acc @ [ r ])
-                    | None -> (newTbm, acc)
-                | None ->
-                    (tbm,
-                     acc
-                     @ [ TableComparisonResult.TableRemoved td.Name ]))
-            (databaseBTableMap, [])
-        |> fun (notFound, results) ->
-            results
-            @ (notFound
-               |> Map.toList
-               |> List.map (fun (_, v) -> TableComparisonResult.TableAdded v.Name))
+    let settings =
+        ({ GetTables = fun db -> db.Tables |> List.ofSeq
+           GetColumns = fun table -> table.Columns |> List.ofSeq
+           GetTableName = fun table -> table.Name
+           GetColumnName = fun col -> col.Name
+           CompareColumns = compareColumns }: ComparerSettings<SqliteDatabaseDefinition, SqliteTableDefinition, SqliteColumnDefinition>)
