@@ -20,8 +20,8 @@ module MySqlDatabaseComparison =
             | false -> ColumnComparisonResult.Altered(colA.Name, r)
 
     let settings =
-        ({ GetTables = fun db -> db.Tables
-           GetColumns = fun table -> table.Columns
+        ({ GetTables = fun db -> db.Tables |> List.ofSeq
+           GetColumns = fun table -> table.Columns |> List.ofSeq
            GetTableName = fun table -> table.Name
            GetColumnName = fun col -> col.Name
            CompareColumns = compareColumns }: ComparerSettings<MySqlDatabaseDefinition, MySqlTableDefinition, MySqlColumnDefinition>)

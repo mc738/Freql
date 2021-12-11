@@ -383,6 +383,14 @@ type QueryHandler(connection: SqliteConnection, transaction: SqliteTransaction o
 
         QueryHandler(conn, None)
 
+    static member Connect(connectionString: string) =
+
+        use conn =
+            new SqliteConnection(connectionString)
+
+        QueryHandler(conn, None)
+
+    
     member _.Close() =
        connection.Close()
        connection.Dispose()

@@ -8,14 +8,15 @@
     <ItemGroup>
         <Compile Include="Library.fs" />
         <Compile Include="CodeGeneration.fs" />
-        <Compile Include="Test.fs" />
         <Compile Include="DatabaseComparisons.fs" />
         <Compile Include="Metadata.fs" />
+        <Compile Include="DataStore.fs" />
     </ItemGroup>
 
     <ItemGroup>
       <ProjectReference Include="..\Freql.Core\Freql.Core.fsproj" />
       <ProjectReference Include="..\Freql.MySql\Freql.MySql.fsproj" />
+      <ProjectReference Include="..\Freql.Sqlite\Freql.Sqlite.fsproj" />
     </ItemGroup>
 
 </Project>

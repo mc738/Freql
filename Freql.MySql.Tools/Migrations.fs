@@ -10,14 +10,16 @@ module Migrations =
     let generateSql (databaseA: MySqlDatabaseDefinition) (databaseB: MySqlDatabaseDefinition) (diff: TableComparisonResult list) =
         let (tableAMap, tableAForeignKeys) =
             databaseA.Tables
-            |> List.fold (fun (mapAcc, fkAcc) t -> mapAcc @ [t.Name, t], fkAcc @  t.ForeignKeys) ([], [])
+            |> List.ofSeq
+            |> List.fold (fun (mapAcc, fkAcc) t -> mapAcc @ [t.Name, t], fkAcc @  (t.ForeignKeys |> List.ofSeq)) ([], [])
             |> fun (kv, fkc) ->
                 kv |> Map.ofList, fkc
         
         
         let (tableBMap, tableBForeignKeys) =
             databaseB.Tables
-            |> List.fold (fun (mapAcc, fkAcc) t -> mapAcc @ [t.Name, t], fkAcc @  t.ForeignKeys) ([], [])
+            |> List.ofSeq
+            |> List.fold (fun (mapAcc, fkAcc) t -> mapAcc @ [t.Name, t], fkAcc @  (t.ForeignKeys |> List.ofSeq)) ([], [])
             |> fun (kv, fkc) ->
                 kv |> Map.ofList, fkc
                 
@@ -33,6 +35,7 @@ module Migrations =
                     | Some table ->
                         let colMap =
                             table.Columns
+                            |> List.ofSeq
                             |> List.map (fun r -> r.Name, r)
                             |> Map.ofList
 

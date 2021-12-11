@@ -9,8 +9,6 @@ open System.Text.Json
 open System.Text.Json.Serialization
 open Freql.Core.Common.Mapping
 open Freql.MySql
-open Freql.Sqlite.Tools.CodeGen
-open Freql.Sqlite.Tools.Metadata
 open Freql.Tools.CodeGeneration
 open Freql.Tools.CodeGeneration
 
@@ -309,49 +307,41 @@ module MySqlMetaData =
             context.SelectVerbatim<ConstraintRecord, ByName>(sql, { Name = databaseName })
 
     type MySqlPrimaryKey = {
-        Columns: string list
+        [<JsonPropertyName("columns")>] Columns: string seq
     }
     
     type MySqlUniqueKey = {
-        Name: string
-        Columns: string list
+        [<JsonPropertyName("name")>] Name: string
+        [<JsonPropertyName("columns")>] Columns: string seq
     }
     
     type MySqlForeignKey =
-        { Name: string
-          TableName: string
-          ColumnName: string
-          ReferenceTableName: string
-          ReferenceColumnName: string }
+        { [<JsonPropertyName("name")>] Name: string
+          [<JsonPropertyName("tableName")>] TableName: string
+          [<JsonPropertyName("columnName")>] ColumnName: string
+          [<JsonPropertyName("referenceTableName")>] ReferenceTableName: string
+          [<JsonPropertyName("referenceColumnName")>] ReferenceColumnName: string }
 
-    
-    (*
-    type MySqlConstraint =
-        | PrimaryKey of MySqlPrimaryKey
-        | UniqueKey of MySqlUniqueKey
-        | ForeignKey of MySqlForeignKey
-    *)
-    
     type MySqlColumnDefinition =
-        { Name: string
-          NotNull: bool
-          DataType: string
-          ColumnType: string
-          DefaultValue: string option
-          AutoIncrement: bool
-          Key: string option }
+        { [<JsonPropertyName("name")>] Name: string
+          [<JsonPropertyName("notNull")>] NotNull: bool
+          [<JsonPropertyName("dataType")>] DataType: string
+          [<JsonPropertyName("columnType")>] ColumnType: string
+          [<JsonPropertyName("defaultValue")>] DefaultValue: string option
+          [<JsonPropertyName("autoIncrement")>] AutoIncrement: bool
+          [<JsonPropertyName("key")>] Key: string option }
 
     type MySqlTableDefinition =
-        { Name: string
-          Sql: string
-          Columns: MySqlColumnDefinition list
-          PrimaryKey: MySqlPrimaryKey
-          UniqueKeys: MySqlUniqueKey list
-          ForeignKeys: MySqlForeignKey list }
+        { [<JsonPropertyName("name")>] Name: string
+          [<JsonPropertyName("sql")>] Sql: string
+          [<JsonPropertyName("columns")>] Columns: MySqlColumnDefinition seq
+          [<JsonPropertyName("primaryKey")>] PrimaryKey: MySqlPrimaryKey
+          [<JsonPropertyName("uniqueKeys")>] UniqueKeys: MySqlUniqueKey seq
+          [<JsonPropertyName("foreignKeys")>] ForeignKeys: MySqlForeignKey seq }
 
     type MySqlDatabaseDefinition =
-        { Name: string
-          Tables: MySqlTableDefinition list }
+        { [<JsonPropertyName("name")>] Name: string
+          [<JsonPropertyName("tables")>] Tables: MySqlTableDefinition seq }
 
     let get (databaseName: string) (context: MySqlContext) =
         let tables =
@@ -550,11 +540,12 @@ module MySqlCodeGeneration =
     let createTableDetails (table: MySqlTableDefinition) =
         ({ Name = table.Name
            Sql = table.Sql
-           Columns = table.Columns }: TableDetails<MySqlColumnDefinition>)
+           Columns = table.Columns |> List.ofSeq }: TableDetails<MySqlColumnDefinition>)
 
     /// Generate F# records from a list of MySqlTableDefinition records.
     let generate (profile: Configuration.GeneratorProfile) (database: MySqlDatabaseDefinition) =
         database.Tables
+        |> List.ofSeq
         |> List.map (fun t -> createTableDetails t)
         |> fun t ->
             let settings = generatorSettings profile

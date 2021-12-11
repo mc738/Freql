@@ -4,7 +4,7 @@ open System
 open System.Text.RegularExpressions
 open Freql.MySql
 open Freql.Sqlite
-open Freql.Sqlite.Tools.CodeGen
+open Freql.Tools.CodeGeneration
 open Freql.Tools.DatabaseComparisons
 
 

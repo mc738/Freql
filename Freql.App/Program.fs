@@ -5,6 +5,8 @@ open System.Text.Json
 open System.Text.Json.Serialization
 open Freql.MySql
 open Freql.MySql.Tools
+open Freql.Sqlite
+open Freql.Sqlite.Tools
 open Freql.Tools
 open Freql.Tools.CodeGeneration.Configuration
 open Microsoft.Data.Sqlite
@@ -110,6 +112,15 @@ module MySqlActions =
     let generate (databaseName: string) (profile: GeneratorProfile) (context: MySqlContext) =
         MySqlMetaData.get databaseName context
         |> MySqlCodeGeneration.generate profile
+        
+
+[<RequireQualifiedAccess>]
+module SqliteActions =
+    
+    let generate (databaseName: string) (profile: GeneratorProfile) (qh: QueryHandler) =
+        SqliteMetadata.get qh
+        |> SqliteCodeGeneration.generate profile
+        
 
 module GenerationActions =
 
@@ -142,7 +153,16 @@ module GenerationActions =
                             |> save p.OutputPath
                         with
                         | exn -> Error exn.Message
-                    | DatabaseType.Sqlite -> Error "Sqlite code gen not implement yet."
+                    | DatabaseType.Sqlite ->
+                        try
+                            printfn $"{dbc.ConnectionString}"
+                            let context =
+                                QueryHandler.Connect dbc.ConnectionString
+
+                            SqliteActions.generate dbc.Name p context
+                            |> save p.OutputPath
+                        with
+                        | exn -> Error exn.Message
                     | DatabaseType.SqlServer -> Error "SqlServer code gen not implement yet."
                 | Error e, _ -> Error e
                 | _, None -> Error $"Profile not found: `{options.Profile}`"
