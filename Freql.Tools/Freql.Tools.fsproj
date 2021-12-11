@@ -11,6 +11,7 @@
         <Compile Include="DatabaseComparisons.fs" />
         <Compile Include="Metadata.fs" />
         <Compile Include="DataStore.fs" />
+        <Compile Include="Migrations.fs" />
     </ItemGroup>
 
     <ItemGroup>

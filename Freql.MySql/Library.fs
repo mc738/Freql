@@ -271,10 +271,9 @@ module private QueryHelpers =
         r
 
     
-    
-    [<RequireQualifiedAccess>]
     /// Special handling is needed for `INSERT` query to accommodate blobs.
-    /// This module aims to wrap as much of that up to in one place.
+    /// This module aims to wrap as much of that up to in one place.    
+    [<RequireQualifiedAccess>]
     module private Insert =
 
         type InsertBlobCallback = { ColumnName: string; Data: Stream }
