@@ -160,7 +160,7 @@ let main argv =
     
     printDiff diff
         
-    let migration = Freql.MySql.Tools.Migrations.generateSql bar diff
+    let migration = Freql.MySql.Tools.Migrations.generateSql foo bar diff
     
     migration |> List.map (fun m -> printfn $"{m}") |> ignore
     

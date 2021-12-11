@@ -308,18 +308,46 @@ module MySqlMetaData =
 
             context.SelectVerbatim<ConstraintRecord, ByName>(sql, { Name = databaseName })
 
+    type MySqlPrimaryKey = {
+        Columns: string list
+    }
+    
+    type MySqlUniqueKey = {
+        Name: string
+        Columns: string list
+    }
+    
+    type MySqlForeignKey =
+        { Name: string
+          TableName: string
+          ColumnName: string
+          ReferenceTableName: string
+          ReferenceColumnName: string }
+
+    
+    (*
+    type MySqlConstraint =
+        | PrimaryKey of MySqlPrimaryKey
+        | UniqueKey of MySqlUniqueKey
+        | ForeignKey of MySqlForeignKey
+    *)
+    
     type MySqlColumnDefinition =
         { Name: string
           NotNull: bool
           DataType: string
           ColumnType: string
           DefaultValue: string option
+          AutoIncrement: bool
           Key: string option }
 
     type MySqlTableDefinition =
         { Name: string
           Sql: string
-          Columns: MySqlColumnDefinition list }
+          Columns: MySqlColumnDefinition list
+          PrimaryKey: MySqlPrimaryKey
+          UniqueKeys: MySqlUniqueKey list
+          ForeignKeys: MySqlForeignKey list }
 
     type MySqlDatabaseDefinition =
         { Name: string
@@ -329,9 +357,16 @@ module MySqlMetaData =
         let tables =
             let columns = Internal.getColumns databaseName context
 
+            let constraints =
+                Internal.getConstraints databaseName context
+
             Internal.getTableData databaseName context
             |> List.map
                 (fun tr ->
+                    let tableConstraints =
+                        constraints
+                        |> List.filter (fun c -> String.Equals(tr.TableName, c.TableName, StringComparison.Ordinal))
+
                     let tc =
                         columns
                         |> List.filter
@@ -343,20 +378,59 @@ module MySqlMetaData =
                                    DataType = c.DataType
                                    ColumnType = c.ColumnType
                                    DefaultValue = c.ColumnDefault
-                                   Key = c.ColumnKey }: MySqlColumnDefinition))
+                                   Key = c.ColumnKey
+                                   AutoIncrement =
+                                       c.Extra
+                                       |> Option.bind
+                                           (fun e ->
+                                               String.Equals(e, "auto_increment", StringComparison.Ordinal)
+                                               |> Some)
+                                       |> Option.defaultValue false }: MySqlColumnDefinition))
+
+                    let (primaryKey, uniqueKeys, foreignKeys) =
+                        tableConstraints
+                        |> List.fold
+                            (fun (pkAcc, unAcc, fkAcc) con ->
+                                match con.ReferencedTableName, con.ReferenceColumnName, con.ConstraintName with
+                                | Some refTable, Some refCol, _ ->
+                                    ({ Name = con.ConstraintName
+                                       TableName = con.TableName
+                                       ColumnName = con.ColumnName
+                                       ReferenceTableName = refTable
+                                       ReferenceColumnName = refCol }: MySqlForeignKey)
+                                    |> fun fk -> (pkAcc, unAcc, fkAcc @ [ fk ])
+                                | _, _, n when String.Equals(n, "PRIMARY", StringComparison.Ordinal) ->
+                                    (pkAcc @ [ con ], unAcc, fkAcc)
+                                | _ -> (pkAcc, unAcc @ [ con ], fkAcc))
+                            ([], [], [])
+                        |> fun (pks, uks, fks) ->
+                            let pk =
+                                pks
+                                |> List.sortBy (fun pk -> pk.OrdinalPosition)
+                                |> List.map (fun pk -> pk.ColumnName)
+                                |> fun cn -> { Columns = cn }
+                            
+                            let ukc =
+                                uks
+                                |> List.groupBy (fun uk -> uk.ConstraintName)
+                                |> List.map (fun (conName, records) ->
+                                    records
+                                    |> List.sortBy (fun r -> r.OrdinalPosition)
+                                    |> List.map (fun r -> r.ColumnName)
+                                    |> fun cn ->{ Name = conName; Columns = cn })
+                            (pk, ukc, fks)
 
                     ({ Name = tr.TableName
-                       // TODO - MySql creation sql.
                        Sql =
                            Internal.getTableSql tr.TableName context
                            |> Option.bind (fun r -> Some r.Sql)
                            |> Option.defaultValue ""
-                       Columns = tc }: MySqlTableDefinition))
+                       Columns = tc
+                       PrimaryKey = primaryKey
+                       UniqueKeys = uniqueKeys
+                       ForeignKeys = foreignKeys }: MySqlTableDefinition))
 
         ({ Name = databaseName; Tables = tables }: MySqlDatabaseDefinition)
-
-
-
 
 [<RequireQualifiedAccess>]
 module MySqlCodeGeneration =
@@ -412,8 +486,6 @@ module MySqlCodeGeneration =
             | false -> $"{s} option"
 
     let getTypeInit (typeReplacements: TypeReplacement list) (cd: MySqlColumnDefinition) =
-        let b: double = 0.
-
         match cd.NotNull with
         | true ->
             match cd.DataType with
