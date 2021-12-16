@@ -1,4 +1,4 @@
-﻿ module Freql.Core.Utils
+﻿module Freql.Core.Utils
 
 open System
 open System.Text.RegularExpressions

@@ -482,28 +482,24 @@ type QueryHandler(connection: SqliteConnection, transaction: SqliteTransaction o
 type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction option) =
 
     static member Create(path: string) =
-        printfn $"Creating database '{path}'."
         File.WriteAllBytes(path, [||])
 
         use conn =
             new SqliteConnection($"Data Source={path}")
 
-        QueryHandler(conn, None)
+        SqliteContext(conn, None)
 
     static member Open(path: string) =
-        printfn $"Connection to database '{path}'."
-
         use conn =
             new SqliteConnection($"Data Source={path}")
 
-        QueryHandler(conn, None)
+        SqliteContext(conn, None)
 
     static member Connect(connectionString: string) =
-
         use conn =
             new SqliteConnection(connectionString)
 
-        QueryHandler(conn, None)
+        SqliteContext(conn, None)
 
     
     member _.Close() =

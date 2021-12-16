@@ -213,7 +213,7 @@ module SqliteCodeGeneration =
                fun cd ->
                    String.Equals(cd.Name, "id", StringComparison.InvariantCulture)
                    |> not
-           ContextTypeName = "QueryHandler" }: GeneratorSettings<SqliteColumnDefinition>)
+           ContextTypeName = "SqliteContext" }: GeneratorSettings<SqliteColumnDefinition>)
 
     let createTableDetails (table: SqliteTableDefinition) =
         ({ Name = table.Name

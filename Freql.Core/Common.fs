@@ -91,8 +91,8 @@ module Types =
             // Maybe a bit wasteful doing this twice.
             Regex.Match(value, "(?<=Microsoft.FSharp.Core.FSharpOption`1\[\[).+?(?=\,)").Value
 
-    [<RequireQualifiedAccess>]
     /// An internal DU for representing supported types.
+    [<RequireQualifiedAccess>]
     type SupportedType =
         | Boolean
         | Byte
