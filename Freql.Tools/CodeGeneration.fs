@@ -312,7 +312,7 @@ module CodeGeneration =
 
 
         let insertFunction =
-            [ $"let insert{name} (parameters: Add{name}Parameters) (context: {settings.ContextTypeName}) ="
+            [ $"let insert{name} (context: {settings.ContextTypeName}) (parameters: Add{name}Parameters) ="
               $"    context.Insert(\"{table.Name}\", parameters)" ]
 
         [ yield! parametersRecords
