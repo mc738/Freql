@@ -75,7 +75,8 @@ module CodeGeneration =
             { Name: string
               Fields: RecordField list
               IncludeBlank: bool
-              AdditionMethods: string list }
+              AdditionMethods: string list
+              DocumentCommentLines: string list }
 
         let create (profile: Configuration.GeneratorProfile) (record: Record) =
             let fields =
@@ -116,14 +117,13 @@ module CodeGeneration =
             | 0 -> []
             //| 1 -> [ $"type {table.Name.ToPascalCase()} = {fields.[0].Trim()} }}" ]
             | _ ->
-                [ $"type {record.Name.ToPascalCase()} ="
+                [ yield! record.DocumentCommentLines
+                  $"type {record.Name.ToPascalCase()} ="
                   yield! fields
                   ""
                   yield! blank
                   ""
                   yield! record.AdditionMethods ]
-
-
 
     module Functions =
 
@@ -229,7 +229,10 @@ module CodeGeneration =
                  ""
                  yield! selectSql
                  ""
-                 tableName ] }: Records.Record)
+                 tableName ]
+           DocumentCommentLines = [
+               $"/// A record representing a row in the table `{table.Name}`."
+           ] }: Records.Record)
         |> Records.create profile
 
     let indent value (text: string) = $"{String(' ', value * 4)}{text}"
@@ -280,6 +283,39 @@ module CodeGeneration =
     // let insertFoo (parameters: AddFooParameters) (context: MySqlContext) =
     //     context.insert(Records.FooRecord.TableName(), parameters)
 
+    let generateAddParameters<'Col>
+        (profile: Configuration.GeneratorProfile)
+        (settings: GeneratorSettings<'Col>)
+        (table: TableDetails<'Col>)
+        =
+        let name =
+            match profile.TableNameReplacements
+                  |> List.ofSeq
+                  |> List.tryFind (fun tnr -> String.Equals(tnr.Name, table.Name, StringComparison.Ordinal)) with
+            | Some tnr -> $"{tnr.ReplacementName.ToPascalCase()}"
+            | None -> $"{table.Name.ToPascalCase()}"
+
+        //let parametersRecords =
+        table.Columns
+        |> List.filter settings.InsertColumnFilter
+        |> List.map
+            (fun cd ->
+                ({ Name =
+                       settings.NameHandler cd
+                       |> fun n -> n.ToPascalCase()
+                   Type = settings.TypeHandler settings.TypeReplacements cd
+                   Initialization = settings.TypeInitHandler settings.TypeReplacements cd }: Records.RecordField))
+        |> fun f ->
+            ({ Name = $"Add{name}"
+               Fields = f
+               IncludeBlank = true
+               AdditionMethods = []
+               DocumentCommentLines = [
+                   $"/// A record representing the the parameters for inserting a new row in the the table `{table.Name}`."
+               ] }: Records.Record)
+        |> Records.create profile
+
+
     let generateInsertOperation<'Col>
         (profile: Configuration.GeneratorProfile)
         (settings: GeneratorSettings<'Col>)
@@ -293,46 +329,91 @@ module CodeGeneration =
             | Some tnr -> $"{tnr.ReplacementName.ToPascalCase()}"
             | None -> $"{table.Name.ToPascalCase()}"
 
-        let parametersRecords =
-            table.Columns
-            |> List.filter settings.InsertColumnFilter
-            |> List.map
-                (fun cd ->
-                    ({ Name =
-                           settings.NameHandler cd
-                           |> fun n -> n.ToPascalCase()
-                       Type = settings.TypeHandler settings.TypeReplacements cd
-                       Initialization = settings.TypeInitHandler settings.TypeReplacements cd }: Records.RecordField))
-            |> fun f ->
-                ({ Name = $"Add{name}Parameters"
-                   Fields = f
-                   IncludeBlank = true
-                   AdditionMethods = [] }: Records.Record)
-            |> Records.create profile
+        [ $"let insert{name} (context: {settings.ContextTypeName}) (parameters: Parameters.Add{name}) ="
+          $"    context.Insert(\"{table.Name}\", parameters)" ]
+
+    let generateSelectOperation<'Col>
+        (profile: Configuration.GeneratorProfile)
+        (settings: GeneratorSettings<'Col>)
+        (table: TableDetails<'Col>)
+        =
+
+        let name =
+            match profile.TableNameReplacements
+                  |> List.ofSeq
+                  |> List.tryFind (fun tnr -> String.Equals(tnr.Name, table.Name, StringComparison.Ordinal)) with
+            | Some tnr -> $"{tnr.ReplacementName.ToPascalCase()}"
+            | None -> $"{table.Name.ToPascalCase()}"
+
+        let recordName = $"{name}{profile.NameSuffix}"
+
+        [ $"/// Select a `{recordName}` from the table `{table.Name}`."
+          $"/// Internally this calls `context.SelectSingleAnon<{recordName}>` and uses {recordName}.SelectSql()."
+          $"/// The caller can provide extra string lines to create a query and boxed parameters."
+          $"/// It is up to the caller to verify the sql and parameters are correct,"
+          "/// this should be considered an internal function (not exposed in public APIs)."
+          "/// Parameters are assigned names based on their order in 0 indexed array. For example: @0,@1,@2..."
+          $"/// Example: select{recordName} ctx \"WHERE `field` = @0\" [ box `value` ]"
+          $"let select{recordName} (context: {settings.ContextTypeName}) (query: string list) (parameters: obj list) ="
+          $"    let sql = [ {recordName}.SelectSql() ] @ query |> buildSql"
+          $"    context.SelectSingleAnon<{recordName}>(sql, parameters)"
+          ""
+          $"/// Internally this calls `context.SelectAnon<{recordName}>` and uses {recordName}.SelectSql()."
+          $"/// The caller can provide extra string lines to create a query and boxed parameters."
+          $"/// It is up to the caller to verify the sql and parameters are correct,"
+          "/// this should be considered an internal function (not exposed in public APIs)."
+          "/// Parameters are assigned names based on their order in 0 indexed array. For example: @0,@1,@2..."
+          $"/// Example: select{recordName}s ctx \"WHERE `field` = @0\" [ box `value` ]"
+          $"let select{recordName}s (context: {settings.ContextTypeName}) (query: string list) (parameters: obj list) ="
+          $"    let sql = [ {recordName}.SelectSql() ] @ query |> buildSql"
+          $"    context.SelectAnon<{recordName}>(sql, parameters)" ]
 
 
-        let insertFunction =
-            [ $"let insert{name} (context: {settings.ContextTypeName}) (parameters: Add{name}Parameters) ="
-              $"    context.Insert(\"{table.Name}\", parameters)" ]
-
-        [ yield! parametersRecords
-          yield! insertFunction ]
-
-
-    let generateInsertOperations<'Col>
+    let createParameters<'Col>
         (profile: Configuration.GeneratorProfile)
         (settings: GeneratorSettings<'Col>)
         (tables: TableDetails<'Col> list)
         =
 
         // Create the core record.
+        let records =
+            tables
+            |> List.map (fun t -> generateAddParameters profile settings t @ [ "" ])
+            |> List.concat
+            |> List.map indent1
+
+        [ ""
+          $"/// Module generated on {DateTime.UtcNow} (utc) via Freql.Tools."
+          "[<RequireQualifiedAccess>]"
+          "module Parameters =" ]
+        @ records
+
+    let generateOperations<'Col>
+        (profile: Configuration.GeneratorProfile)
+        (settings: GeneratorSettings<'Col>)
+        (tables: TableDetails<'Col> list)
+        =
+
+        let buildSql =
+            "let buildSql (lines: string list) = lines |> String.concat Environment.NewLine"
+
+        // Create the core record.
         let ops =
             tables
             |> List.map
                 (fun t ->
-                    generateInsertOperation profile settings t
-                    @ [ "" ])
+                    [ yield! generateSelectOperation profile settings t
+                      ""
+                      yield! generateInsertOperation profile settings t
+                      "" ])
+            //
             |> List.concat
             |> List.map indent1
 
-        [ $"module Operations =" ] @ ops
+        [ $"/// Module generated on {DateTime.UtcNow} (utc) via Freql.Tools."
+          $"module Operations ="
+          "    open Records"
+          ""
+          indent1 buildSql
+          "" ]
+        @ ops

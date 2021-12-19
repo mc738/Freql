@@ -549,7 +549,10 @@ module MySqlCodeGeneration =
         |> List.map (fun t -> createTableDetails t)
         |> fun t ->
             let settings = generatorSettings profile
-
-            createRecords profile settings t
-            @ generateInsertOperations profile settings t
+            [
+               createRecords profile settings t
+               createParameters profile settings t
+               generateOperations profile settings t
+            ]
+            |> List.concat
             |> String.concat Environment.NewLine

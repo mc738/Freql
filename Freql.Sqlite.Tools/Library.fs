@@ -63,38 +63,60 @@ module SqliteMetadata =
             qh.Select<FunctionRecord>("PRAGMA function_list;")
 
     type SqliteColumnDefinition =
-        { [<JsonPropertyName("cid")>] CID: int
-          [<JsonPropertyName("name")>] Name: string
-          [<JsonPropertyName("type")>] Type: string
-          [<JsonPropertyName("notNull")>]  NotNull: bool
-          [<JsonPropertyName("defaultValue")>] DefaultValue: string option
-          [<JsonPropertyName("primaryKey")>] PrimaryKey: bool }
+        { [<JsonPropertyName("cid")>]
+          CID: int
+          [<JsonPropertyName("name")>]
+          Name: string
+          [<JsonPropertyName("type")>]
+          Type: string
+          [<JsonPropertyName("notNull")>]
+          NotNull: bool
+          [<JsonPropertyName("defaultValue")>]
+          DefaultValue: string option
+          [<JsonPropertyName("primaryKey")>]
+          PrimaryKey: bool }
 
     type SqliteIndexDefinition =
-        { [<JsonPropertyName("tableName")>] TableName: string
-          [<JsonPropertyName("name")>] Name: string
-          [<JsonPropertyName("seqNo")>] SeqNo: int }
+        { [<JsonPropertyName("tableName")>]
+          TableName: string
+          [<JsonPropertyName("name")>]
+          Name: string
+          [<JsonPropertyName("seqNo")>]
+          SeqNo: int }
 
     type SqliteForeignKeyDefinition =
-        { [<JsonPropertyName("id")>] Id: int
-          [<JsonPropertyName("seq")>] Seq: int
-          [<JsonPropertyName("table")>] Table: string
-          [<JsonPropertyName("from")>] From: string
-          [<JsonPropertyName("to")>] To: string
-          [<JsonPropertyName("onUpdate")>] OnUpdate: string
-          [<JsonPropertyName("onDelete")>] OnDelete: string
-          [<JsonPropertyName("match")>] Match: string }
+        { [<JsonPropertyName("id")>]
+          Id: int
+          [<JsonPropertyName("seq")>]
+          Seq: int
+          [<JsonPropertyName("table")>]
+          Table: string
+          [<JsonPropertyName("from")>]
+          From: string
+          [<JsonPropertyName("to")>]
+          To: string
+          [<JsonPropertyName("onUpdate")>]
+          OnUpdate: string
+          [<JsonPropertyName("onDelete")>]
+          OnDelete: string
+          [<JsonPropertyName("match")>]
+          Match: string }
 
     type SqliteTableDefinition =
-        { [<JsonPropertyName("name")>] Name: string
-          [<JsonPropertyName("sql")>] Sql: string
-          [<JsonPropertyName("columns")>] Columns: SqliteColumnDefinition seq
-          [<JsonPropertyName("foreignKeys")>] ForeignKeys: SqliteForeignKeyDefinition seq
-          [<JsonPropertyName("indexes")>] Indexes: SqliteIndexDefinition seq }
+        { [<JsonPropertyName("name")>]
+          Name: string
+          [<JsonPropertyName("sql")>]
+          Sql: string
+          [<JsonPropertyName("columns")>]
+          Columns: SqliteColumnDefinition seq
+          [<JsonPropertyName("foreignKeys")>]
+          ForeignKeys: SqliteForeignKeyDefinition seq
+          [<JsonPropertyName("indexes")>]
+          Indexes: SqliteIndexDefinition seq }
 
-    type SqliteDatabaseDefinition = {
-        [<JsonPropertyName("tables")>] Tables: SqliteTableDefinition seq
-    }
+    type SqliteDatabaseDefinition =
+        { [<JsonPropertyName("tables")>]
+          Tables: SqliteTableDefinition seq }
 
     let createIndexDefinition (tableName: string) (record: Internal.IndexRecord) =
         { TableName = tableName
@@ -163,7 +185,7 @@ module SqliteMetadata =
 
 [<RequireQualifiedAccess>]
 module SqliteCodeGeneration =
-        
+
     open Freql.Tools.CodeGeneration
     open SqliteMetadata
 
@@ -197,8 +219,8 @@ module SqliteCodeGeneration =
                 typeReplacements
                 |> List.fold (fun ts tr -> tr.AttemptInitReplacement(cd.Name, ts)) ts
         | false -> "None"
-      
-    
+
+
     let generatorSettings (profile: Configuration.GeneratorProfile) =
         ({ Imports = [ "Freql.Core.Common"; "Freql.Sqlite" ]
            IncludeJsonAttributes = true
@@ -228,13 +250,15 @@ module SqliteCodeGeneration =
         |> fun t ->
             let settings = generatorSettings profile
 
-            createRecords profile settings t
-            @ generateInsertOperations profile settings t
+            [ createRecords profile settings t
+              createParameters profile settings t
+              generateOperations profile settings t ]
+            |> List.concat
             |> String.concat Environment.NewLine
 
 [<RequireQualifiedAccess>]
 module SqliteDatabaseComparison =
-    
+
     open SqliteMetadata
 
     let compareColumns (colA: SqliteColumnDefinition) (colB: SqliteColumnDefinition) =
