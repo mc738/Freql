@@ -220,8 +220,8 @@ module CodeGeneration =
                match profile.TableNameReplacements
                      |> List.ofSeq
                      |> List.tryFind (fun tnr -> String.Equals(tnr.Name, table.Name, StringComparison.Ordinal)) with
-               | Some tnr -> $"{tnr.ReplacementName.ToPascalCase()}{profile.NameSuffix}"
-               | None -> $"{table.Name.ToPascalCase()}{profile.NameSuffix}"
+               | Some tnr -> $"{tnr.ReplacementName.ToPascalCase()}"
+               | None -> $"{table.Name.ToPascalCase()}"
            Fields = fields
            IncludeBlank = true
            AdditionMethods =
@@ -262,7 +262,8 @@ module CodeGeneration =
               |> List.map (fun i -> $"open {i}")
           ""
           $"/// Module generated on {DateTime.UtcNow} (utc) via Freql.Sqlite.Tools."
-          $"module {profile.ModuleName} =" ]
+          $"[<RequireQualifiedAccess>]"
+          $"module Records =" ]
         @ records
 
 
@@ -306,12 +307,12 @@ module CodeGeneration =
                    Type = settings.TypeHandler settings.TypeReplacements cd
                    Initialization = settings.TypeInitHandler settings.TypeReplacements cd }: Records.RecordField))
         |> fun f ->
-            ({ Name = $"Add{name}"
+            ({ Name = $"New{name}"
                Fields = f
                IncludeBlank = true
                AdditionMethods = []
                DocumentCommentLines = [
-                   $"/// A record representing the the parameters for inserting a new row in the the table `{table.Name}`."
+                   $"/// A record representing a new row in the table `{table.Name}`."
                ] }: Records.Record)
         |> Records.create profile
 
@@ -329,7 +330,7 @@ module CodeGeneration =
             | Some tnr -> $"{tnr.ReplacementName.ToPascalCase()}"
             | None -> $"{table.Name.ToPascalCase()}"
 
-        [ $"let insert{name} (context: {settings.ContextTypeName}) (parameters: Parameters.Add{name}) ="
+        [ $"let insert{name} (context: {settings.ContextTypeName}) (parameters: Parameters.New{name}) ="
           $"    context.Insert(\"{table.Name}\", parameters)" ]
 
     let generateSelectOperation<'Col>
@@ -345,29 +346,28 @@ module CodeGeneration =
             | Some tnr -> $"{tnr.ReplacementName.ToPascalCase()}"
             | None -> $"{table.Name.ToPascalCase()}"
 
-        let recordName = $"{name}{profile.NameSuffix}"
+       
 
-        [ $"/// Select a `{recordName}` from the table `{table.Name}`."
-          $"/// Internally this calls `context.SelectSingleAnon<{recordName}>` and uses {recordName}.SelectSql()."
+        [ $"/// Select a `Records.{name}` from the table `{table.Name}`."
+          $"/// Internally this calls `context.SelectSingleAnon<Records.{name}>` and uses Records.{name}.SelectSql()."
           $"/// The caller can provide extra string lines to create a query and boxed parameters."
           $"/// It is up to the caller to verify the sql and parameters are correct,"
           "/// this should be considered an internal function (not exposed in public APIs)."
           "/// Parameters are assigned names based on their order in 0 indexed array. For example: @0,@1,@2..."
-          $"/// Example: select{recordName} ctx \"WHERE `field` = @0\" [ box `value` ]"
-          $"let select{recordName} (context: {settings.ContextTypeName}) (query: string list) (parameters: obj list) ="
-          $"    let sql = [ {recordName}.SelectSql() ] @ query |> buildSql"
-          $"    context.SelectSingleAnon<{recordName}>(sql, parameters)"
+          $"/// Example: select{name}Record ctx \"WHERE `field` = @0\" [ box `value` ]"
+          $"let select{name}Record (context: {settings.ContextTypeName}) (query: string list) (parameters: obj list) ="
+          $"    let sql = [ Records.{name}.SelectSql() ] @ query |> buildSql"
+          $"    context.SelectSingleAnon<Records.{name}>(sql, parameters)"
           ""
-          $"/// Internally this calls `context.SelectAnon<{recordName}>` and uses {recordName}.SelectSql()."
+          $"/// Internally this calls `context.SelectAnon<Records.{name}>` and uses Records.{name}.SelectSql()."
           $"/// The caller can provide extra string lines to create a query and boxed parameters."
           $"/// It is up to the caller to verify the sql and parameters are correct,"
           "/// this should be considered an internal function (not exposed in public APIs)."
           "/// Parameters are assigned names based on their order in 0 indexed array. For example: @0,@1,@2..."
-          $"/// Example: select{recordName}s ctx \"WHERE `field` = @0\" [ box `value` ]"
-          $"let select{recordName}s (context: {settings.ContextTypeName}) (query: string list) (parameters: obj list) ="
-          $"    let sql = [ {recordName}.SelectSql() ] @ query |> buildSql"
-          $"    context.SelectAnon<{recordName}>(sql, parameters)" ]
-
+          $"/// Example: select{name}Records ctx \"WHERE `field` = @0\" [ box `value` ]"
+          $"let select{name}Records (context: {settings.ContextTypeName}) (query: string list) (parameters: obj list) ="
+          $"    let sql = [ Records.{name}.SelectSql() ] @ query |> buildSql"
+          $"    context.SelectAnon<Records.{name}>(sql, parameters)" ]
 
     let createParameters<'Col>
         (profile: Configuration.GeneratorProfile)
@@ -411,8 +411,8 @@ module CodeGeneration =
             |> List.map indent1
 
         [ $"/// Module generated on {DateTime.UtcNow} (utc) via Freql.Tools."
+          "[<RequireQualifiedAccess>]"
           $"module Operations ="
-          "    open Records"
           ""
           indent1 buildSql
           "" ]
