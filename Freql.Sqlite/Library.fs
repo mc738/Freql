@@ -597,11 +597,15 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
         | _ ->
             transaction.Rollback()
             Error "Could not complete transaction"
-                 
+    
+    /// Execute sql that produces a scalar result.         
     member handler.ExecuteScalar<'T>(sql) =
         QueryHelpers.executeScalar<'T> sql connection transaction
                        
+    /// Execute a bespoke query, it is upto to the caller to provide the sql, the parameters and the result mapping function.
     member handler.Bespoke<'T>(sql, parameters, (mapper: SqliteDataReader -> 'T list)) =
         QueryHelpers.bespoke connection sql  parameters  mapper transaction
-        
+       
+    /// Test the database connection.
+    /// Useful for health checks. 
     member handler.TestConnection() = QueryHelpers.executeScalar<int64> "SELECT 1" connection transaction
