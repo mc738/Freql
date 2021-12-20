@@ -248,9 +248,10 @@ module private QueryHelpers =
 
         mapResults<'T> tMappedObj reader
 
-    [<RequireQualifiedAccess>]
+    
     /// Special handling is needed for `INSERT` query to accommodate blobs.
     /// This module aims to wrap as much of that up to in one place.
+    [<RequireQualifiedAccess>]
     module private Insert =
 
         type InsertBlobCallback = { ColumnName: string; Data: Stream }
@@ -506,28 +507,44 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
        connection.Close()
        connection.Dispose()
     
+    /// Select all items from a table and map them to type 'T.
     member handler.Select<'T> tableName =
         QueryHelpers.selectAll<'T> tableName connection transaction
 
-    /// Select data based on a verbatim sql and parameters.
+    /// Select data based on a verbatim sql and parameters of type 'P.
+    /// Map the result to type 'T.
     member handler.SelectVerbatim<'T, 'P>(sql, parameters) =
         QueryHelpers.select<'T, 'P> sql connection parameters transaction
 
+    /// Select a list of 'T based on an sql string and a list of obj for parameters.
+    /// Parameters will be assigned values @0,@1,@2 etc. based on their position in the list
+    /// when the are parameterized.
     member handler.SelectAnon<'T>(sql, parameters) =
         QueryHelpers.selectAnon<'T> sql connection parameters transaction
-        
-    
+
+    /// Select a single 'T based on an sql string and a list of obj for parameters.
+    /// This will return an optional value.
+    /// Parameters will be assigned values @0,@1,@2 etc. based on their position in the list
+    /// when the are parameterized.    
     member handler.SelectSingleAnon<'T>(sql, parameters) =
         let r = handler.SelectAnon<'T>(sql, parameters)
         match r.Length > 0 with
         | true -> r.Head |> Some
         | false -> None
-           
+
+    /// Select a list of 'T based on an sql string.
+    /// No parameterization will take place with this, it should only be used with static sql strings.           
     member handler.SelectSql<'T> sql =
         QueryHelpers.selectSql<'T>(sql) connection transaction
     
+    /// Select a single 'T from a table.
+    /// This shouldn't really be used, it selects all items from a table and returns the first value.
+    /// It also doesn't error check.
+    [<Obsolete("Not needed and unclear usage.")>]
     member handler.SelectSingle<'T> tableName = handler.Select<'T>(tableName).Head
 
+    /// Select data based on a verbatim sql and parameters of type 'P.
+    /// The first result is mapped to type 'T option.
     member handler.SelectSingleVerbatim<'T, 'P>(sql: string, parameters: 'P) =
         let result = handler.SelectVerbatim<'T, 'P>(sql, parameters)
         
@@ -547,7 +564,8 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
     /// Execute a verbatim non query. The parameters passed will be mapped to the sql query.
     member handler.ExecuteVerbatimNonQuery<'P>(sql: string, parameters: 'P) =
         QueryHelpers.verbatimNonQuery connection sql parameters transaction
-        
+    
+    /// Execute a verbatim anonymous non query. Parameters are provided as an obj list.     
     member handler.ExecuteVerbatimNonQueryAnon(sql: string, parameters: obj list) =
         QueryHelpers.verbatimNonQueryAnon connection sql parameters transaction
     
@@ -561,16 +579,15 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
         |> List.map (fun v -> handler.Insert<'T>(tableName, v))
         |> ignore
 
-
     /// Execute a collection of commands in a transaction.
     /// While a transaction is active on a connection non transaction commands can not be executed.
     /// This is no check for this for this is not thread safe.
     /// Also be warned, this use general error handling so an exception will roll the transaction back.
-    member handler.ExecuteInTransaction<'R>(transactionFn: QueryHandler -> 'R) =
+    member handler.ExecuteInTransaction<'R>(transactionFn: SqliteContext -> 'R) =
         connection.Open()
         use transaction = connection.BeginTransaction()
         
-        let qh = QueryHandler(connection, Some transaction)
+        let qh = SqliteContext(connection, Some transaction)
         
         try
             let r = transactionFn qh

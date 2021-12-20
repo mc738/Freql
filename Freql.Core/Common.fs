@@ -145,20 +145,24 @@ module Types =
 
 module Mapping =
 
+    /// Attribute for declaring a specific column name for a field to be read from. 
     type MappedFieldAttribute(name: string) =
 
         inherit Attribute()
 
         member att.Name = name
 
+    /// Mapped record attribute. Not used.
     type MappedRecordAttribute(name: string) =
 
         inherit Attribute()
 
         member att.Name = name
 
+    /// A indexed field value.
     type FieldValue = { Index: int; Value: obj }
 
+    /// A mapped field, with a name, a mapping name, a index and supported type.
     type MappedField =
         { FieldName: string
           MappingName: string
@@ -167,10 +171,14 @@ module Mapping =
 
         member field.CreateValue(value: obj) = { Index = field.Index; Value = value }
 
+    /// A mapped object, a collection of mapped fields and `Type`.
     type MappedObject =
         { Fields: MappedField list
           Type: Type }
 
+        /// Create a mapped object from type 'T.
+        /// This will check for MappedField attributes.
+        /// If not found, the field names will be converted to `snake_case`.
         static member Create<'T>() =
             let t = typeof<'T>
 
@@ -206,6 +214,8 @@ module Mapping =
 
             { Fields = fields; Type = t }
 
+        /// Create a mapped object from type 'T without checking for MappedField attributes.
+        /// Unless there is a specific reason to use this, MappedObject.Create<'T> is probably better.
         static member CreateNoAtt<'T>() =
             let t = typeof<'T>
 
@@ -221,18 +231,22 @@ module Mapping =
 
             { Fields = fields; Type = t }
 
+        /// Get the fields as a map with the index as key.
         member map.GetIndexedMap() =
             map.Fields
             |> List.map (fun f -> f.Index, f)
             |> Map.ofList
 
+        /// Get the fields as a map with the name as key.
         member map.GetNamedMap() =
             map.Fields
             |> List.map (fun f -> f.MappingName, f)
             |> Map.ofList
 
+    /// F# record building class.
     type RecordBuilder() =
 
+        /// Create a F# record from a list of FieldValue's and a type.
         static member Create<'T>(values: FieldValue list) =
             let t = typeof<'T>
 
@@ -245,8 +259,11 @@ module Mapping =
             let o = FSharpValue.MakeRecord(t, v)
 
             o :?> 'T
-            
+    
+    /// Map parameters of type 'T to a Map<string,obj> based on the MappedField's mapping name.
+    /// This is a useful helper.
     let mapParameters<'T> (mappedObj: MappedObject) (parameters: 'T) =
+        // TODO This could be worth adding a test to.
         mappedObj.Fields
         |> List.sortBy (fun p -> p.Index)
         |> List.map

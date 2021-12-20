@@ -3,12 +3,9 @@
 open System
 open System.Data
 open System.IO
-open System.Text.Json
 open Freql.Core.Common
 open Freql.Core.Common.Mapping
-open MySql.Data
 open Freql.Core.Utils
-open MySql.Data.MySqlClient
 open MySql.Data.MySqlClient
 
 module private QueryHelpers =
@@ -379,28 +376,44 @@ type MySqlContext(connection, transaction) =
 
         MySqlContext(conn, None)
 
+    /// Select all items from a table and map them to type 'T.
     member handler.Select<'T> tableName =
         QueryHelpers.selectAll<'T> tableName connection transaction
 
-    /// Select data based on a verbatim sql and parameters.
+    /// Select data based on a verbatim sql and parameters of type 'P.
+    /// Map the result to type 'T.
     member handler.SelectVerbatim<'T, 'P>(sql, parameters) =
         QueryHelpers.select<'T, 'P> sql connection parameters transaction
 
+    /// Select a list of 'T based on an sql string and a list of obj for parameters.
+    /// Parameters will be assigned values @0,@1,@2 etc. based on their position in the list
+    /// when the are parameterized.
     member handler.SelectAnon<'T>(sql, parameters) =
         QueryHelpers.selectAnon<'T> sql connection parameters transaction
             
+    /// Select a single 'T based on an sql string and a list of obj for parameters.
+    /// This will return an optional value.
+    /// Parameters will be assigned values @0,@1,@2 etc. based on their position in the list
+    /// when the are parameterized.
     member handler.SelectSingleAnon<'T>(sql, parameters) =
         let r = handler.SelectAnon<'T>(sql, parameters)
         match r.Length > 0 with
         | true -> r.Head |> Some
         | false -> None
            
+    /// Select a list of 'T based on an sql string.
+    /// No parameterization will take place with this, it should only be used with static sql strings.
     member handler.SelectSql<'T> sql =
         QueryHelpers.selectSql<'T> (sql) connection transaction
-
     
+    /// Select a single 'T from a table.
+    /// This shouldn't really be used, it selects all items from a table and returns the first value.
+    /// It also doesn't error check.
+    [<Obsolete("Not needed and unclear usage.")>]
     member handler.SelectSingle<'T> tableName = handler.Select<'T>(tableName).Head
-
+    
+    /// Select data based on a verbatim sql and parameters of type 'P.
+    /// The first result is mapped to type 'T option.
     member handler.SelectSingleVerbatim<'T, 'P>(sql: string, parameters: 'P) =
         let result =
             handler.SelectVerbatim<'T, 'P>(sql, parameters)
@@ -409,7 +422,7 @@ type MySqlContext(connection, transaction) =
         | true -> None
         | false -> Some result.Head
 
-    /// Execute a create table query based on a generic record.
+    /// Execute a create table query based on a generic record. 
     member handler.CreateTable<'T>(tableName: string) =
         QueryHelpers.create<'T> tableName connection transaction
 
@@ -440,7 +453,7 @@ type MySqlContext(connection, transaction) =
 
     /// Execute a collection of commands in a transaction.
     /// While a transaction is active on a connection non transaction commands can not be executed.
-    /// This is no check for this for this is not thread safe.
+    /// This is no check for this. Transactions are not is not thread safe.
     /// Also be warned, this use general error handling so an exception will roll the transaction back.
     member handler.ExecuteInTransaction<'R>(transactionFn: MySqlContext -> 'R) =
         if connection.State = ConnectionState.Closed then
@@ -465,10 +478,14 @@ type MySqlContext(connection, transaction) =
             Error $"Could not complete transaction. Error: {exn.Message}"
             
                  
+    /// Execute sql that produces a scalar result.
     member handler.ExecuteScalar<'T>(sql) =
         QueryHelpers.executeScalar<'T> sql connection transaction
                        
+    /// Execute a bespoke query, it is upto to the caller to provide the sql, the parameters and the result mapping function.
     member handler.Bespoke<'T>(sql, parameters, (mapper: MySqlDataReader -> 'T list)) =
         QueryHelpers.bespoke connection sql  parameters  mapper transaction
 
+    /// Test the database connection.
+    /// Useful for health checks.
     member handler.TestConnection() = QueryHelpers.executeScalar<int64> "SELECT 1" connection transaction

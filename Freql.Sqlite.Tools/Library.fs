@@ -220,7 +220,6 @@ module SqliteCodeGeneration =
                 |> List.fold (fun ts tr -> tr.AttemptInitReplacement(cd.Name, ts)) ts
         | false -> "None"
 
-
     let generatorSettings (profile: Configuration.GeneratorProfile) =
         ({ Imports = [ "Freql.Core.Common"; "Freql.Sqlite" ]
            IncludeJsonAttributes = true
