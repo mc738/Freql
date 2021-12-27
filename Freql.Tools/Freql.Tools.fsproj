@@ -12,6 +12,7 @@
         <Compile Include="Metadata.fs" />
         <Compile Include="DataStore.fs" />
         <Compile Include="Migrations.fs" />
+        <Compile Include="Json.fs" />
     </ItemGroup>
 
     <ItemGroup>

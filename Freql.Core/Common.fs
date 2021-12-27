@@ -1,4 +1,4 @@
-﻿module Freql.Core.Common
+﻿namespace Freql.Core.Common
 
 open System
 open System.IO
@@ -143,6 +143,7 @@ module Types =
         static member FromType(typeInfo: Type) =
             SupportedType.FromName(typeInfo.FullName)
 
+/// Mapping functionality.
 module Mapping =
 
     /// Attribute for declaring a specific column name for a field to be read from. 

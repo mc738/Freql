@@ -501,7 +501,6 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
             new SqliteConnection(connectionString)
 
         SqliteContext(conn, None)
-
     
     member _.Close() =
        connection.Close()
