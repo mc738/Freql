@@ -407,9 +407,8 @@ type MySqlContext(connection, transaction) =
         QueryHelpers.selectSql<'T> (sql) connection transaction
     
     /// Select a single 'T from a table.
-    /// This shouldn't really be used, it selects all items from a table and returns the first value.
-    /// It also doesn't error check.
-    [<Obsolete("Not needed and unclear usage.")>]
+    /// This is useful if a table on contains one record. It will return the first from that table.
+    /// Be warned, this will throw an exception if the table is empty.
     member handler.SelectSingle<'T> tableName = handler.Select<'T>(tableName).Head
     
     /// Select data based on a verbatim sql and parameters of type 'P.
