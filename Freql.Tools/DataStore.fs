@@ -156,7 +156,7 @@ module Operations =
               DatabaseType = String.Empty
               CreatedOn = DateTime.UtcNow }
     
-    let insertDatabaseDefinition (parameters: AddDatabaseDefinitionParameters) (context: QueryHandler) =
+    let insertDatabaseDefinition (parameters: AddDatabaseDefinitionParameters) (context: SqliteContext) =
         context.Insert("database_definitions", parameters)
     
     type AddMetadataParameters =
@@ -175,7 +175,7 @@ module Operations =
               MetadataHash = String.Empty
               Verison = 0L }
     
-    let insertMetadata (parameters: AddMetadataParameters) (context: QueryHandler) =
+    let insertMetadata (parameters: AddMetadataParameters) (context: SqliteContext) =
         context.Insert("metadata", parameters)
     
     type AddMigrationParameters =
@@ -202,6 +202,6 @@ module Operations =
               FromReference = String.Empty
               ToReference = String.Empty }
     
-    let insertMigration (parameters: AddMigrationParameters) (context: QueryHandler) =
+    let insertMigration (parameters: AddMigrationParameters) (context: SqliteContext) =
         context.Insert("migrations", parameters)
     
