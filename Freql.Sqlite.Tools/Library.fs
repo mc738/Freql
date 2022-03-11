@@ -44,23 +44,23 @@ module SqliteMetadata =
 
         type IndexRecord = { Seqno: int; Cid: int; Name: string }
 
-        let getMasterRecords (qh: QueryHandler) =
+        let getMasterRecords (ctx: SqliteContext) =
             let sql =
                 "SELECT * FROM sqlite_master ORDER BY name;"
 
-            qh.SelectVerbatim<MasterRecord, unit>(sql, ())
+            ctx.SelectVerbatim<MasterRecord, unit>(sql, ())
 
-        let getTableRecord (name: string) (qh: QueryHandler) =
-            qh.SelectAnon<TableInfoRecord>($"PRAGMA table_info({name});", [ name ])
+        let getTableRecord (name: string) (ctx: SqliteContext) =
+            ctx.SelectAnon<TableInfoRecord>($"PRAGMA table_info({name});", [ name ])
 
-        let getIndexRecord (name: string) (qh: QueryHandler) =
-            qh.SelectSingleAnon<IndexRecord>($"PRAGMA index_info({name});", [ name ])
+        let getIndexRecord (name: string) (ctx: SqliteContext) =
+            ctx.SelectSingleAnon<IndexRecord>($"PRAGMA index_info({name});", [ name ])
 
-        let getForeignKeysRecord (name: string) (qh: QueryHandler) =
-            qh.SelectAnon<ForeignKeyRecord>($"PRAGMA foreign_key_list({name});", [ name ])
+        let getForeignKeysRecord (name: string) (ctx: SqliteContext) =
+            ctx.SelectAnon<ForeignKeyRecord>($"PRAGMA foreign_key_list({name});", [ name ])
 
-        let getFunctionRecords (qh: QueryHandler) =
-            qh.Select<FunctionRecord>("PRAGMA function_list;")
+        let getFunctionRecords (ctx: SqliteContext) =
+            ctx.Select<FunctionRecord>("PRAGMA function_list;")
 
     type SqliteColumnDefinition =
         { [<JsonPropertyName("cid")>]
@@ -123,8 +123,8 @@ module SqliteMetadata =
           Name = record.Name
           SeqNo = record.Seqno }
 
-    let get (qh: QueryHandler) =
-        let masterRecords = Internal.getMasterRecords qh
+    let get (ctx: SqliteContext) =
+        let masterRecords = Internal.getMasterRecords ctx
 
         let tables =
             masterRecords
@@ -146,12 +146,12 @@ module SqliteMetadata =
                     |> List.filter (fun fmr -> fmr.TblName = tmr.TblName)
                     |> List.map
                         (fun fmr ->
-                            match Internal.getIndexRecord fmr.Name qh with
+                            match Internal.getIndexRecord fmr.Name ctx with
                             | Some ir -> createIndexDefinition fmr.TblName ir
                             | None -> failwith $"Missing index record: {fmr.Name}")
 
                 let foreignKeys =
-                    Internal.getForeignKeysRecord tmr.TblName qh
+                    Internal.getForeignKeysRecord tmr.TblName ctx
                     |> List.map
                         (fun fkr ->
                             ({ Id = fkr.Id
@@ -164,7 +164,7 @@ module SqliteMetadata =
                                Match = fkr.Match }: SqliteForeignKeyDefinition))
 
                 let columns =
-                    Internal.getTableRecord tmr.Name qh
+                    Internal.getTableRecord tmr.Name ctx
                     |> List.map
                         (fun tir ->
 

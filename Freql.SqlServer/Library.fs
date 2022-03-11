@@ -103,46 +103,6 @@ module private QueryHelpers =
         let mappedObj = MappedObject.Create<'P>()
         let comm = prepare connection sql mappedObj parameters transaction
         comm.ExecuteNonQuery()
-    
-    let create<'T> (tableName: string) connection transaction =
-        let mappedObj = MappedObject.Create<'T>()
-
-        let columns =
-            mappedObj.Fields
-            |> List.sortBy (fun p -> p.Index)
-            |> List.map
-                (fun f ->
-                    let template (colType: string) = $"{f.MappingName} {colType}"
-
-                    let blobField =
-                        $"{f.MappingName} BLOB, {f.MappingName}_sha256_hash TEXT"
-
-                    match f.Type with
-                    | SupportedType.Boolean -> template "INTEGER"
-                    | SupportedType.Byte -> template "INTEGER"
-                    | SupportedType.Int -> template "INTEGER"
-                    | SupportedType.Short -> template "INTEGER"
-                    | SupportedType.Long -> template "INTEGER"
-                    | SupportedType.Double -> template "REAL"
-                    | SupportedType.Float -> template "REAL"
-                    | SupportedType.Decimal -> template "REAL"
-                    | SupportedType.Char -> template "TEXT"
-                    | SupportedType.String -> template "TEXT"
-                    | SupportedType.DateTime -> template "TEXT"
-                    | SupportedType.Guid -> template "TEXT"
-                    | SupportedType.Blob -> template "BLOB")
-        //| SupportedType.Json -> template "BLOB")
-
-        let columnsString = System.String.Join(',', columns)
-
-        let sql =
-            $"""
-        CREATE TABLE {tableName} ({columnsString});
-        """
-
-        let comm = noParam connection sql transaction
-
-        comm.ExecuteNonQuery()
 
     let selectAll<'T> (tableName: string) connection transaction =
         let mappedObj = MappedObject.Create<'T>()
@@ -186,9 +146,9 @@ module private QueryHelpers =
 
         mapResults<'T> tMappedObj reader
 
-    [<RequireQualifiedAccess>]
     /// Special handling is needed for `INSERT` query to accommodate blobs.
     /// This module aims to wrap as much of that up to in one place.
+    [<RequireQualifiedAccess>]
     module private Insert =
 
         type InsertBlobCallback = { ColumnName: string; Data: Stream }
@@ -300,10 +260,6 @@ type QueryHandler(connection, transaction) =
                 parameters
             )
             .Head
-
-    /// Execute a create table query based on a generic record.
-    member handler.CreateTable<'T>(tableName: string) =
-        QueryHelpers.create<'T> tableName connection transaction
 
     /// Execute a raw sql non query. What is passed as a parameters is what will be executed.
     /// WARNING: do not used with untrusted input.

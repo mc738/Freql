@@ -117,8 +117,8 @@ module MySqlActions =
 [<RequireQualifiedAccess>]
 module SqliteActions =
     
-    let generate (databaseName: string) (profile: GeneratorProfile) (qh: QueryHandler) =
-        SqliteMetadata.get qh
+    let generate (databaseName: string) (profile: GeneratorProfile) (ctx: SqliteContext) =
+        SqliteMetadata.get ctx
         |> SqliteCodeGeneration.generate profile
         
 
@@ -157,7 +157,7 @@ module GenerationActions =
                         try
                             printfn $"{dbc.ConnectionString}"
                             let context =
-                                QueryHandler.Connect dbc.ConnectionString
+                                SqliteContext.Connect dbc.ConnectionString
 
                             SqliteActions.generate dbc.Name p context
                             |> save p.OutputPath
