@@ -442,4 +442,4 @@ type MySqlContext(connection, transaction) =
 
     /// Test the database connection.
     /// Useful for health checks.
-    member handler.TestConnection() = QueryHelpers.executeScalar<int64> "SELECT 1" connection transaction
+    member handler.TestConnection() = QueryHelpers.executeScalar<int> "SELECT 1" connection transaction
