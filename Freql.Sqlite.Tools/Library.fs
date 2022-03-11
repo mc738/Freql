@@ -230,10 +230,12 @@ module SqliteCodeGeneration =
            TypeHandler = getType
            TypeInitHandler = getTypeInit
            NameHandler = fun cd -> cd.Name
-           InsertColumnFilter =
+           InsertColumnFilter = fun _ -> true
+               (* TODO make this config
                fun cd ->
                    String.Equals(cd.Name, "id", StringComparison.InvariantCulture)
                    |> not
+               *)
            ContextTypeName = "SqliteContext" }: GeneratorSettings<SqliteColumnDefinition>)
 
     let createTableDetails (table: SqliteTableDefinition) =

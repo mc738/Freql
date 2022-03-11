@@ -142,11 +142,22 @@ let printDiff (results: TableComparisonResult list) =
         | TableComparisonResultType.NoChange ->
             printfn $"  Table `{t.Name}` unaltered.")
     |> ignore
-    
+
+
+type Name = {
+    Foo: string
+    Bar: int
+    Baz: string option
+}    
 
 [<EntryPoint>]
 let main argv =
 
+    let ctx = SqliteContext.Create("C:\\ProjectData\\Freql\\test.db")
+    
+    ctx.CreateTable<Name>("test_table") |> ignore
+    
+    
     let context1 = MySqlContext.Connect("Server=localhost;Database=test_db_1;Uid=max;Pwd=letmein;")
     let context2 = MySqlContext.Connect("Server=localhost;Database=test_db_2;Uid=max;Pwd=letmein;")
     

@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Freql - {{name}}</title>
+    <link href="../css/style.css" rel="stylesheet">
+    <script src="https://kit.fontawesome.com/f5ae0cbcfc.js" crossorigin="anonymous"></script>
+</head>
+<body>
+<nav>
+    <div class="logo">
+        <a href="/" style="display: flex;">
+            <h1><span class="logo-title">Name</span>
+                <code class="logo-version">{{version}}</code>
+            </h1>
+        </a>
+    </div>
+    <div class="nav-links">
+        <a style="padding: 1rem;" href="./about.html">About</a>
+        <div class="gh-link">
+            <a href="https://github.com/mc738/TestRepo">
+                <span><i class="fab fa-github" style="font-size: 30px;"></i></span>
+            </a>
+        </div>
+        <div class="dropdown">
+            <button class="dropbtn">Settings</button>
+            <div class="dropdown-content">
+                <div class="theme-switch-wrapper">
+                    <label class="theme-switch" for="checkbox">
+                        <input type="checkbox" id="checkbox" />
+                        <div class="slider round"></div>
+                    </label>
+                    <p>Dark mode.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</nav>
+<div class="parallax">
+    <div class="page-title">
+        <h1>{{name}}</h1>
+    </div>
+</div>
+<main>
+    <article>
+        <p>{{summary}}</p>
+        <details open>
+            <summary><h2>Properties</h2></summary>
+            <div>
+            </div>
+        </details>
+        <details open>
+            <summary><h2>Methods</h2></summary>
+            <div>
+ {{#methods}}
+                <section id={{id}}>
+                    <h3>{{name}}</h3>
+                    <code>{{signature}}</code>
+                    <p>{{summary}}</p>
+                    <h4>Returns</h4>
+                    <p>{{returns}}</p>
+                    <h4>Parameters</h4>
+<table>
+                    <thead>
+                        <tr>
+                            <th style="width: 33%;">Name</th>
+                            <th style="width: 33%;">Type</th>
+                            <th style="width: 33%;">Comments</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+{{#parameters}}
+                        <tr>
+                            <td>{{name}}</td>
+                            <td><code>{{type}}</code></td>
+                            <td>{{document}}</td>
+                        </tr>
+{{/parameters}}
+{{^parameters}}
+                        <tr>
+                            <td><small>None</small></td>
+                        </tr>
+{{/parameters}}
+                    </tbody>
+                    </table>
+                </section>
+ {{/methods}}               
+
+            </div>
+        </details>
+
+    
+    </article>
+    <div class="dv"></div>
+    <h1>Issues/feedback</h1>
+    <p>Any issues/feedback? Simply open an <a href="{{repoUrl}}/issues/">issue</a>.</p>
+</main>
+<div class="parallax-end {{titleSlug}}"></div>
+<footer>
+    {{&thanks}}
+    <small>Page generated on: {{now}} with <a href='https://github.com/mc738/FDOM'>FDOM</a></small>
+</footer>
+<script src="../js/index.js"></script>
+</body>
+</html>
+{{end}}

@@ -2,18 +2,18 @@
 
 **foo**
 
-* id
-* name
+* `id`
+* `name`
 
 **bar**
 
-* id
-* name
-* foo_id
+* `id`
+* `name`
+* `foo_id`
 
 and matching records:
 
-```f#
+```
 type Foo =
     { Id: int
       Name: string }
@@ -37,7 +37,8 @@ The query with parameterize the values based on their position in the list (0 ba
 For example the first item will be `@0`, the second `@1` and so on.
 
 MySql:
-```f#
+
+```
 open Freql.MySql
 
 // ,,,
@@ -53,6 +54,7 @@ let getFoo (context: MySqlContext) (id: int) =
 
 
 Sqlite:
+
 ```f#
 open Freql.Sqlite
 
@@ -72,6 +74,7 @@ let getFoo (context: SqliteContext) (id: int) =
 The sql for inserts are generated automatically based on the record provided.
 
 MySql:
+
 ```f#
 open Freql.MySql
 
@@ -82,6 +85,7 @@ let addFoo (context: MySqlContext) (foo: Foo) =
 ```
 
 MySql:
+
 ```f#
 open Freql.Sqlite
 
@@ -90,3 +94,5 @@ open Freql.Sqlite
 let addFoo (context: SqliteContext) (foo: Foo) =
     context.Insert("foo", foo)
 ```
+
+For version v.0.4.2

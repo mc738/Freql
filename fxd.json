@@ -1,0 +1,122 @@
+{
+    "args": [
+        {
+            "name": "root",
+            "default": "main_template.mustache",
+            "required": true
+        },
+        {
+            "name": "main_template",
+            "default": "Docs\\Templates\\main-template.mustache",
+            "required": true
+        },
+        {
+            "name": "page_template",
+            "default": "Docs\\Templates\\page-template.mustache",
+            "required": true
+        },
+        {
+            "name": "version",
+            "default": "v.0.4.2",
+            "required": true
+        }
+    ],
+    "metadata": [
+        {
+            "key": "repoUrl",
+            "value": "https://github.com/mc738/Freql"
+        },      
+        {
+            "key": "version",
+            "value": "@version"
+        }
+    ],
+    "directories": [
+        "css",
+        "js",
+        "img"
+    ],
+    "pages": [
+        {
+            "name": "index",
+            "template": "@main_template",
+            "title": "Home",
+            "titleSlug": "home",
+            "output": "index.html",
+            "source": "Docs\\index.md",
+            "metadata": [
+                {
+                    "key": "repoUrl",
+                    "value": "https://github.com/mc738/TestRepo"
+                }
+            ]
+        },
+        {
+            "name": "about",
+            "template": "@page_template",
+            "title": "About",
+            "titleSlug": "about",
+            "output": "about.html",
+            "source": "Docs\\about.md",
+            "metadata": [
+                {
+                    "key": "repoUrl",
+                    "value": "https://github.com/mc738/TestRepo"
+                }
+            ]
+        },
+        {
+            "name": "examples",
+            "template": "@page_template",
+            "title": "Examples",
+            "titleSlug": "examples",
+            "output": "examples.html",
+            "source": "Docs\\examples.md",
+            "metadata": [
+                {
+                    "key": "repoUrl",
+                    "value": "https://github.com/mc738/TestRepo"
+                }
+            ]
+        }
+    ],
+    "codeDocuments": {
+        "namespaceTemplate": "Docs\\Templates\\namespace-template.mustache",
+        "classTemplate": "Docs\\Templates\\class-template.mustache",
+        "recordTemplate": "Docs\\Templates\\record-template.mustache",
+        "unionTemplate": "Docs\\Templates\\union-template.mustache",
+        "functionTemplate": "Docs\\Templates\\function-template.mustache",
+        "moduleTemplate": "Docs\\Templates\\module-template.mustache",
+        "directoryName": "api_reference",
+        "sources": [
+            {
+                "name": "index",
+                "source": "C:\\Users\\44748\\Projects\\Freql\\Freql.Sqlite\\Library.fs",
+                "metadata": [
+                    {
+                        "key": "bg_class",
+                        "value": "bg1"
+                    },
+                    {
+                        "key": "thanks",
+                        "value": "bg1"
+                    }
+                ]
+            }
+        ]
+    },
+    "resources": [
+        {
+            "path": "Docs\\Resources\\css\\style.css",
+            "outputPath": "css\\style.css"
+        },
+        {
+            "path": "Docs\\Resources\\js\\index.js",
+            "outputPath": "js\\index.js"
+        },
+        {
+            "path": "Docs\\Resources\\img\\rob-sheahan-OXiPORaxkmE-unsplash.jpg",
+            "outputPath": "img\\rob-sheahan-OXiPORaxkmE-unsplash.jpg"
+        }
+    ]
+}

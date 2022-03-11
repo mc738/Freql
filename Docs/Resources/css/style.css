@@ -103,6 +103,28 @@ main {
 
 code {
     font-family: var(--mono);
+    background-color: var(--fg2);
+}
+
+summary {
+    display: flex;
+    background-color: var(--fg2);
+    padding: 1rem;
+}
+
+table {
+    width: 100%;
+}
+
+th, td {
+    color: var(--fg);
+    padding: 1rem 0;
+}
+
+th {
+    color: var(--purple);
+    font-size: 0.75rem;
+    text-align: left;
 }
 
 nav {
@@ -260,7 +282,7 @@ footer p {
 }
 
 small {
-    font-style: 0.5rem;
+    font-size: 0.5rem;
     color: grey;
     padding: 0;
 }
