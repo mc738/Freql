@@ -152,47 +152,6 @@ module private QueryHelpers =
         use reader = comm.ExecuteReader()
         mapper reader
 
-    
-    let create<'T> (tableName: string) connection transaction =
-        let mappedObj = MappedObject.Create<'T>()
-
-        let columns =
-            mappedObj.Fields
-            |> List.sortBy (fun p -> p.Index)
-            |> List.map
-                (fun f ->
-                    let template (colType: string) = $"{f.MappingName} {colType}"
-
-                    let blobField =
-                        $"{f.MappingName} BLOB, {f.MappingName}_sha256_hash TEXT"
-
-                    match f.Type with
-                    | SupportedType.Boolean -> template "INTEGER"
-                    | SupportedType.Byte -> template "INTEGER"
-                    | SupportedType.Int -> template "INTEGER"
-                    | SupportedType.Short -> template "INTEGER"
-                    | SupportedType.Long -> template "INTEGER"
-                    | SupportedType.Double -> template "REAL"
-                    | SupportedType.Float -> template "REAL"
-                    | SupportedType.Decimal -> template "REAL"
-                    | SupportedType.Char -> template "TEXT"
-                    | SupportedType.String -> template "TEXT"
-                    | SupportedType.DateTime -> template "TEXT"
-                    | SupportedType.Guid -> template "TEXT"
-                    | SupportedType.Blob -> template "BLOB")
-        //| SupportedType.Json -> template "BLOB")
-
-        let columnsString = System.String.Join(',', columns)
-
-        let sql =
-            $"""
-        CREATE TABLE {tableName} ({columnsString});
-        """
-
-        let comm = noParam connection sql transaction
-
-        comm.ExecuteNonQuery()
-
     let selectAll<'T> (tableName: string) connection transaction =
         let mappedObj = MappedObject.Create<'T>()
 
@@ -421,10 +380,6 @@ type MySqlContext(connection, transaction) =
         | true -> None
         | false -> Some result.Head
 
-    /// Execute a create table query based on a generic record. 
-    member handler.CreateTable<'T>(tableName: string) =
-        QueryHelpers.create<'T> tableName connection transaction
-
     /// Execute a raw sql non query. What is passed as a parameters is what will be executed.
     /// WARNING: do not used with untrusted input.
     member handler.ExecuteSqlNonQuery(sql: string) =
@@ -487,4 +442,4 @@ type MySqlContext(connection, transaction) =
 
     /// Test the database connection.
     /// Useful for health checks.
-    member handler.TestConnection() = QueryHelpers.executeScalar<int64> "SELECT 1" connection transaction
+    member handler.TestConnection() = QueryHelpers.executeScalar<int> "SELECT 1" connection transaction

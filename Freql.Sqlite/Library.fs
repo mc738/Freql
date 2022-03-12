@@ -416,7 +416,7 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
     /// <summary>
     /// Select data based on a verbatim sql and parameters of type 'P.
     /// Map the result to type 'T.
-    /// <summary>
+    /// </summary>
     /// <param name="sql">The sql query to be run</param>
     /// <param name="parameters">A record of type 'P representing query parameters.</param>
     /// <returns>A list of type 'T</returns>
@@ -439,7 +439,7 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
     /// This will return an optional value.
     /// Parameters will be assigned values @0,@1,@2 etc. based on their position in the list
     /// when the are parameterized.
-    /// <summary>
+    /// </summary>
     /// <param name="sql">The sql query to be run</param>
     /// <param name="parameters">A list of objects to be used are query parameters</param>
     /// <returns>An optional 'T</returns>
@@ -470,7 +470,7 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
     /// <summary>
     /// Select data based on a verbatim sql and parameters of type 'P.
     /// The first result is mapped to type 'T option.
-    /// <summary>
+    /// </summary>
     /// <param name="sql">The sql query to be run</param>
     /// <param name="parameters">A record of type 'P representing query parameters.</param>
     /// <returns>An optional 'T</returns>

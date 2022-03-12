@@ -45,18 +45,18 @@ let optionTest _ =
 	);
     """
 
-    let qh =
-        QueryHandler.Create("C:\\ProjectData\\OpenReferralUk\\delete-me.db")
+    let ctx =
+        SqliteContext.Create("C:\\ProjectData\\OpenReferralUk\\delete-me.db")
 
-    qh.ExecuteSqlNonQuery sql |> ignore
+    ctx.ExecuteSqlNonQuery sql |> ignore
 
     [ { Id = 1; Bar = Some "baz" }
       { Id = 2; Bar = None } ]
-    |> List.map (fun b -> qh.Insert("foo", b))
+    |> List.map (fun b -> ctx.Insert("foo", b))
     |> ignore
 
 
-    printfn "%A" (qh.Select<Foo>("foo"))
+    printfn "%A" (ctx.Select<Foo>("foo"))
 
     printfn "%A" (typeof<string option>.FullName |> get)
     printfn "%A" (typeof<int option>.FullName |> get)
@@ -190,10 +190,10 @@ let main argv =
     
     printfn "%A" constraints
     
-    let qh =
-        QueryHandler.Open("C:\\ProjectData\\Fiket\\prototypes\\workspace_v1.db")
+    let ctx =
+        SqliteContext.Open("C:\\ProjectData\\Fiket\\prototypes\\workspace_v1.db")
 
-    let dbd = Metadata.get qh
+    let dbd = Metadata.get ctx
 
     let gen =
         CodeGen.createRecords "Records" "My.Test.App" typeReplacements true dbd
