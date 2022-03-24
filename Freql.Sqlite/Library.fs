@@ -381,19 +381,24 @@ module private QueryHelpers =
 /// <summary>The Sqlite context wraps up the internals of connecting to the database.</summary>
 type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction option) =
 
+    interface IDisposable with
+        
+        member _.Dispose() =
+            connection.Dispose()
+    
     static member Create(path: string) =
         File.WriteAllBytes(path, [||])
 
         use conn =
             new SqliteConnection($"Data Source={path}")
 
-        SqliteContext(conn, None)
+        new SqliteContext(conn, None)
 
     static member Open(path: string) =
         use conn =
             new SqliteConnection($"Data Source={path}")
 
-        SqliteContext(conn, None)
+        new SqliteContext(conn, None)
 
     static member Connect(connectionString: string) =
         use conn =
