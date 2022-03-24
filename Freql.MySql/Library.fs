@@ -213,8 +213,7 @@ module private QueryHelpers =
     let executeScalar<'T>(sql: string) connection transaction =
         let comm = noParam connection sql transaction
         comm.ExecuteScalar() :?> 'T
-       
-    
+         
     let selectSql<'T> (sql: string) connection transaction =
         let tMappedObj = MappedObject.Create<'T>()
 
@@ -335,6 +334,10 @@ type MySqlContext(connection, transaction) =
 
         MySqlContext(conn, None)
 
+    member _.Close() =
+       connection.Close()
+       connection.Dispose()
+    
     /// Select all items from a table and map them to type 'T.
     member handler.Select<'T> tableName =
         QueryHelpers.selectAll<'T> tableName connection transaction
