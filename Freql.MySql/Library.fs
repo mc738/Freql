@@ -213,8 +213,7 @@ module private QueryHelpers =
     let executeScalar<'T>(sql: string) connection transaction =
         let comm = noParam connection sql transaction
         comm.ExecuteScalar() :?> 'T
-       
-    
+         
     let selectSql<'T> (sql: string) connection transaction =
         let tMappedObj = MappedObject.Create<'T>()
 

@@ -274,6 +274,10 @@ type SqlServerContext(connection, transaction) =
 
         SqlServerContext(conn, None)
 
+    member _.Close() =
+       connection.Close()
+       connection.Dispose()
+    
     member handler.Select<'T> tableName =
         QueryHelpers.selectAll<'T> tableName connection transaction
 
