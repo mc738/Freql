@@ -335,6 +335,10 @@ type MySqlContext(connection, transaction) =
 
         MySqlContext(conn, None)
 
+    member _.Close() =
+       connection.Close()
+       connection.Dispose()
+    
     /// Select all items from a table and map them to type 'T.
     member handler.Select<'T> tableName =
         QueryHelpers.selectAll<'T> tableName connection transaction
