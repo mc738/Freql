@@ -1,13 +1,13 @@
 ﻿namespace Freql.SqlServer
 
 open System
+open System.Data
 open System.Data.SqlClient
 open System.IO
 open System.Text.Json
 open Freql.Core.Common
 open Freql.Core.Common.Mapping
 open Freql.Core.Utils
-
 module private QueryHelpers =
 
     let mapParameters<'T> (mappedObj: MappedObject) (parameters: 'T) =
@@ -94,6 +94,23 @@ module private QueryHelpers =
         comm.Prepare()
         comm
 
+    let prepareAnon (connection: SqlConnection) (sql: string) (parameters: obj list) (transaction: SqlTransaction option) =
+        
+        if connection.State = ConnectionState.Closed then
+            connection.Open()
+        
+        use comm =
+            match transaction with
+                | Some t -> new SqlCommand(sql, connection, t)
+                | None -> new SqlCommand(sql, connection)
+       
+        parameters
+        |> List.mapi (fun i v -> comm.Parameters.AddWithValue($"@{i}", v))
+        |> ignore
+
+        comm.Prepare()
+        comm
+    
     let rawNonQuery connection sql transaction =
         let comm =  noParam connection sql transaction
 
@@ -104,6 +121,18 @@ module private QueryHelpers =
         let comm = prepare connection sql mappedObj parameters transaction
         comm.ExecuteNonQuery()
 
+    /// A bespoke query, the caller needs to provide a mapping function. This returns a list of 'T.    
+    let bespoke<'T> connection (sql: string) (parameters: obj list) (mapper: SqlDataReader -> 'T list) transaction  =
+        let comm = prepareAnon connection sql parameters transaction
+        use reader = comm.ExecuteReader()
+        mapper reader
+        
+    /// A bespoke query, the caller needs to provide a mapping function. This returns a single 'T.
+    let bespokeSingle<'T> connection (sql: string) (parameters: obj list) (mapper: SqlDataReader -> 'T) transaction  =
+        let comm = prepareAnon connection sql parameters transaction
+        use reader = comm.ExecuteReader()
+        mapper reader
+    
     let selectAll<'T> (tableName: string) connection transaction =
         let mappedObj = MappedObject.Create<'T>()
 
@@ -137,6 +166,10 @@ module private QueryHelpers =
 
         mapResults<'T> tMappedObj reader
 
+    let executeScalar<'T>(sql: string) connection transaction =
+        let comm = noParam connection sql transaction
+        comm.ExecuteScalar() :?> 'T
+    
     let selectSql<'T> (sql: string) connection transaction =
         let tMappedObj = MappedObject.Create<'T>()
 
@@ -232,14 +265,14 @@ module private QueryHelpers =
 
         Ok rowId
 
-type QueryHandler(connection, transaction) =
+type SqlServerContext(connection, transaction) =
 
     static member Connect(connectionString: string) =
 
         use conn =
             new SqlConnection(connectionString)
 
-        QueryHandler(conn, None)
+        SqlServerContext(conn, None)
 
     member handler.Select<'T> tableName =
         QueryHelpers.selectAll<'T> tableName connection transaction
@@ -285,17 +318,30 @@ type QueryHandler(connection, transaction) =
     /// While a transaction is active on a connection non transaction commands can not be executed.
     /// This is no check for this for this is not thread safe.
     /// Also be warned, this use general error handling so an exception will roll the transaction back.
-    member handler.ExecuteInTransaction<'R>(transactionFn: QueryHandler -> 'R) =
+    member handler.ExecuteInTransaction<'R>(transactionFn: SqlServerContext -> 'R) =
         connection.Open()
         use transaction = connection.BeginTransaction()
         
-        let qh = QueryHandler(connection, Some transaction)
+        let ctx = SqlServerContext(connection, Some transaction)
         
         try
-            let r = transactionFn qh
+            let r = transactionFn ctx
             transaction.Commit()
             Ok r
         with
         | _ ->
             transaction.Rollback()
             Error "Could not complete transaction"
+                          
+    /// Execute sql that produces a scalar result.
+    member handler.ExecuteScalar<'T>(sql) =
+        QueryHelpers.executeScalar<'T> sql connection transaction
+                       
+    /// Execute a bespoke query, it is upto to the caller to provide the sql, the parameters and the result mapping function.
+    member handler.Bespoke<'T>(sql, parameters, (mapper: SqlDataReader -> 'T list)) =
+        QueryHelpers.bespoke connection sql  parameters  mapper transaction
+
+    /// Test the database connection.
+    /// Useful for health checks.
+    member handler.TestConnection() = QueryHelpers.executeScalar<int> "SELECT 1" connection transaction
+    
