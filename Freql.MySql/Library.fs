@@ -92,7 +92,6 @@ module private QueryHelpers =
         if connection.State = ConnectionState.Closed then
             connection.Open()
 
-
         use comm =
             match transaction with
             | Some t -> new MySqlCommand(sql, connection, t)
@@ -329,11 +328,16 @@ module private QueryHelpers =
 
 type MySqlContext(connection, transaction) =
 
+    interface IDisposable with
+        
+        member _.Dispose() =
+            connection.Dispose()
+    
     static member Connect(connectionString: string) =
 
         use conn = new MySqlConnection(connectionString)
 
-        MySqlContext(conn, None)
+        new MySqlContext(conn, None)
 
     /// Select all items from a table and map them to type 'T.
     member handler.Select<'T> tableName =

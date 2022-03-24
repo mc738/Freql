@@ -234,6 +234,11 @@ module private QueryHelpers =
 
 type QueryHandler(connection, transaction) =
 
+    interface IDisposable with
+        
+        member _.Dispose() =
+            connection.Dispose()
+    
     static member Connect(connectionString: string) =
 
         use conn =
