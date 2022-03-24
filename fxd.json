@@ -82,7 +82,7 @@
     ],
     "codeDocuments": {
         "namespaceTemplate": "Docs\\Templates\\namespace-template.mustache",
-        "classTemplate": "Docs\\Templates\\class-template.mustache",
+        "classTemplate": "Docs\\Templates\\class-template-new.mustache",
         "recordTemplate": "Docs\\Templates\\record-template.mustache",
         "unionTemplate": "Docs\\Templates\\union-template.mustache",
         "functionTemplate": "Docs\\Templates\\function-template.mustache",
@@ -107,16 +107,12 @@
     },
     "resources": [
         {
-            "path": "Docs\\Resources\\css\\style.css",
+            "path": "Docs\\Resources\\css\\style-new.css",
             "outputPath": "css\\style.css"
         },
         {
             "path": "Docs\\Resources\\js\\index.js",
             "outputPath": "js\\index.js"
-        },
-        {
-            "path": "Docs\\Resources\\img\\rob-sheahan-OXiPORaxkmE-unsplash.jpg",
-            "outputPath": "img\\rob-sheahan-OXiPORaxkmE-unsplash.jpg"
         }
     ]
 }
