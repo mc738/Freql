@@ -82,7 +82,7 @@
     ],
     "codeDocuments": {
         "namespaceTemplate": "Docs\\Templates\\namespace-template.mustache",
-        "classTemplate": "Docs\\Templates\\class-template-new.mustache",
+        "classTemplate": "Docs\\Templates\\class-template-std.mustache",
         "recordTemplate": "Docs\\Templates\\record-template.mustache",
         "unionTemplate": "Docs\\Templates\\union-template.mustache",
         "functionTemplate": "Docs\\Templates\\function-template.mustache",
@@ -90,7 +90,7 @@
         "directoryName": "api_reference",
         "sources": [
             {
-                "name": "index",
+                "name": "sqlite",
                 "source": "C:\\Users\\44748\\Projects\\Freql\\Freql.Sqlite\\Library.fs",
                 "metadata": [
                     {
@@ -111,8 +111,29 @@
             "outputPath": "css\\style.css"
         },
         {
+            "path": "Docs\\Resources\\css\\main.css",
+            "outputPath": "css\\main.css"
+        },
+        {
             "path": "Docs\\Resources\\js\\index.js",
             "outputPath": "js\\index.js"
+        }
+    ],
+    "indexes": [
+        {
+            "sectionName": "Documents",
+            "type": "pages",
+            "pages": [
+                "about",
+                "examples"
+            ]
+        },
+        {
+            "sectionName": "API reference",
+            "type": "codeDocuments",
+            "pages": [
+                "sqlite"
+            ]
         }
     ]
 }

@@ -378,6 +378,12 @@ module private QueryHelpers =
 
         Insert.handleBlobCallbacks connection tableName callbacks rowId
 
+module NestedModule =
+    
+    module InnerModule =
+        
+        let i = 0
+
 /// <summary>The Sqlite context wraps up the internals of connecting to the database.</summary>
 type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction option) =
 
@@ -574,3 +580,5 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
     /// Useful for health checks.
     /// </summary>
     member handler.TestConnection() = QueryHelpers.executeScalar<int64> "SELECT 1" connection transaction
+    
+    

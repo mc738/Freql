@@ -1,11 +1,13 @@
-﻿All examples assume a data with the following structure:
+﻿# Overview
 
-**foo**
+All examples assume a data with the following structure:
+
+## foo
 
 * `id`
 * `name`
 
-**bar**
+## bar
 
 * `id`
 * `name`
@@ -24,7 +26,7 @@ type Bar =
       FooId: int }
 ```
 
-## Select
+# Select
 
 There are multiple ways to select data, depending on the circumstance.
 
@@ -41,7 +43,7 @@ MySql:
 ```
 open Freql.MySql
 
-// ,,,
+// ...
 
 let getFoos (context: MySqlContext) =
     let sql = "SELECT id, name FROM foo;"
@@ -69,7 +71,7 @@ let getFoo (context: SqliteContext) (id: int) =
     context.SelectSingleAnon<Foo>(sql, [ id ])
 ```
 
-## Insert
+# Insert
 
 The sql for inserts are generated automatically based on the record provided.
 
