@@ -1,9 +1,9 @@
 ﻿// Learn more about F# at http://docs.microsoft.com/dotnet/fsharp
 
 open System
+open System.Diagnostics
 open System.Globalization
 open System.IO
-open System.Runtime.Serialization
 open System.Text
 open System.Text.RegularExpressions
 open Freql.MySql
@@ -11,8 +11,9 @@ open Freql.Sqlite
 open Freql.Tools.CodeGeneration
 open Freql.Tools.DatabaseComparisons
 open Microsoft.FSharp.Core
+open Freql.Csv
+open Freql.Csv.CsvParser
 open Microsoft.FSharp.Reflection
-
 
 // Convert an obj to amd obj option.
 let (|SomeObj|_|) =
@@ -150,214 +151,61 @@ type Name =
       Bar: int
       Baz: string option }
 
-module Csv =
-
-    type FormatAttribute(format: string) =
-
-        inherit Attribute()
-
-        member att.Format = format
-
-    
-    module Parsing =
-
-        let inBounds (input: string) i = i >= 0 && i < input.Length
-
-        let getChar (input: string) i =
-            match inBounds input i with
-            | true -> Some input.[i]
-            | false -> None
-
-        let readUntilChar (input: string) (c: Char) (start: int) (sb: StringBuilder) =
-            let rec read i (sb: StringBuilder) =
-                match getChar input i with
-                | Some r when r = '"' && getChar input (i + 1) = Some '"' -> read (i + 2) <| sb.Append('"')
-                | Some r when r = c -> Some <| (sb.ToString(), i)
-                | Some r -> read (i + 1) <| sb.Append(r)
-                | None -> Some <| (sb.ToString(), i + 1)
-
-            read start sb
-
-    module Records =
-        
-        open Freql.Core.Common.Types
-
-        (*
-        type RecordField =
-            { Index: int
-              Type: SupportedType
-              Format: string option }
-
-
-        type RecordDefinition =
-            { Fields: RecordField list
-              Type: Type }
-            
-            static member Create<'T>() =
-                let t = typeof<'T>
-                
-                let fields =
-                    t.GetProperties()
-                    |> List.ofSeq
-                    |> List.mapi
-                        (fun i pi ->
-                            // Look for format field.
-                             match Attribute.GetCustomAttribute(pi, typeof<FormatAttribute>) with
-                             | att when att <> null ->
-                                 let fa = att :?> FormatAttribute
-
-                                 {
-                                     Index = i
-                                     Type = SupportedType.FromType(pi.PropertyType)
-                                     Format = Some fa.Format
-                                 }
-                             | _ ->
-                                 {
-                                     Index = i
-                                     Type = SupportedType.FromType(pi.PropertyType)
-                                     Format = None
-                                 }
-                            )
-                {
-                    Fields = fields
-                    Type = t
-                }
-        *)    
-        let tryGetAtIndex (values: string array) (i: int) =
-            match i >= 0 && i < values.Length with
-            | true -> Some values.[i]
-            | false -> None
-            
-        //type Field = { Index: int; Value: obj }
-         
-        
-        let createRecord<'T> (values: string list) =
-            //let definition = RecordDefinition.Create<'T>()
-            
-            let getValue = values |> Array.ofList |> tryGetAtIndex
-            
-            
-            let t = typeof<'T>
-                
-            let values =
-                t.GetProperties()
-                |> List.ofSeq
-                |> List.mapi
-                    (fun i pi ->
-                         // Look for format field.
-                         let format =
-                             match Attribute.GetCustomAttribute(pi, typeof<FormatAttribute>) with
-                             | att when att <> null -> Some <| (att :?> FormatAttribute).Format
-                             | _ -> None
-                         
-                         let t = SupportedType.FromType(pi.PropertyType)
-                         
-                         //let value =
-                         match getValue i, t with
-                         | Some v, SupportedType.Blob -> failwith ""
-                         | Some v, SupportedType.Boolean -> bool.Parse v :> obj
-                         | Some v, SupportedType.Byte -> Byte.Parse v :> obj
-                         | Some v, SupportedType.Char -> v.[0] :> obj
-                         | Some v, SupportedType.Decimal -> Decimal.Parse v :> obj
-                         | Some v, SupportedType.Double -> Double.TryParse v :> obj
-                         | Some v, SupportedType.DateTime ->
-                             match format with
-                             | Some f -> DateTime.ParseExact(v, f, CultureInfo.InvariantCulture)
-                             | None -> DateTime.Parse(v)
-                             :> obj
-                         | Some v, SupportedType.Float -> failwith "" // Double.TryParse v :> obj
-                         | Some v, SupportedType.Guid ->
-                             match format with
-                             | Some f -> Guid.ParseExact(v, f)
-                             | None -> Guid.Parse(v)
-                             :> obj
-                         | Some v, SupportedType.Int -> Int32.Parse v :> obj
-                         | Some v, SupportedType.Long -> Int64.Parse v :> obj
-                         | Some v, SupportedType.Option _ -> failwith ""
-                         | Some v, SupportedType.Short -> Int16.Parse v :> obj
-                         | Some v, SupportedType.String -> v :> obj
-                         | None, _ -> failwith ""
-                        )
-            
-            let o = FSharpValue.MakeRecord(t, values |> Array.ofList)
-
-            o :?> 'T
-             
-
-    let parseLine (input: string) =
-        let sb = StringBuilder()
-
-        let rec readBlock (i, sb: StringBuilder, acc: string list) =
-
-            match Parsing.getChar input i with
-            | Some c when c = '"' ->
-                match Parsing.readUntilChar input '"' (i + 1) sb with
-                | Some (r, i) ->
-                    // Plus 2 to skip end " and ,
-                    readBlock (i + 2, sb.Clear(), acc @ [ r ])
-                | None -> acc
-            // Read until " (not delimited).
-            | Some _ ->
-                match Parsing.readUntilChar input ',' i sb with
-                | Some (r, i) -> readBlock (i + 1, sb.Clear(), acc @ [ r ])
-                | None -> acc
-            | None -> acc
-
-        readBlock (0, sb, [])
-
-open Csv
-
-type CustomerPurchase = {
-    RowId: int
-    OrderId: string
-    [<Format("M/d/yyyy")>]
-    OrderDate: DateTime
-    [<Format("M/d/yyyy")>]
-    ShipDate: DateTime
-    ShipMode: string
-    CustomerId: string
-    CustomerName: string
-    Segment: string
-    Country: string
-    City: string
-    State: string
-    PostalCode: string
-    Region: string
-    ProductId: string
-    Category: string
-    SubCategory: string
-    ProductName: string
-    Sales: decimal
-    Quantity: int
-    Discount: decimal
-    Profit: decimal
-}
+type CustomerPurchase =
+    { RowId: int
+      OrderId: string
+      [<CsvValueFormat("M/d/yyyy")>]
+      OrderDate: DateTime
+      [<CsvValueFormat("M/d/yyyy")>]
+      ShipDate: DateTime
+      ShipMode: string
+      CustomerId: string
+      CustomerName: string
+      Segment: string
+      Country: string
+      City: string
+      State: string
+      PostalCode: string
+      Region: string
+      ProductId: string
+      Category: string
+      SubCategory: string
+      ProductName: string
+      Sales: decimal
+      Quantity: int
+      Discount: decimal
+      Profit: decimal }
 
 [<EntryPoint>]
 let main argv =
 
-    let r =
-        DateTime.ParseExact("5/4/2017", "M/d/yyyy", CultureInfo.InvariantCulture)
-
-
-    // CSV line
-    let line =
-        """9994,CA-2017-119914,5/4/2017,5/9/2017,Second Class,CC-12220,Chris Cortes,Consumer,United States,Westminster,California,92683,West,OFF-AP-10002684,Office Supplies,Appliances,"Acco 7-Outlet Masterpiece Power Center, Wihtout Fax/Phone Line Protection",243.16,2,0,72.948"""
-
-    let line2 =
-        "9993,CA-2017-121258,2/26/2017,3/3/2017,Standard Class,DB-13060,Dave Brooks,Consumer,United States,Costa Mesa,California,92627,West,OFF-PA-10004041,Office Supplies,Paper,\"It's Hot Message Books with Stickers, 2 3/4\"\" x 5\"\"\",29.6,4,0,13.32"
-
-    let r = Csv.parseLine line |> Records.createRecord<CustomerPurchase>
-    let r2 = Csv.parseLine line2 |> Records.createRecord<CustomerPurchase>
+    //let r = CsvParser.parseFile true "C:\\ProjectData\\DataSets\\SuperStore\\Sample - Superstore.csv" 
+    
+    //let t = CsvParser2.parseFile<CustomerPurchase> true "C:\\ProjectData\\DataSets\\SuperStore\\Sample - Superstore.csv" 
+    
+    let (items, errors) =
+        parseFile<CustomerPurchase> true "C:\\ProjectData\\DataSets\\SuperStore\\Sample - Superstore.csv"
+        |> splitResults
 
     // Read line char by char.
 
     // If char
-
-
+    
+    let fiftyPercentProfile = items |> List.filter (fun i -> i.Profit >= (i.Sales / 100m) * 45m)
+    
+    fiftyPercentProfile
+    |> List.iter (fun i -> printfn $"{i.Category} - {i.ProductName} {i.Sales} ({i.Profit} {(i.Profit / i.Sales) * 100m}%%)")
+    
+    printfn ""
+    printfn "# Losses"
+    printfn ""
+    
+    items |> List.filter (fun i -> i.Profit <= 0m) |> List.iter (fun i -> printfn $"{i.Category} - {i.ProductName} {i.Sales} ({i.Profit} {(i.Profit / i.Sales) * 100m}%%)")
+    
     let ctx =
         SqliteContext.Create("C:\\ProjectData\\Freql\\test.db")
 
+    (*
     ctx.CreateTable<Name>("test_table") |> ignore
 
 
@@ -417,4 +265,5 @@ let main argv =
 
     *)
 
+    *)
     0 // return an integer exit code
