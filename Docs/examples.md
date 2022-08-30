@@ -15,7 +15,7 @@ All examples assume a data with the following structure:
 
 and matching records:
 
-```
+```fsharp
 type Foo =
     { Id: int
       Name: string }
@@ -40,7 +40,7 @@ For example the first item will be `@0`, the second `@1` and so on.
 
 MySql:
 
-```
+```fsharp
 open Freql.MySql
 
 // ...
@@ -57,10 +57,10 @@ let getFoo (context: MySqlContext) (id: int) =
 
 Sqlite:
 
-```f#
+```fsharp
 open Freql.Sqlite
 
-// ,,,
+// ...
  
 let getFoos (context: SqliteContext) =
     let sql = "SELECT id, name FROM foo;"
@@ -77,10 +77,10 @@ The sql for inserts are generated automatically based on the record provided.
 
 MySql:
 
-```f#
+```fsharp
 open Freql.MySql
 
-// ,,,
+// ...
 
 let addFoo (context: MySqlContext) (foo: Foo) =
     context.Insert("foo", foo)
@@ -88,10 +88,10 @@ let addFoo (context: MySqlContext) (foo: Foo) =
 
 MySql:
 
-```f#
+```fsharp
 open Freql.Sqlite
 
-// ,,,
+// ...
 
 let addFoo (context: SqliteContext) (foo: Foo) =
     context.Insert("foo", foo)

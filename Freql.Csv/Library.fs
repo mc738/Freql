@@ -14,7 +14,7 @@ type CsvValueFormatAttribute(format: string) =
     member att.Format = format
 
 module CsvParser =
-        
+
     module Parsing =
 
         let inBounds (input: string) i = i >= 0 && i < input.Length
@@ -49,7 +49,8 @@ module CsvParser =
         let createRecord<'T> (values: string list) =
             //let definition = RecordDefinition.Create<'T>()
 
-            let getValue = values |> Array.ofList |> tryGetAtIndex
+            let getValue =
+                values |> Array.ofList |> tryGetAtIndex
 
 
             let t = typeof<'T>
@@ -57,41 +58,71 @@ module CsvParser =
             let values =
                 t.GetProperties()
                 |> List.ofSeq
-                |> List.mapi
-                    (fun i pi ->
-                        // Look for format field.
-                        let format =
-                            match Attribute.GetCustomAttribute(pi, typeof<CsvValueFormatAttribute>) with
-                            | att when att <> null -> Some <| (att :?> CsvValueFormatAttribute).Format
-                            | _ -> None
+                |> List.mapi (fun i pi ->
+                    // Look for format field.
+                    let format =
+                        match Attribute.GetCustomAttribute(pi, typeof<CsvValueFormatAttribute>) with
+                        | att when att <> null -> Some <| (att :?> CsvValueFormatAttribute).Format
+                        | _ -> None
 
-                        let t = SupportedType.FromType(pi.PropertyType)
+                    let t =
+                        SupportedType.FromType(pi.PropertyType)
 
-                        //let value =
-                        match getValue i, t with
-                        | Some v, SupportedType.Blob -> failwith ""
-                        | Some v, SupportedType.Boolean -> bool.Parse v :> obj
-                        | Some v, SupportedType.Byte -> Byte.Parse v :> obj
-                        | Some v, SupportedType.Char -> v.[0] :> obj
-                        | Some v, SupportedType.Decimal -> Decimal.Parse v :> obj
-                        | Some v, SupportedType.Double -> Double.TryParse v :> obj
-                        | Some v, SupportedType.DateTime ->
-                            match format with
-                            | Some f -> DateTime.ParseExact(v, f, CultureInfo.InvariantCulture)
-                            | None -> DateTime.Parse(v)
-                            :> obj
-                        | Some v, SupportedType.Float -> failwith "" // Double.TryParse v :> obj
-                        | Some v, SupportedType.Guid ->
-                            match format with
-                            | Some f -> Guid.ParseExact(v, f)
-                            | None -> Guid.Parse(v)
-                            :> obj
-                        | Some v, SupportedType.Int -> Int32.Parse v :> obj
-                        | Some v, SupportedType.Long -> Int64.Parse v :> obj
-                        | Some v, SupportedType.Option _ -> failwith ""
-                        | Some v, SupportedType.Short -> Int16.Parse v :> obj
-                        | Some v, SupportedType.String -> v :> obj
-                        | None, _ -> failwith "")
+                    match getValue i, t with
+                    | Some v, SupportedType.Blob -> failwith "Blob types not supported in CSV."
+                    | Some v, SupportedType.Boolean -> bool.Parse v :> obj
+                    | Some v, SupportedType.Byte -> Byte.Parse v :> obj
+                    | Some v, SupportedType.Char -> v.[0] :> obj
+                    | Some v, SupportedType.Decimal -> Decimal.Parse v :> obj
+                    | Some v, SupportedType.Double -> Double.TryParse v :> obj
+                    | Some v, SupportedType.DateTime ->
+                        match format with
+                        | Some f -> DateTime.ParseExact(v, f, CultureInfo.InvariantCulture)
+                        | None -> DateTime.Parse(v)
+                        :> obj
+                    | Some v, SupportedType.Float -> failwith "" // Double.TryParse v :> obj
+                    | Some v, SupportedType.Guid ->
+                        match format with
+                        | Some f -> Guid.ParseExact(v, f)
+                        | None -> Guid.Parse(v)
+                        :> obj
+                    | Some v, SupportedType.Int -> Int32.Parse v :> obj
+                    | Some v, SupportedType.Long -> Int64.Parse v :> obj
+                    | Some v, SupportedType.Short -> Int16.Parse v :> obj
+                    | Some v, SupportedType.String -> v :> obj
+                    | Some v, SupportedType.Option st ->
+                        // TODO this could be tidied up/ cleaned up
+                        // Note, an error in here will return None. This might not be correct?
+                        try
+                            match v |> String.IsNullOrWhiteSpace |> not, st with
+                            | true, SupportedType.Blob -> failwith "Blob types not supported in CSV."
+                            | true, SupportedType.Boolean -> bool.Parse v |> Some :> obj
+                            | true, SupportedType.Byte -> Byte.Parse v |> Some :> obj
+                            | true, SupportedType.Char -> v.[0] |> Some :> obj
+                            | true, SupportedType.Decimal -> Decimal.Parse v |> Some :> obj
+                            | true, SupportedType.Double -> Double.TryParse v |> Some :> obj
+                            | true, SupportedType.DateTime ->
+                                match format with
+                                | Some f -> DateTime.ParseExact(v, f, CultureInfo.InvariantCulture)
+                                | None -> DateTime.Parse(v)
+                                |> Some
+                                :> obj
+                            | true, SupportedType.Float -> failwith "" // Double.TryParse v :> obj
+                            | true, SupportedType.Guid ->
+                                match format with
+                                | Some f -> Guid.ParseExact(v, f)
+                                | None -> Guid.Parse(v)
+                                |> Some
+                                :> obj
+                            | true, SupportedType.Int -> Int32.Parse v |> Some :> obj
+                            | true, SupportedType.Long -> Int64.Parse v |> Some :> obj
+                            | true, SupportedType.Short -> Int16.Parse v |> Some :> obj
+                            | true, SupportedType.String -> v |> Some :> obj
+                            | _, SupportedType.Option _ -> failwith "Nested option types not supported in CSV."
+                            | false, _ -> None :> obj
+                        with
+                        | _ -> None :> obj
+                    | None, _ -> failwith "")
 
             let o =
                 FSharpValue.MakeRecord(t, values |> Array.ofList)
@@ -128,13 +159,12 @@ module CsvParser =
             match hasHeader with
             | true -> l.Tail
             | false -> l
-        |> List.mapi
-            (fun i l ->
-                try
-                    parseLine l |> Records.createRecord<'T> |> Ok
-                with
-                | exn -> Error { Line = i + 1; Error = exn.Message })
-            
+        |> List.mapi (fun i l ->
+            try
+                parseLine l |> Records.createRecord<'T> |> Ok
+            with
+            | exn -> Error { Line = i + 1; Error = exn.Message })
+
     let splitResults<'T> (results: Result<'T, ParseError> list) =
         results
         |> List.fold

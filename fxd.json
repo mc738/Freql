@@ -117,6 +117,14 @@
         {
             "path": "Docs\\Resources\\js\\index.js",
             "outputPath": "js\\index.js"
+        },
+	{
+            "path": "Docs\\Resources\\js\\prism.js",
+            "outputPath": "js\\prism.js"
+        },
+	{
+            "path": "Docs\\Resources\\css\\prism.css",
+            "outputPath": "css\\prism.css"
         }
     ],
     "indexes": [
