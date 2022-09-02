@@ -17,6 +17,7 @@
     </ItemGroup>
 
     <ItemGroup>
+      <ProjectReference Include="..\Freql.Csv\Freql.Csv.fsproj" />
       <ProjectReference Include="..\Freql.MySql.Tools\Freql.MySql.Tools.fsproj" />
       <ProjectReference Include="..\Freql.Sqlite.Tools\Freql.Sqlite.Tools.fsproj" />
       <ProjectReference Include="..\Freql.Sqlite\Freql.Sqlite.fsproj" />

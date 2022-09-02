@@ -1,11 +1,13 @@
-﻿All examples assume a data with the following structure:
+﻿# Overview
 
-**foo**
+All examples assume a data with the following structure:
+
+## foo
 
 * `id`
 * `name`
 
-**bar**
+## bar
 
 * `id`
 * `name`
@@ -13,7 +15,7 @@
 
 and matching records:
 
-```
+```fsharp
 type Foo =
     { Id: int
       Name: string }
@@ -24,7 +26,7 @@ type Bar =
       FooId: int }
 ```
 
-## Select
+# Select
 
 There are multiple ways to select data, depending on the circumstance.
 
@@ -38,10 +40,10 @@ For example the first item will be `@0`, the second `@1` and so on.
 
 MySql:
 
-```
+```fsharp
 open Freql.MySql
 
-// ,,,
+// ...
 
 let getFoos (context: MySqlContext) =
     let sql = "SELECT id, name FROM foo;"
@@ -55,10 +57,10 @@ let getFoo (context: MySqlContext) (id: int) =
 
 Sqlite:
 
-```f#
+```fsharp
 open Freql.Sqlite
 
-// ,,,
+// ...
  
 let getFoos (context: SqliteContext) =
     let sql = "SELECT id, name FROM foo;"
@@ -69,16 +71,16 @@ let getFoo (context: SqliteContext) (id: int) =
     context.SelectSingleAnon<Foo>(sql, [ id ])
 ```
 
-## Insert
+# Insert
 
 The sql for inserts are generated automatically based on the record provided.
 
 MySql:
 
-```f#
+```fsharp
 open Freql.MySql
 
-// ,,,
+// ...
 
 let addFoo (context: MySqlContext) (foo: Foo) =
     context.Insert("foo", foo)
@@ -86,10 +88,10 @@ let addFoo (context: MySqlContext) (foo: Foo) =
 
 MySql:
 
-```f#
+```fsharp
 open Freql.Sqlite
 
-// ,,,
+// ...
 
 let addFoo (context: SqliteContext) (foo: Foo) =
     context.Insert("foo", foo)
