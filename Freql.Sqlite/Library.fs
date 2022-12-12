@@ -630,6 +630,38 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
             transaction.Rollback()
             Error "Could not complete transaction"
 
+    /// <summary>
+    /// Execute a collection of commands in a transaction.
+    /// While a transaction is active on a connection non transaction commands can not be executed.
+    /// This is no check for this for this is not thread safe.
+    /// Also be warned, this use general error handling so an exception will roll the transaction back.
+    /// Unlike V2, this accepts a function that returns a result. If the result is Error, the transaction will be rolled back.
+    /// This means you no longer have to throw an exception to rollback the transaction.
+    /// </summary>
+    /// <param name="transactionFn">The transaction function to be attempted.</param>
+    member handler.ExecuteInTransactionV2<'R>(transactionFn: SqliteContext -> Result<'R, string>) =
+        connection.Open()
+
+        use transaction =
+            connection.BeginTransaction()
+
+        let qh =
+            SqliteContext(connection, Some transaction)
+
+        try
+            match transactionFn qh with
+            | Ok r ->
+                transaction.Commit()
+                Ok r
+            | Error e ->
+                transaction.Rollback()
+                Error e
+        with
+        | exn ->
+            transaction.Rollback()
+            Error $"Could not complete transaction. Exception: {exn.Message}"
+
+    
     /// Execute sql that produces a scalar result.
     member handler.ExecuteScalar<'T>(sql) =
         QueryHelpers.executeScalar<'T> sql connection transaction
@@ -650,3 +682,10 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
     /// </summary>
     member handler.TestConnection() =
         QueryHelpers.executeScalar<int64> "SELECT 1" connection transaction
+        
+    member handler.Rollback(message: string) =
+        match transaction with
+        | Some t ->
+            t.Rollback()
+            Error message
+        | None -> Error "No active transaction."
