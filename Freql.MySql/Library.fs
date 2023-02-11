@@ -459,7 +459,7 @@ type MySqlContext(connection, transaction) =
     /// This means you no longer have to throw an exception to rollback the transaction.
     /// </summary>
     /// <param name="transactionFn">The transaction function to be attempted.</param>
-    member handler.ExecuteInTransaction<'R>(transactionFn: MySqlContext -> Result<'R, string>) =
+    member handler.ExecuteInTransactionV2<'R>(transactionFn: MySqlContext -> Result<'R, string>) =
         connection.Open()
 
         use transaction =
