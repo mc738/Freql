@@ -79,6 +79,9 @@ module private QueryHelpers =
             | Some t -> new MySqlCommand(sql, connection, t)
             | None -> new MySqlCommand(sql, connection)
 
+        // TODO add ability to set timeout?
+        // comm.CommandTimeout <- 5000
+        
         comm
 
     let prepare<'P>
@@ -103,6 +106,9 @@ module private QueryHelpers =
         |> Map.map (fun k v -> comm.Parameters.AddWithValue(k, v))
         |> ignore
 
+        // TODO add ability to set timeout?
+        // comm.CommandTimeout <- 5000
+        
         comm.Prepare()
         comm
 
@@ -119,13 +125,16 @@ module private QueryHelpers =
         parameters
         |> List.mapi (fun i v -> comm.Parameters.AddWithValue($"@{i}", v))
         |> ignore
+        
+        // TODO add ability to set timeout?
+        // comm.CommandTimeout <- 5000
 
         comm.Prepare()
         comm
 
     let rawNonQuery connection sql transaction =
         let comm = noParam connection sql transaction
-
+        
         comm.ExecuteNonQuery()
 
     let verbatimNonQuery<'P> connection sql (parameters: 'P) transaction =
@@ -133,7 +142,7 @@ module private QueryHelpers =
 
         let comm =
             prepare connection sql mappedObj parameters transaction
-
+        
         comm.ExecuteNonQuery()
 
     let verbatimNonQueryAnon<'P> connection (sql: string) (parameters: obj list) transaction  =
@@ -204,8 +213,7 @@ module private QueryHelpers =
             prepare connection sql pMappedObj parameters transaction
 
         let r = comm.ExecuteScalar()
-        
-        
+                
         use reader = comm.ExecuteReader()
 
         mapResults<'T> tMappedObj reader
@@ -274,7 +282,7 @@ module private QueryHelpers =
                 match transaction with
                 | Some t -> new MySqlCommand(sql, connection, t)
                 | None -> new MySqlCommand(sql, connection)
-
+            
             mappedObj.Fields
             |> List.sortBy (fun p -> p.Index)
             |> List.fold
@@ -301,6 +309,9 @@ module private QueryHelpers =
             |> Map.map (fun k v -> comm.Parameters.AddWithValue(k, v))
             |> ignore
 
+            // TODO add ability to set timeout?
+            // comm.CommandTimeout <- 5000
+            
             comm.Prepare()
             comm
 
@@ -328,11 +339,16 @@ module private QueryHelpers =
 
 type MySqlContext(connection, transaction) =
 
+    interface IDisposable with
+        
+        member ctx.Dispose() =
+            ctx.Close()
+    
     static member Connect(connectionString: string) =
 
         use conn = new MySqlConnection(connectionString)
 
-        MySqlContext(conn, None)
+        new MySqlContext(conn, None)
 
     member _.Close() =
        connection.Close()
@@ -418,8 +434,8 @@ type MySqlContext(connection, transaction) =
 
         use transaction = connection.BeginTransaction()
 
-        let qh =
-            MySqlContext(connection, Some transaction)
+        use qh =
+            new MySqlContext(connection, Some transaction)
 
         try
             let r = transactionFn qh
@@ -434,6 +450,36 @@ type MySqlContext(connection, transaction) =
             transaction.Rollback()
             Error $"Could not complete transaction. Error: {exn.Message}"
             
+    /// <summary>
+    /// Execute a collection of commands in a transaction.
+    /// While a transaction is active on a connection non transaction commands can not be executed.
+    /// This is no check for this for this is not thread safe.
+    /// Also be warned, this use general error handling so an exception will roll the transaction back.
+    /// This accepts a function that returns a result. If the result is Error, the transaction will be rolled back.
+    /// This means you no longer have to throw an exception to rollback the transaction.
+    /// </summary>
+    /// <param name="transactionFn">The transaction function to be attempted.</param>
+    member handler.ExecuteInTransaction<'R>(transactionFn: MySqlContext -> Result<'R, string>) =
+        connection.Open()
+
+        use transaction =
+            connection.BeginTransaction()
+
+        use qh =
+           new MySqlContext(connection, Some transaction)
+
+        try
+            match transactionFn qh with
+            | Ok r ->
+                transaction.Commit()
+                Ok r
+            | Error e ->
+                transaction.Rollback()
+                Error e
+        with
+        | exn ->
+            transaction.Rollback()
+            Error $"Could not complete transaction. Exception: {exn.Message}"
                  
     /// Execute sql that produces a scalar result.
     member handler.ExecuteScalar<'T>(sql) =

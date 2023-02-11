@@ -190,7 +190,7 @@ module SqliteCodeGeneration =
     open SqliteMetadata
 
     let getType (typeReplacements: TypeReplacement list) (cd: SqliteColumnDefinition) =
-        match cd.Type with
+        match cd.Type.ToUpper() with
         | "TEXT" -> "string"
         | "INTEGER" -> "int64"
         | "NUMBER" -> "int64"

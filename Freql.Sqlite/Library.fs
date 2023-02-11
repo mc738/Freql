@@ -2,12 +2,10 @@
 
 open System
 open System.IO
-open System.Text.Json
 open Freql.Core.Common
 open Freql.Core.Common.Mapping
 open Microsoft.Data.Sqlite
 open Freql.Core.Utils
-open Microsoft.Data.Sqlite
 
 module private QueryHelpers =
 
@@ -223,7 +221,7 @@ module private QueryHelpers =
         //| SupportedType.Json -> template "BLOB")
 
         let columnsString =
-            System.String.Join(',', columns)
+            String.Join(',', columns)
 
         let sql =
             $"""
@@ -397,7 +395,7 @@ module private QueryHelpers =
                                   .GetValue(parameters)
                             with
                         | null -> acc @ [ f.MappingName, DBNull.Value :> obj ]
-                        | SomeObj (v1) -> acc @ [ f.MappingName, v1 ]
+                        | SomeObj v1 -> acc @ [ f.MappingName, v1 ]
                         | _ -> acc @ [ f.MappingName, DBNull.Value :> obj ]
                     | _ ->
                         acc
@@ -450,25 +448,30 @@ module private QueryHelpers =
 /// <summary>The Sqlite context wraps up the internals of connecting to the database.</summary>
 type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction option) =
 
+    interface IDisposable with
+        
+        member ctx.Dispose() =
+            ctx.Close()
+    
     static member Create(path: string) =
         File.WriteAllBytes(path, [||])
 
         use conn =
             new SqliteConnection($"Data Source={path}")
 
-        SqliteContext(conn, None)
+        new SqliteContext(conn, None)
 
     static member Open(path: string) =
         use conn =
             new SqliteConnection($"Data Source={path}")
 
-        SqliteContext(conn, None)
+        new SqliteContext(conn, None)
 
     static member Connect(connectionString: string) =
         use conn =
             new SqliteConnection(connectionString)
 
-        SqliteContext(conn, None)
+        new SqliteContext(conn, None)
 
     member _.Close() =
         connection.Close()
@@ -527,7 +530,7 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
     /// <param name="sql">The sql query to be run</param>
     /// <returns>A list of type 'T</returns>
     member handler.SelectSql<'T> sql =
-        QueryHelpers.selectSql<'T> (sql) connection transaction
+        QueryHelpers.selectSql<'T> sql connection transaction
 
     /// <summary>
     /// Select a single 'T from a table.
@@ -618,8 +621,8 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
         use transaction =
             connection.BeginTransaction()
 
-        let qh =
-            SqliteContext(connection, Some transaction)
+        use qh =
+           new SqliteContext(connection, Some transaction)
 
         try
             let r = transactionFn qh
@@ -630,6 +633,38 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
             transaction.Rollback()
             Error "Could not complete transaction"
 
+    /// <summary>
+    /// Execute a collection of commands in a transaction.
+    /// While a transaction is active on a connection non transaction commands can not be executed.
+    /// This is no check for this for this is not thread safe.
+    /// Also be warned, this use general error handling so an exception will roll the transaction back.
+    /// This accepts a function that returns a result. If the result is Error, the transaction will be rolled back.
+    /// This means you no longer have to throw an exception to rollback the transaction.
+    /// </summary>
+    /// <param name="transactionFn">The transaction function to be attempted.</param>
+    member handler.ExecuteInTransaction<'R>(transactionFn: SqliteContext -> Result<'R, string>) =
+        connection.Open()
+
+        use transaction =
+            connection.BeginTransaction()
+
+        use qh =
+           new SqliteContext(connection, Some transaction)
+
+        try
+            match transactionFn qh with
+            | Ok r ->
+                transaction.Commit()
+                Ok r
+            | Error e ->
+                transaction.Rollback()
+                Error e
+        with
+        | exn ->
+            transaction.Rollback()
+            Error $"Could not complete transaction. Exception: {exn.Message}"
+
+    
     /// Execute sql that produces a scalar result.
     member handler.ExecuteScalar<'T>(sql) =
         QueryHelpers.executeScalar<'T> sql connection transaction
@@ -641,7 +676,7 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
     /// <param name="parameters">A list of boxed parameters to be used in the query.</param>
     /// <param name="mapper">A function to handle the result.</param>
     /// <returns>A list of 'T.</returns>
-    member handler.Bespoke<'T>(sql, parameters, (mapper: SqliteDataReader -> 'T list)) =
+    member handler.Bespoke<'T>(sql, parameters, mapper: SqliteDataReader -> 'T list) =
         QueryHelpers.bespoke connection sql parameters mapper transaction
 
     /// <summary>
@@ -650,3 +685,10 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
     /// </summary>
     member handler.TestConnection() =
         QueryHelpers.executeScalar<int64> "SELECT 1" connection transaction
+        
+    member handler.Rollback(message: string) =
+        match transaction with
+        | Some t ->
+            t.Rollback()
+            Error message
+        | None -> Error "No active transaction."
