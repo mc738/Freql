@@ -79,8 +79,8 @@ module private QueryHelpers =
             | Some t -> new MySqlCommand(sql, connection, t)
             | None -> new MySqlCommand(sql, connection)
 
-        // TODO handle properly.
-        comm.CommandTimeout <- 5000
+        // TODO add ability to set timeout?
+        // comm.CommandTimeout <- 5000
         
         comm
 
@@ -106,8 +106,8 @@ module private QueryHelpers =
         |> Map.map (fun k v -> comm.Parameters.AddWithValue(k, v))
         |> ignore
 
-        // TODO handle properly.
-        comm.CommandTimeout <- 5000
+        // TODO add ability to set timeout?
+        // comm.CommandTimeout <- 5000
         
         comm.Prepare()
         comm
@@ -126,8 +126,8 @@ module private QueryHelpers =
         |> List.mapi (fun i v -> comm.Parameters.AddWithValue($"@{i}", v))
         |> ignore
         
-        // TODO handle properly.
-        comm.CommandTimeout <- 5000
+        // TODO add ability to set timeout?
+        // comm.CommandTimeout <- 5000
 
         comm.Prepare()
         comm
@@ -309,8 +309,8 @@ module private QueryHelpers =
             |> Map.map (fun k v -> comm.Parameters.AddWithValue(k, v))
             |> ignore
 
-            // TODO handle properly.
-            comm.CommandTimeout <- 5000
+            // TODO add ability to set timeout?
+            // comm.CommandTimeout <- 5000
             
             comm.Prepare()
             comm
