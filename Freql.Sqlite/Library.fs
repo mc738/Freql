@@ -642,7 +642,7 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
     /// This means you no longer have to throw an exception to rollback the transaction.
     /// </summary>
     /// <param name="transactionFn">The transaction function to be attempted.</param>
-    member handler.ExecuteInTransaction<'R>(transactionFn: SqliteContext -> Result<'R, string>) =
+    member handler.ExecuteInTransactionV2<'R>(transactionFn: SqliteContext -> Result<'R, string>) =
         connection.Open()
 
         use transaction =
