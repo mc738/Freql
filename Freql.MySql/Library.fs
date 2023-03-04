@@ -249,7 +249,27 @@ module private QueryHelpers =
                     (fun (fn, pn) f ->
 
                         match f.Type with
-                        | SupportedType.Blob -> failwith "Blobs not supported in MySql."
+                        | SupportedType.Option SupportedType.Blob ->
+                            
+                            (*
+                            NOTE - example of handling optional blob fields (from Freql.Sqlite)
+                            let value =
+                                (mappedObj.Type.GetProperty(f.FieldName).GetValue(data) :?> BlobField option)
+
+                            match value with
+                            | Some s ->
+                                let callback =
+                                    { ColumnName = f.MappingName
+                                      Data = s.Value }
+
+                                (fn @ [ f.MappingName ], pn @ [ $"ZEROBLOB({s.Value.Length})" ], cb @ [ callback ])
+                            | None -> (fn @ [ f.MappingName ], pn @ [ "NULL" ], cb)
+                            *)
+                            // TODO implement optional blobs for MySql
+                            failwith "Blobs not supported in MySql."
+                        | SupportedType.Blob ->
+                            // TODO implement blobs for MySql
+                            failwith "Blobs not supported in MySql."
                         // Get the blob.
                         | _ -> (fn @ [ f.MappingName ], pn @ [ $"@{f.MappingName}" ]))
                     ([], [])

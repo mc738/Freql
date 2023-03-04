@@ -203,7 +203,7 @@ module CodeGeneration =
 
         let selectFields =
             table.Columns
-            |> List.map (fun cd -> $"          {settings.NameHandler cd}")
+            |> List.map (fun cd -> $"          {table.Name}.`{settings.NameHandler cd}`")
             |> String.concat $",{Environment.NewLine}    "
 
         let selectSql =
