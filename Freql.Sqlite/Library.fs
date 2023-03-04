@@ -13,11 +13,7 @@ module private QueryHelpers =
         mappedObj.Fields
         |> List.sortBy (fun p -> p.Index)
         |> List.map (fun f ->
-            let v =
-                mappedObj
-                    .Type
-                    .GetProperty(f.FieldName)
-                    .GetValue(parameters)
+            let v = mappedObj.Type.GetProperty(f.FieldName).GetValue(parameters)
 
             f.MappingName, v)
         |> Map.ofList
@@ -119,8 +115,7 @@ module private QueryHelpers =
         comm
 
     let rawNonQuery (connection: SqliteConnection) (sql: string) (transaction: SqliteTransaction option) =
-        let comm =
-            noParam connection sql transaction
+        let comm = noParam connection sql transaction
 
         comm.ExecuteNonQuery()
 
@@ -132,8 +127,7 @@ module private QueryHelpers =
         =
         let mappedObj = MappedObject.Create<'P>()
 
-        let comm =
-            prepare connection sql mappedObj parameters transaction
+        let comm = prepare connection sql mappedObj parameters transaction
 
         comm.ExecuteNonQuery()
 
@@ -143,8 +137,7 @@ module private QueryHelpers =
         (parameters: obj list)
         (transaction: SqliteTransaction option)
         =
-        let comm =
-            prepareAnon connection sql parameters transaction
+        let comm = prepareAnon connection sql parameters transaction
 
         comm.ExecuteNonQuery()
 
@@ -156,8 +149,7 @@ module private QueryHelpers =
         (mapper: SqliteDataReader -> 'T list)
         (transaction: SqliteTransaction option)
         =
-        let comm =
-            prepareAnon connection sql parameters transaction
+        let comm = prepareAnon connection sql parameters transaction
 
         use reader = comm.ExecuteReader()
         mapper reader
@@ -170,8 +162,7 @@ module private QueryHelpers =
         (mapper: SqliteDataReader -> 'T)
         (transaction: SqliteTransaction option)
         =
-        let comm =
-            prepareAnon connection sql parameters transaction
+        let comm = prepareAnon connection sql parameters transaction
 
         use reader = comm.ExecuteReader()
         mapper reader
@@ -185,8 +176,7 @@ module private QueryHelpers =
             |> List.map (fun f ->
                 let template (colType: string) = $"{f.MappingName} {colType}"
 
-                let blobField =
-                    $"{f.MappingName} BLOB, {f.MappingName}_sha256_hash TEXT"
+                let blobField = $"{f.MappingName} BLOB, {f.MappingName}_sha256_hash TEXT"
 
                 match f.Type with
                 | SupportedType.Boolean -> template "INTEGER NOT NULL"
@@ -220,16 +210,14 @@ module private QueryHelpers =
                     | SupportedType.Option _ -> failwith "Nested options not supported.")
         //| SupportedType.Json -> template "BLOB")
 
-        let columnsString =
-            String.Join(',', columns)
+        let columnsString = String.Join(',', columns)
 
         let sql =
             $"""
         CREATE TABLE {tableName} ({columnsString});
         """
-        
-        let comm =
-            noParam connection sql transaction
+
+        let comm = noParam connection sql transaction
 
         comm.ExecuteNonQuery()
 
@@ -249,8 +237,7 @@ module private QueryHelpers =
         FROM {tableName}
         """
 
-        let comm =
-            noParam connection sql transaction
+        let comm = noParam connection sql transaction
 
         use reader = comm.ExecuteReader()
 
@@ -265,8 +252,7 @@ module private QueryHelpers =
         let tMappedObj = MappedObject.Create<'T>()
         let pMappedObj = MappedObject.Create<'P>()
 
-        let comm =
-            prepare connection sql pMappedObj parameters transaction
+        let comm = prepare connection sql pMappedObj parameters transaction
 
         use reader = comm.ExecuteReader()
 
@@ -280,8 +266,7 @@ module private QueryHelpers =
         =
         let tMappedObj = MappedObject.Create<'T>()
 
-        let comm =
-            prepareAnon connection sql parameters transaction
+        let comm = prepareAnon connection sql parameters transaction
 
         use reader = comm.ExecuteReader()
 
@@ -296,24 +281,21 @@ module private QueryHelpers =
         let tMappedObj = MappedObject.Create<'T>()
         let pMappedObj = MappedObject.Create<'P>()
 
-        let comm =
-            prepare connection sql pMappedObj parameters transaction
+        let comm = prepare connection sql pMappedObj parameters transaction
 
         use reader = comm.ExecuteReader()
 
         mapResults<'T> tMappedObj reader
 
     let executeScalar<'T> (sql: string) (connection: SqliteConnection) (transaction: SqliteTransaction option) =
-        let comm =
-            noParam connection sql transaction
+        let comm = noParam connection sql transaction
 
         comm.ExecuteScalar() :?> 'T
 
     let selectSql<'T> (sql: string) (connection: SqliteConnection) (transaction: SqliteTransaction option) =
         let tMappedObj = MappedObject.Create<'T>()
 
-        let comm =
-            noParam connection sql transaction
+        let comm = noParam connection sql transaction
 
         use reader = comm.ExecuteReader()
 
@@ -334,15 +316,22 @@ module private QueryHelpers =
                     (fun (fn, pn, cb) f ->
 
                         match f.Type with
+                        | SupportedType.Option SupportedType.Blob ->
+                            let value =
+                                (mappedObj.Type.GetProperty(f.FieldName).GetValue(data) :?> BlobField option)
+
+                            match value with
+                            | Some s ->
+                                let callback =
+                                    { ColumnName = f.MappingName
+                                      Data = s.Value }
+
+                                (fn @ [ f.MappingName ], pn @ [ $"ZEROBLOB({s.Value.Length})" ], cb @ [ callback ])
+                            | None -> (fn @ [ f.MappingName ], pn @ [ "NULL" ], cb)
                         | SupportedType.Blob ->
                             // Get the blob.
                             let stream =
-                                (mappedObj
-                                    .Type
-                                    .GetProperty(f.FieldName)
-                                    .GetValue(data)
-                                :?> BlobField)
-                                    .Value
+                                (mappedObj.Type.GetProperty(f.FieldName).GetValue(data) :?> BlobField).Value
 
                             let callback =
                                 { ColumnName = f.MappingName
@@ -354,8 +343,7 @@ module private QueryHelpers =
 
             let fields = String.Join(',', fieldNames)
 
-            let parameters =
-                String.Join(',', parameterNames)
+            let parameters = String.Join(',', parameterNames)
 
             let sql =
                 $"""
@@ -389,21 +377,13 @@ module private QueryHelpers =
                     match f.Type with
                     | SupportedType.Blob -> acc // Skip blob types, they will be handled with `BlobCallBacks`.
                     | SupportedType.Option _ ->
-                        match mappedObj
-                                  .Type
-                                  .GetProperty(f.FieldName)
-                                  .GetValue(parameters)
-                            with
+                        match mappedObj.Type.GetProperty(f.FieldName).GetValue(parameters) with
                         | null -> acc @ [ f.MappingName, DBNull.Value :> obj ]
                         | SomeObj v1 -> acc @ [ f.MappingName, v1 ]
                         | _ -> acc @ [ f.MappingName, DBNull.Value :> obj ]
                     | _ ->
                         acc
-                        @ [ f.MappingName,
-                            mappedObj
-                                .Type
-                                .GetProperty(f.FieldName)
-                                .GetValue(parameters) ])
+                        @ [ f.MappingName, mappedObj.Type.GetProperty(f.FieldName).GetValue(parameters) ])
                 []
             |> Map.ofList
             |> Map.map (fun k v -> comm.Parameters.AddWithValue(k, v))
@@ -420,8 +400,7 @@ module private QueryHelpers =
             =
             callbacks
             |> List.map (fun cb ->
-                use writeStream =
-                    new SqliteBlob(connection, tableName, cb.ColumnName, rowId)
+                use writeStream = new SqliteBlob(connection, tableName, cb.ColumnName, rowId)
 
                 cb.Data.CopyTo(writeStream))
             |> ignore
@@ -434,12 +413,10 @@ module private QueryHelpers =
         =
         let mappedObj = MappedObject.Create<'T>()
 
-        let sql, callbacks =
-            Insert.createQuery tableName mappedObj data
+        let sql, callbacks = Insert.createQuery tableName mappedObj data
 
         // Get the last inserted id.
-        let comm =
-            Insert.prepareQuery connection sql mappedObj data transaction
+        let comm = Insert.prepareQuery connection sql mappedObj data transaction
 
         let rowId = comm.ExecuteScalar() :?> int64
 
@@ -449,27 +426,23 @@ module private QueryHelpers =
 type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction option) =
 
     interface IDisposable with
-        
-        member ctx.Dispose() =
-            ctx.Close()
-    
+
+        member ctx.Dispose() = ctx.Close()
+
     static member Create(path: string) =
         File.WriteAllBytes(path, [||])
 
-        use conn =
-            new SqliteConnection($"Data Source={path}")
+        use conn = new SqliteConnection($"Data Source={path}")
 
         new SqliteContext(conn, None)
 
     static member Open(path: string) =
-        use conn =
-            new SqliteConnection($"Data Source={path}")
+        use conn = new SqliteConnection($"Data Source={path}")
 
         new SqliteContext(conn, None)
 
     static member Connect(connectionString: string) =
-        use conn =
-            new SqliteConnection(connectionString)
+        use conn = new SqliteConnection(connectionString)
 
         new SqliteContext(conn, None)
 
@@ -516,8 +489,7 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
     /// <param name="parameters">A list of objects to be used are query parameters</param>
     /// <returns>An optional 'T</returns>
     member handler.SelectSingleAnon<'T>(sql, parameters) =
-        let r =
-            handler.SelectAnon<'T>(sql, parameters)
+        let r = handler.SelectAnon<'T>(sql, parameters)
 
         match r.Length > 0 with
         | true -> r.Head |> Some
@@ -549,8 +521,7 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
     /// <param name="parameters">A record of type 'P representing query parameters.</param>
     /// <returns>An optional 'T</returns>
     member handler.SelectSingleVerbatim<'T, 'P>(sql: string, parameters: 'P) =
-        let result =
-            handler.SelectVerbatim<'T, 'P>(sql, parameters)
+        let result = handler.SelectVerbatim<'T, 'P>(sql, parameters)
 
         match result.Length with
         | 0 -> None
@@ -604,9 +575,7 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
     /// <param name="tableName">The name of the table to insert the record into.</param>
     /// <param name="values">A list of records of 'T to be inserted.</param>
     member handler.InsertList<'T>(tableName: string, values: 'T list) =
-        values
-        |> List.map (fun v -> handler.Insert<'T>(tableName, v))
-        |> ignore
+        values |> List.map (fun v -> handler.Insert<'T>(tableName, v)) |> ignore
 
     /// <summary>
     /// Execute a collection of commands in a transaction.
@@ -618,18 +587,15 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
     member handler.ExecuteInTransaction<'R>(transactionFn: SqliteContext -> 'R) =
         connection.Open()
 
-        use transaction =
-            connection.BeginTransaction()
+        use transaction = connection.BeginTransaction()
 
-        use qh =
-           new SqliteContext(connection, Some transaction)
+        use qh = new SqliteContext(connection, Some transaction)
 
         try
             let r = transactionFn qh
             transaction.Commit()
             Ok r
-        with
-        | _ ->
+        with _ ->
             transaction.Rollback()
             Error "Could not complete transaction"
 
@@ -645,11 +611,9 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
     member handler.ExecuteInTransactionV2<'R>(transactionFn: SqliteContext -> Result<'R, string>) =
         connection.Open()
 
-        use transaction =
-            connection.BeginTransaction()
+        use transaction = connection.BeginTransaction()
 
-        use qh =
-           new SqliteContext(connection, Some transaction)
+        use qh = new SqliteContext(connection, Some transaction)
 
         try
             match transactionFn qh with
@@ -659,12 +623,11 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
             | Error e ->
                 transaction.Rollback()
                 Error e
-        with
-        | exn ->
+        with exn ->
             transaction.Rollback()
             Error $"Could not complete transaction. Exception: {exn.Message}"
 
-    
+
     /// Execute sql that produces a scalar result.
     member handler.ExecuteScalar<'T>(sql) =
         QueryHelpers.executeScalar<'T> sql connection transaction
@@ -685,7 +648,7 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
     /// </summary>
     member handler.TestConnection() =
         QueryHelpers.executeScalar<int64> "SELECT 1" connection transaction
-        
+
     member handler.Rollback(message: string) =
         match transaction with
         | Some t ->
