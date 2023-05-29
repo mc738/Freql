@@ -380,7 +380,7 @@ type PostgreSQLContext(connection, transaction) =
 
         use conn = new NpgsqlConnection(connectionString)
 
-        new MySqlContext(conn, None)
+        new PostgreSQLContext(conn, None)
 
     member _.Close() =
        connection.Close()
@@ -460,14 +460,14 @@ type PostgreSQLContext(connection, transaction) =
     /// While a transaction is active on a connection non transaction commands can not be executed.
     /// This is no check for this. Transactions are not is not thread safe.
     /// Also be warned, this use general error handling so an exception will roll the transaction back.
-    member handler.ExecuteInTransaction<'R>(transactionFn: MySqlContext -> 'R) =
+    member handler.ExecuteInTransaction<'R>(transactionFn: PostgreSQLContext -> 'R) =
         if connection.State = ConnectionState.Closed then
             connection.Open()
 
         use transaction = connection.BeginTransaction()
 
         use qh =
-            new MySqlContext(connection, Some transaction)
+            new PostgreSQLContext(connection, Some transaction)
 
         try
             let r = transactionFn qh
@@ -491,14 +491,14 @@ type PostgreSQLContext(connection, transaction) =
     /// This means you no longer have to throw an exception to rollback the transaction.
     /// </summary>
     /// <param name="transactionFn">The transaction function to be attempted.</param>
-    member handler.ExecuteInTransactionV2<'R>(transactionFn: MySqlContext -> Result<'R, string>) =
+    member handler.ExecuteInTransactionV2<'R>(transactionFn: PostgreSQLContext -> Result<'R, string>) =
         connection.Open()
 
         use transaction =
             connection.BeginTransaction()
 
         use qh =
-           new MySqlContext(connection, Some transaction)
+           new PostgreSQLContext(connection, Some transaction)
 
         try
             match transactionFn qh with
