@@ -261,7 +261,7 @@ module CodeGeneration =
               settings.Imports
               |> List.map (fun i -> $"open {i}")
           ""
-          $"/// Module generated on {DateTime.UtcNow} (utc) via Freql.Sqlite.Tools."
+          $"/// Module generated on {DateTime.UtcNow} (utc) via Freql.Tools."
           $"[<RequireQualifiedAccess>]"
           $"module Records =" ]
         @ records
