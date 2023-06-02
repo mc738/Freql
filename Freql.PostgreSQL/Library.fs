@@ -1,4 +1,5 @@
-﻿namespace Freql.MySql
+﻿namespace Freql.PostgreSQL
+
 
 open System
 open System.Data
@@ -6,7 +7,7 @@ open System.IO
 open Freql.Core.Common
 open Freql.Core.Common.Mapping
 open Freql.Core.Utils
-open MySql.Data.MySqlClient
+open Npgsql
 
 module private QueryHelpers =
 
@@ -24,8 +25,8 @@ module private QueryHelpers =
                 f.MappingName, v)
         |> Map.ofList
 
-    let mapResults<'T> (mappedObj: MappedObject) (reader: MySqlDataReader) =
-        let getValue (reader: MySqlDataReader) (o: int) supportType =
+    let mapResults<'T> (mappedObj: MappedObject) (reader: NpgsqlDataReader) =
+        let getValue (reader:  NpgsqlDataReader) (o: int) supportType =
             match supportType with
             | SupportedType.Boolean -> reader.GetBoolean(o) :> obj
             | SupportedType.Byte -> reader.GetByte(o) :> obj
@@ -69,15 +70,15 @@ module private QueryHelpers =
                       { Index = f.Index; Value = value })
               |> (fun v -> RecordBuilder.Create<'T> v) ]
 
-    let noParam (connection: MySqlConnection) (sql: string) (transaction: MySqlTransaction option) =
+    let noParam (connection: NpgsqlConnection) (sql: string) (transaction: NpgsqlTransaction option) =
 
         if connection.State = ConnectionState.Closed then
             connection.Open()
 
         use comm =
             match transaction with
-            | Some t -> new MySqlCommand(sql, connection, t)
-            | None -> new MySqlCommand(sql, connection)
+            | Some t -> new NpgsqlCommand(sql, connection, t)
+            | None -> new NpgsqlCommand(sql, connection)
 
         // TODO add ability to set timeout?
         // comm.CommandTimeout <- 5000
@@ -85,11 +86,11 @@ module private QueryHelpers =
         comm
 
     let prepare<'P>
-        (connection: MySqlConnection)
+        (connection: NpgsqlConnection)
         (sql: string)
         (mappedObj: MappedObject)
         (parameters: 'P)
-        (transaction: MySqlTransaction option)
+        (transaction: NpgsqlTransaction option)
         =
 
         if connection.State = ConnectionState.Closed then
@@ -98,8 +99,8 @@ module private QueryHelpers =
 
         use comm =
             match transaction with
-            | Some t -> new MySqlCommand(sql, connection, t)
-            | None -> new MySqlCommand(sql, connection)
+            | Some t -> new NpgsqlCommand(sql, connection, t)
+            | None -> new NpgsqlCommand(sql, connection)
 
         parameters
         |> mapParameters<'P> mappedObj
@@ -112,15 +113,15 @@ module private QueryHelpers =
         comm.Prepare()
         comm
 
-    let prepareAnon (connection: MySqlConnection) (sql: string) (parameters: obj list) (transaction: MySqlTransaction option) =
+    let prepareAnon (connection: NpgsqlConnection) (sql: string) (parameters: obj list) (transaction: NpgsqlTransaction option) =
         
         if connection.State = ConnectionState.Closed then
             connection.Open()
         
         use comm =
             match transaction with
-                | Some t -> new MySqlCommand(sql, connection, t)
-                | None -> new MySqlCommand(sql, connection)
+                | Some t -> new NpgsqlCommand(sql, connection, t)
+                | None -> new NpgsqlCommand(sql, connection)
        
         parameters
         |> List.mapi (fun i v -> comm.Parameters.AddWithValue($"@{i}", v))
@@ -150,15 +151,15 @@ module private QueryHelpers =
         comm.ExecuteNonQuery()
         
     /// A bespoke query, the caller needs to provide a mapping function. This returns a list of 'T.    
-    let bespoke<'T> connection (sql: string) (parameters: obj list) (mapper: MySqlDataReader -> 'T list) transaction  =
+    let bespoke<'T> connection (sql: string) (parameters: obj list) (mapper: NpgsqlDataReader -> 'T list) transaction  =
         let comm = prepareAnon connection sql parameters transaction
-        use reader = comm.ExecuteReader()
+        use reader = comm.ExecuteReader() :?> NpgsqlDataReader // TODO check
         mapper reader
         
     /// A bespoke query, the caller needs to provide a mapping function. This returns a single 'T.
-    let bespokeSingle<'T> connection (sql: string) (parameters: obj list) (mapper: MySqlDataReader -> 'T) transaction  =
+    let bespokeSingle<'T> connection (sql: string) (parameters: obj list) (mapper: NpgsqlDataReader -> 'T) transaction  =
         let comm = prepareAnon connection sql parameters transaction
-        use reader = comm.ExecuteReader()
+        use reader = comm.ExecuteReader() :?> NpgsqlDataReader // TODO check
         mapper reader
 
     let selectAll<'T> (tableName: string) connection transaction =
@@ -179,7 +180,7 @@ module private QueryHelpers =
 
         let comm = noParam connection sql transaction
 
-        use reader = comm.ExecuteReader()
+        use reader = comm.ExecuteReader() :?> NpgsqlDataReader // TODO check
 
         mapResults<'T> mappedObj reader
 
@@ -190,7 +191,7 @@ module private QueryHelpers =
         let comm =
             prepare connection sql pMappedObj parameters transaction
 
-        use reader = comm.ExecuteReader()
+        use reader = comm.ExecuteReader() :?> NpgsqlDataReader // TODO check
 
         let r = mapResults<'T> tMappedObj reader
         connection.Close()
@@ -201,7 +202,7 @@ module private QueryHelpers =
         let comm =
             prepareAnon connection sql parameters transaction
 
-        use reader = comm.ExecuteReader()
+        use reader = comm.ExecuteReader() :?> NpgsqlDataReader // TODO check
 
         mapResults<'T> tMappedObj reader
        
@@ -214,7 +215,7 @@ module private QueryHelpers =
 
         let r = comm.ExecuteScalar()
                 
-        use reader = comm.ExecuteReader()
+        use reader = comm.ExecuteReader() :?> NpgsqlDataReader // TODO check
 
         mapResults<'T> tMappedObj reader
       
@@ -227,7 +228,7 @@ module private QueryHelpers =
 
         let comm = noParam connection sql transaction
 
-        use reader = comm.ExecuteReader()
+        use reader = comm.ExecuteReader() :?> NpgsqlDataReader // TODO check
 
         let r = mapResults<'T> tMappedObj reader
         connection.Close()
@@ -299,11 +300,11 @@ module private QueryHelpers =
         /// Prepare the `INSERT` query and return a `SqliteCommand` ready for execution.
         /// `BlobField` types will be skipped over, due to being handled separately.
         let prepareQuery<'P>
-            (connection: MySqlConnection)
+            (connection: NpgsqlConnection)
             (sql: string)
             (mappedObj: MappedObject)
             (parameters: 'P)
-            (transaction: MySqlTransaction option)
+            (transaction: NpgsqlTransaction option)
             =
 
             if connection.State = ConnectionState.Closed then
@@ -311,8 +312,8 @@ module private QueryHelpers =
 
             use comm =
                 match transaction with
-                | Some t -> new MySqlCommand(sql, connection, t)
-                | None -> new MySqlCommand(sql, connection)
+                | Some t -> new NpgsqlCommand(sql, connection, t)
+                | None -> new NpgsqlCommand(sql, connection)
             
             mappedObj.Fields
             |> List.sortBy (fun p -> p.Index)
@@ -362,13 +363,13 @@ module private QueryHelpers =
         let idSql = "SELECT LAST_INSERT_ID();"
         use idComm =
                 match transaction with
-                | Some t -> new MySqlCommand(idSql, connection, t)
-                | None -> new MySqlCommand(idSql, connection)
+                | Some t -> new NpgsqlCommand(idSql, connection, t)
+                | None -> new NpgsqlCommand(idSql, connection)
         let rowId = idComm.ExecuteScalar() :?> uint64
 
         rowId
 
-type MySqlContext(connection, transaction) =
+type PostgreSQLContext(connection, transaction) =
 
     interface IDisposable with
         
@@ -377,9 +378,9 @@ type MySqlContext(connection, transaction) =
     
     static member Connect(connectionString: string) =
 
-        use conn = new MySqlConnection(connectionString)
+        use conn = new NpgsqlConnection(connectionString)
 
-        new MySqlContext(conn, None)
+        new PostgreSQLContext(conn, None)
 
     member _.Close() =
        connection.Close()
@@ -459,14 +460,14 @@ type MySqlContext(connection, transaction) =
     /// While a transaction is active on a connection non transaction commands can not be executed.
     /// This is no check for this. Transactions are not is not thread safe.
     /// Also be warned, this use general error handling so an exception will roll the transaction back.
-    member handler.ExecuteInTransaction<'R>(transactionFn: MySqlContext -> 'R) =
+    member handler.ExecuteInTransaction<'R>(transactionFn: PostgreSQLContext -> 'R) =
         if connection.State = ConnectionState.Closed then
             connection.Open()
 
         use transaction = connection.BeginTransaction()
 
         use qh =
-            new MySqlContext(connection, Some transaction)
+            new PostgreSQLContext(connection, Some transaction)
 
         try
             let r = transactionFn qh
@@ -490,14 +491,14 @@ type MySqlContext(connection, transaction) =
     /// This means you no longer have to throw an exception to rollback the transaction.
     /// </summary>
     /// <param name="transactionFn">The transaction function to be attempted.</param>
-    member handler.ExecuteInTransactionV2<'R>(transactionFn: MySqlContext -> Result<'R, string>) =
+    member handler.ExecuteInTransactionV2<'R>(transactionFn: PostgreSQLContext -> Result<'R, string>) =
         connection.Open()
 
         use transaction =
             connection.BeginTransaction()
 
         use qh =
-           new MySqlContext(connection, Some transaction)
+           new PostgreSQLContext(connection, Some transaction)
 
         try
             match transactionFn qh with
@@ -517,7 +518,7 @@ type MySqlContext(connection, transaction) =
         QueryHelpers.executeScalar<'T> sql connection transaction
                        
     /// Execute a bespoke query, it is upto to the caller to provide the sql, the parameters and the result mapping function.
-    member handler.Bespoke<'T>(sql, parameters, (mapper: MySqlDataReader -> 'T list)) =
+    member handler.Bespoke<'T>(sql, parameters, (mapper: NpgsqlDataReader -> 'T list)) =
         QueryHelpers.bespoke connection sql  parameters  mapper transaction
 
     /// Test the database connection.
