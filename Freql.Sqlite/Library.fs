@@ -436,12 +436,45 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
 
         new SqliteContext(conn, None)
 
-    static member Open(path: string) =
-        use conn = new SqliteConnection($"Data Source={path}")
+    static member Open
+        (
+            path: string,
+            ?mode: SqliteOpenMode,
+            ?cache: SqliteCacheMode,
+            ?password: string,
+            ?pooling: bool,
+            ?defaultTimeOut: int
+        ) =
+        let mutable connectionString = SqliteConnectionStringBuilder()
+
+        connectionString.DataSource <- path
+
+        match mode with
+        | Some m -> connectionString.Mode <- m
+        | None -> ()
+
+        match cache with
+        | Some c -> connectionString.Cache <- c
+        | None -> ()
+
+        match password with
+        | Some p -> connectionString.Password <- p
+        | None -> ()
+
+        match pooling with
+        | Some p -> connectionString.Pooling <- p
+        | None -> ()
+
+        match defaultTimeOut with
+        | Some dto -> connectionString.DefaultTimeout <- dto
+        | None -> ()
+
+        use conn = new SqliteConnection(connectionString.ToString())
 
         new SqliteContext(conn, None)
 
     static member Connect(connectionString: string) =
+
         use conn = new SqliteConnection(connectionString)
 
         new SqliteContext(conn, None)
