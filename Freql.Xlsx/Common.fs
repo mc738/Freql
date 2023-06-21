@@ -23,10 +23,16 @@ module Common =
         doc.WorkbookPart.Workbook.Descendants<Sheet>()
         |> Seq.tryFind (fun s -> s.Id = StringValue id)
 
-    let readCell (workSheet: WorksheetPart) (column: string) (row: int) =
-        workSheet.Worksheet.r
+    let getWorksheet (sheet: Sheet) (doc: SpreadsheetDocument) =
+        doc.WorkbookPart.GetPartById(sheet.Id) :?> WorksheetPart
+        
+    
+    let readCell (worksheet: WorksheetPart) (column: string) (row: int) =
+        //workSheet.Worksheet.r
 
         ()
 
+    let getRow (worksheet: WorksheetPart) =
+        ()
 
     ()
