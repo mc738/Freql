@@ -48,14 +48,18 @@ module Common =
     let getCell (worksheet: WorksheetPart) (cellRef: string) =
         worksheet.Worksheet.Descendants<Cell>()
         |> Seq.tryFind (fun c -> c.CellReference = StringValue cellRef)
+        
+    let getCellValue (worksheet: WorksheetPart) (cellRef: string) =
+        getCell worksheet cellRef
+        |> Option.map (fun c -> c.CellValue)
 
     let getCellFromRow (row: Row) (columnName: string) =
         row.Descendants<Cell>()
         |> Seq.tryFind (fun c -> c.CellReference = StringValue "")
-
+    
     let getCellsFromRow (row: Row) =
         row.Descendants<Cell>() :> seq<_>
-
+        
     let getRowIndex (cellName: string) =
         let r = Regex(@"\d+")
         let m = r.Match(cellName)
