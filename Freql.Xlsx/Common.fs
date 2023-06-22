@@ -83,6 +83,13 @@ module Common =
             match c.CellValue.TryGetInt() with
             | true, v -> Some v
             | false, _ -> None)
+        
+    let getCellValueAsDateTime (worksheet: WorksheetPart) (cellRef: string) =
+        getCell worksheet cellRef
+        |> Option.bind (fun c ->
+            match c.CellValue.TryGetDateTime() with
+            | true, v -> Some v
+            | false, _ -> None)
 
 
     let getCellFromRow (row: Row) (columnName: string) =
