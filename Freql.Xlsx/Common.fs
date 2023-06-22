@@ -52,6 +52,11 @@ module Common =
     let getCellValue (worksheet: WorksheetPart) (cellRef: string) =
         getCell worksheet cellRef
         |> Option.map (fun c -> c.CellValue)
+        
+    
+    let getCellValueAsString (worksheet: WorksheetPart) (cellRef: string) =
+        getCell worksheet cellRef
+        |> Option.map (fun c -> c.CellValue)
 
     let getCellFromRow (row: Row) (columnName: string) =
         row.Descendants<Cell>()
