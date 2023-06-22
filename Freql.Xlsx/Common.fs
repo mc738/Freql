@@ -77,6 +77,14 @@ module Common =
             | true, v -> Some v
             | false, _ -> None)
 
+    let getCellValueAsInt (worksheet: WorksheetPart) (cellRef: string) =
+        getCell worksheet cellRef
+        |> Option.bind (fun c ->
+            match c.CellValue.TryGetInt() with
+            | true, v -> Some v
+            | false, _ -> None)
+
+
     let getCellFromRow (row: Row) (columnName: string) =
         row.Descendants<Cell>()
         |> Seq.tryFind (fun c -> c.CellReference = StringValue "")
