@@ -90,6 +90,13 @@ module Common =
             match c.CellValue.TryGetDateTime() with
             | true, v -> Some v
             | false, _ -> None)
+        
+    let getCellValueAsDateTimeOffset (worksheet: WorksheetPart) (cellRef: string) =
+        getCell worksheet cellRef
+        |> Option.bind (fun c ->
+            match c.CellValue.TryGetDateTimeOffset() with
+            | true, v -> Some v
+            | false, _ -> None)
 
 
     let getCellFromRow (row: Row) (columnName: string) =
