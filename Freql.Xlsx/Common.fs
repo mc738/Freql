@@ -60,9 +60,15 @@ module Common =
         getCell worksheet cellRef
         |> Option.bind (fun c ->
             match c.CellValue.TryGetBoolean() with
-            | true, b -> Some b
+            | true, v -> Some v
             | false, _ -> None)
 
+    let getCellValueAsDecimal (worksheet: WorksheetPart) (cellRef: string) =
+        getCell worksheet cellRef
+        |> Option.bind (fun c ->
+            match c.CellValue.TryGetDecimal() with
+            | true, v -> Some v
+            | false, _ -> None)
 
     let getCellFromRow (row: Row) (columnName: string) =
         row.Descendants<Cell>()
