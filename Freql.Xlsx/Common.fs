@@ -69,6 +69,13 @@ module Common =
             match c.CellValue.TryGetDecimal() with
             | true, v -> Some v
             | false, _ -> None)
+        
+    let getCellValueAsDouble (worksheet: WorksheetPart) (cellRef: string) =
+        getCell worksheet cellRef
+        |> Option.bind (fun c ->
+            match c.CellValue.TryGetDouble() with
+            | true, v -> Some v
+            | false, _ -> None)
 
     let getCellFromRow (row: Row) (columnName: string) =
         row.Descendants<Cell>()
