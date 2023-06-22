@@ -1,5 +1,7 @@
 ﻿namespace Freql.Xlsx
 
+open System
+open System.Text.RegularExpressions
 open DocumentFormat.OpenXml
 open DocumentFormat.OpenXml.Spreadsheet
 
@@ -40,4 +42,39 @@ module Common =
         worksheet.Worksheet.Descendants<Row>()
         |> Seq.filter (fun r -> r.RowIndex >= UInt32Value startIndex && r.RowIndex <= UInt32Value endIndex)
 
+    let getRows (worksheet: WorksheetPart) =
+        worksheet.Worksheet.Descendants<Row>() :> seq<_>
+    
+    let getCell (worksheet: WorksheetPart) (cellRef: string) =
+        worksheet.Worksheet.Descendants<Cell>()
+        |> Seq.tryFind (fun c -> c.CellReference = StringValue cellRef)
+
+    let getCellFromRow (row: Row) (columnName: string) =
+        row.Descendants<Cell>()
+        |> Seq.tryFind (fun c -> c.CellReference = StringValue "")
+
+    let getCellsFromRow (row: Row) =
+        row.Descendants<Cell>() :> seq<_>
+
+    let getRowIndex (cellName: string) =
+        let r = Regex(@"\d+")
+        let m = r.Match(cellName)
+
+        match m.Success with
+        | true -> Some m.Value
+        | false -> None
+        |> Option.bind (fun v ->
+            match UInt32.TryParse v with
+            | true, r -> Some r
+            | false, _ -> None)
+
+    let getColumnName (cellName: string) =
+        let r = Regex(@"\d+")
+        let m = r.Match(cellName)
+
+        match m.Success with
+        | true -> Some m.Value
+        | false -> None
+        
+    
     ()
