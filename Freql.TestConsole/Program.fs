@@ -6,6 +6,7 @@ open System.Globalization
 open System.IO
 open System.Text
 open System.Text.RegularExpressions
+open DocumentFormat.OpenXml.Packaging
 open Freql.MySql
 open Freql.Sqlite
 open Freql.Tools.CodeGeneration
@@ -176,9 +177,34 @@ type CustomerPurchase =
       Discount: decimal
       Profit: decimal }
 
+module XlsxTest =
+    
+    open Freql.Xlsx
+    
+    let path = "C:\\Users\\44748\\Downloads\\earn01jun2023.xlsx"
+    
+    let run _ =
+        
+        let fn (doc: SpreadsheetDocument) =
+            getSheet "1. AWE Total Pay" doc
+            |> Option.bind (fun s ->
+                let wbp = getWorksheet s doc
+                
+                
+                getCell wbp "B10")
+            
+        
+        let r = exec fn true path
+        
+        
+        ()
+
+
 [<EntryPoint>]
 let main argv =
 
+    XlsxTest.run ()
+    
     //let r = CsvParser.parseFile true "C:\\ProjectData\\DataSets\\SuperStore\\Sample - Superstore.csv" 
     
     //let t = CsvParser2.parseFile<CustomerPurchase> true "C:\\ProjectData\\DataSets\\SuperStore\\Sample - Superstore.csv" 
