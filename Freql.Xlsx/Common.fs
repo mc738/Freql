@@ -25,14 +25,19 @@ module Common =
 
     let getWorksheet (sheet: Sheet) (doc: SpreadsheetDocument) =
         doc.WorkbookPart.GetPartById(sheet.Id) :?> WorksheetPart
-        
-    
+
+
     let readCell (worksheet: WorksheetPart) (column: string) (row: int) =
         //workSheet.Worksheet.r
 
         ()
 
-    let getRow (worksheet: WorksheetPart) =
-        ()
+    let getRow (worksheet: WorksheetPart) (index: uint32) =
+        worksheet.Worksheet.Descendants<Row>()
+        |> Seq.tryFind (fun r -> r.RowIndex = UInt32Value index)
+
+    let getRowRange (worksheet: WorksheetPart) (startIndex: uint32) (endIndex: uint32) =
+        worksheet.Worksheet.Descendants<Row>()
+        |> Seq.filter (fun r -> r.RowIndex >= UInt32Value startIndex && r.RowIndex <= UInt32Value endIndex)
 
     ()
