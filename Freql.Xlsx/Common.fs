@@ -44,27 +44,32 @@ module Common =
 
     let getRows (worksheet: WorksheetPart) =
         worksheet.Worksheet.Descendants<Row>() :> seq<_>
-    
+
     let getCell (worksheet: WorksheetPart) (cellRef: string) =
         worksheet.Worksheet.Descendants<Cell>()
         |> Seq.tryFind (fun c -> c.CellReference = StringValue cellRef)
-        
+
     let getCellValue (worksheet: WorksheetPart) (cellRef: string) =
-        getCell worksheet cellRef
-        |> Option.map (fun c -> c.CellValue)
-        
-    
+        getCell worksheet cellRef |> Option.map (fun c -> c.CellValue)
+
+
     let getCellValueAsString (worksheet: WorksheetPart) (cellRef: string) =
+        getCell worksheet cellRef |> Option.map (fun c -> c.CellValue.Text)
+
+    let getCellValueAsBool (worksheet: WorksheetPart) (cellRef: string) =
         getCell worksheet cellRef
-        |> Option.map (fun c -> c.CellValue)
+        |> Option.bind (fun c ->
+            match c.CellValue.TryGetBoolean() with
+            | true, b -> Some b
+            | false, _ -> None)
+
 
     let getCellFromRow (row: Row) (columnName: string) =
         row.Descendants<Cell>()
         |> Seq.tryFind (fun c -> c.CellReference = StringValue "")
-    
-    let getCellsFromRow (row: Row) =
-        row.Descendants<Cell>() :> seq<_>
-        
+
+    let getCellsFromRow (row: Row) = row.Descendants<Cell>() :> seq<_>
+
     let getRowIndex (cellName: string) =
         let r = Regex(@"\d+")
         let m = r.Match(cellName)
@@ -84,6 +89,6 @@ module Common =
         match m.Success with
         | true -> Some m.Value
         | false -> None
-        
-    
+
+
     ()
