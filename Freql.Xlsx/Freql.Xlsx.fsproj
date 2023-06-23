@@ -9,6 +9,8 @@
         <Compile Include="Library.fs" />
         <Compile Include="Common.fs" />
         <Compile Include="Attributes.fs" />
+        <Compile Include="Records.fs" />
+        <Compile Include="XlsxReader.fs" />
     </ItemGroup>
 
     <ItemGroup>
