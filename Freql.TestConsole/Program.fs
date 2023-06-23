@@ -181,6 +181,11 @@ module XlsxTest =
     
     open Freql.Xlsx
     
+    type Record =
+        {
+            Test: int
+        }
+    
     let path = "C:\\Users\\44748\\Downloads\\earn01jun2023.xlsx"
     
     let run _ =
@@ -190,8 +195,8 @@ module XlsxTest =
             |> Option.bind (fun s ->
                 let wbp = getWorksheet s doc
                 
-                
-                getCell wbp "B10")
+                getRow wbp 10u
+                |> Option.map getCellsFromRow)
             
         
         let r = exec fn true path

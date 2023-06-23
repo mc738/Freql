@@ -61,6 +61,7 @@ module Records =
         //    rp.NumberStyle
         //    |> Option.defaultValue NumberStyles.Float
         
+    (*
     let createRecord<'T> (properties: RecordProperty array) (row: Row) =
 
         let values =
@@ -129,5 +130,5 @@ module Records =
             FSharpValue.MakeRecord(typeof<'T>, values)
 
         o :?> 'T
-    
+    *)
 

@@ -11,4 +11,9 @@ module Attributes =
 
         member att.Name = name
     
+    type XlsxDefaultValue<'T>(value: 'T) =
+        
+        inherit Attribute()
+
+        
 

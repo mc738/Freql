@@ -101,7 +101,9 @@ module Common =
 
     let getCellFromRow (row: Row) (columnName: string) =
         row.Descendants<Cell>()
-        |> Seq.tryFind (fun c -> c.CellReference = StringValue "")
+        |> Seq.tryFind (fun c -> c.CellReference = StringValue $"{columnName}{row.RowIndex}")
+        
+    
 
     let getCellsFromRow (row: Row) = row.Descendants<Cell>() :> seq<_>
 
