@@ -1,13 +1,10 @@
 ﻿namespace Freql.Xlsx
 
-open System.Reflection
-open DocumentFormat.OpenXml.Spreadsheet
-open Microsoft.FSharp.Reflection
-
-
 module Records =
 
-    
+    open System.Reflection
+    open DocumentFormat.OpenXml.Spreadsheet
+    open Microsoft.FSharp.Reflection    
     open Freql.Core.Common.Types
 
     type RecordProperty =
