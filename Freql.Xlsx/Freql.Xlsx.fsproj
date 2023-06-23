@@ -8,6 +8,7 @@
     <ItemGroup>
         <Compile Include="Library.fs" />
         <Compile Include="Common.fs" />
+        <Compile Include="Attributes.fs" />
     </ItemGroup>
 
     <ItemGroup>
