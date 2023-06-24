@@ -119,8 +119,7 @@ module Common =
 
         | 2 ->
             match columnName[0] |> charValue, columnName[1] |> charValue with
-            | Ok pv, Ok cv ->
-                (pv + 1) * 26 + cv |> Ok
+            | Ok pv, Ok cv -> (pv + 1) * 26 + cv |> Ok
             | Error e, _ -> Error e
             | _, Error e -> Error e
         | 3 ->
@@ -135,9 +134,24 @@ module Common =
         match tryColumnNameToIndex columnName with
         | Ok v -> v
         | Error e -> failwith e
-        
-    let indexToColumnName (index: int) = "A"
-        
+
+    let indexToColumnName (index: int) =
+        match index with
+        | i when i > 16383 || i < 0 -> failwith "Index out of bounds"
+        | i when i >= 702 ->
+            
+            // 3 letter name
+            //
+            [| char (((i / 26) % 26) + 65); char ((((i - 702) / 26) % 26) + 65); (char ((i % 26) + 65)) |]
+        | i when i >= 26 ->
+            // 2 letter name
+            
+            [| char ((i / 26) + 64); (char ((i % 26) + 65)) |]
+        | i ->
+            // 1 letter name
+            [| (char (i + 65)) |]
+        |> String
+
     let getRowIndex (cellName: string) =
         let r = Regex(@"\d+")
         let m = r.Match(cellName)
