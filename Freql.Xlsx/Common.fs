@@ -136,19 +136,28 @@ module Common =
         | Ok v -> v
         | Error e -> failwith e
 
-    let indexToColumnName (index: int) =
+    let tryIndexToColumnName (index: int) =
         // Base on https://stackoverflow.com/questions/181596/how-to-convert-a-column-number-e-g-127-into-an-excel-column-e-g-aa
         // NOTE This could be refactored to be more optimized/cleaner.
         match index with
-        | i when i > 16383 || i < 0 -> failwith "Index out of bounds"
-        | i when i >= 702 -> [| 0; 1; 2; |]
-        | i when i >= 26 -> [| 0; 1; |]
-        | i -> [| 0 |]
-        |> Array.fold (fun (acc, cn) _ ->
-            let modulo = (cn - 1) % 26
-            (char (65 + modulo)) :: acc, (cn - modulo) / 26) ([], index + 1) // + 1 because excel cells are base 1 indexex.
-        |> fst
-        |> fun r -> String(r |> Array.ofList)
+        | i when i > 16383 || i < 0 -> Error "Index out of bounds"
+        | i when i >= 702 -> Ok [| 0; 1; 2 |]
+        | i when i >= 26 -> Ok [| 0; 1 |]
+        | i -> Ok [| 0 |]
+        |> Result.map (fun a ->
+            a
+            |> Array.fold
+                (fun (acc, cn) _ ->
+                    let modulo = (cn - 1) % 26
+                    (char (65 + modulo)) :: acc, (cn - modulo) / 26)
+                ([], index + 1) // + 1 because excel cells are base 1 indexex.
+            |> fst
+            |> fun r -> String(r |> Array.ofList))
+
+    let indexToColumnName (index: int) =
+        match tryIndexToColumnName index with
+        | Ok cn -> cn
+        | Error e -> failwith e
         
     let getRowIndex (cellName: string) =
         let r = Regex(@"\d+")
