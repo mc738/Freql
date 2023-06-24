@@ -107,6 +107,17 @@ module Common =
 
     let getCellsFromRow (row: Row) = row.Descendants<Cell>() :> seq<_>
 
+    let columnNameToIndex (columnName: string) =
+        columnName
+        |> Seq.fold (fun (acc, i) c ->
+            match Char.IsLetter c with
+            | true ->
+               ((Char.ToUpper c |> int) - 64 + i + (i * 26), 0 + 1)
+            | false ->
+                failwith "Error!") (0, 0)
+        |>  fst
+    
+    
     let getRowIndex (cellName: string) =
         let r = Regex(@"\d+")
         let m = r.Match(cellName)
