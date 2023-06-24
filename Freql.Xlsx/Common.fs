@@ -69,7 +69,7 @@ module Common =
             match c.CellValue.TryGetDecimal() with
             | true, v -> Some v
             | false, _ -> None)
-        
+
     let getCellValueAsDouble (worksheet: WorksheetPart) (cellRef: string) =
         getCell worksheet cellRef
         |> Option.bind (fun c ->
@@ -83,14 +83,14 @@ module Common =
             match c.CellValue.TryGetInt() with
             | true, v -> Some v
             | false, _ -> None)
-        
+
     let getCellValueAsDateTime (worksheet: WorksheetPart) (cellRef: string) =
         getCell worksheet cellRef
         |> Option.bind (fun c ->
             match c.CellValue.TryGetDateTime() with
             | true, v -> Some v
             | false, _ -> None)
-        
+
     let getCellValueAsDateTimeOffset (worksheet: WorksheetPart) (cellRef: string) =
         getCell worksheet cellRef
         |> Option.bind (fun c ->
@@ -102,22 +102,40 @@ module Common =
     let getCellFromRow (row: Row) (columnName: string) =
         row.Descendants<Cell>()
         |> Seq.tryFind (fun c -> c.CellReference = StringValue $"{columnName}{row.RowIndex}")
-        
-    
+
+
 
     let getCellsFromRow (row: Row) = row.Descendants<Cell>() :> seq<_>
 
-    let columnNameToIndex (columnName: string) =
-        columnName
-        |> Seq.fold (fun (acc, i) c ->
+    let tryColumnNameToIndex (columnName: string) =
+        let charValue (c: Char) =
             match Char.IsLetter c with
-            | true ->
-               ((Char.ToUpper c |> int) - 64 + i + (i * 26), 0 + 1)
-            | false ->
-                failwith "Error!") (0, 0)
-        |>  fst
-    
-    
+            | true -> (Char.ToUpper c |> int) - 65 |> Ok
+            | false -> Error "Character is not a letter and not supported for column names."
+
+        match columnName.Length with
+        | 0 -> Error "Column name is blank."
+        | 1 -> columnName[0] |> charValue
+
+        | 2 ->
+            match columnName[0] |> charValue, columnName[1] |> charValue with
+            | Ok pv, Ok cv ->
+                (pv + 1) * 26 + cv |> Ok
+            | Error e, _ -> Error e
+            | _, Error e -> Error e
+        | 3 ->
+            match columnName[0] |> charValue, columnName[1] |> charValue, columnName[2] |> charValue with
+            | Ok opv, Ok pv, Ok cv -> ((opv + 1) * 26 * 26) + ((pv + 1) * 26) + cv |> Ok
+            | Error e, _, _ -> Error e
+            | _, Error e, _ -> Error e
+            | _, _, Error e -> Error e
+        | _ -> Error "Column name is too long"
+
+    let columnNameToIndex (columnName: string) =
+        match tryColumnNameToIndex columnName with
+        | Ok v -> v
+        | Error e -> failwith e
+        
     let getRowIndex (cellName: string) =
         let r = Regex(@"\d+")
         let m = r.Match(cellName)

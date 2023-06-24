@@ -68,3 +68,56 @@ type TestClass () =
         let actual = columnNameToIndex columnName 
         
         Assert.AreEqual(expected, actual)
+    
+    [<TestMethod>]
+    member this.``columnNameToIndex 'ZZ' name`` () =
+        let columnName = "ZZ"
+        
+        let expected = 701
+        
+        let actual = columnNameToIndex columnName 
+        
+        Assert.AreEqual(expected, actual)
+    
+    
+    [<TestMethod>]
+    member _.``columnNameToIndex 'AAA' name`` () =
+        let columnName = "AAA"
+        
+        let expected = 702
+        
+        let actual = columnNameToIndex columnName 
+        
+        Assert.AreEqual(expected, actual)
+    
+    [<TestMethod>]
+    member _.``columnNameToIndex 'AZZ' name`` () =
+        let columnName = "AZZ"
+        
+        let expected = 1377
+        
+        let actual = columnNameToIndex columnName 
+        
+        Assert.AreEqual(expected, actual)    
+    
+        
+    [<TestMethod>]
+    member _.``columnNameToIndex 'BAA' name`` () =
+        let columnName = "BAA"
+        
+        let expected = 1378
+        
+        let actual = columnNameToIndex columnName 
+        
+        Assert.AreEqual(expected, actual)    
+        
+    [<TestMethod>]
+    member _.``columnNameToIndex 'XFD' name`` () =
+        let columnName = "XFD"
+        
+        let expected = 16383
+        
+        let actual = columnNameToIndex columnName 
+        
+        Assert.AreEqual(expected, actual)
+        
