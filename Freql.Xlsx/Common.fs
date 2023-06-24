@@ -137,6 +137,8 @@ module Common =
         | Error e -> failwith e
 
     let indexToColumnName (index: int) =
+        // Base on https://stackoverflow.com/questions/181596/how-to-convert-a-column-number-e-g-127-into-an-excel-column-e-g-aa
+        // NOTE This could be refactored to be more optimized/cleaner.
         match index with
         | i when i > 16383 || i < 0 -> failwith "Index out of bounds"
         | i when i >= 702 -> [| 0; 1; 2; |]
