@@ -136,6 +136,8 @@ module Common =
         | Ok v -> v
         | Error e -> failwith e
         
+    let indexToColumnName (index: int) = "A"
+        
     let getRowIndex (cellName: string) =
         let r = Regex(@"\d+")
         let m = r.Match(cellName)
