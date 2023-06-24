@@ -3,6 +3,7 @@
 open System
 open System.Text.RegularExpressions
 open DocumentFormat.OpenXml
+open DocumentFormat.OpenXml.Office2019.Excel.RichData2
 open DocumentFormat.OpenXml.Spreadsheet
 
 [<AutoOpen>]
@@ -138,20 +139,15 @@ module Common =
     let indexToColumnName (index: int) =
         match index with
         | i when i > 16383 || i < 0 -> failwith "Index out of bounds"
-        | i when i >= 702 ->
-            
-            // 3 letter name
-            //
-            [| char (((i / 26) % 26) + 65); char ((((i - 702) / 26) % 26) + 65); (char ((i % 26) + 65)) |]
-        | i when i >= 26 ->
-            // 2 letter name
-            
-            [| char ((i / 26) + 64); (char ((i % 26) + 65)) |]
-        | i ->
-            // 1 letter name
-            [| (char (i + 65)) |]
-        |> String
-
+        | i when i >= 702 -> [| 0; 1; 2; |]
+        | i when i >= 26 -> [| 0; 1; |]
+        | i -> [| 0 |]
+        |> Array.fold (fun (acc, cn) _ ->
+            let modulo = (cn - 1) % 26
+            (char (65 + modulo)) :: acc, (cn - modulo) / 26) ([], index + 1) // + 1 because excel cells are base 1 indexex.
+        |> fst
+        |> fun r -> String(r |> Array.ofList)
+        
     let getRowIndex (cellName: string) =
         let r = Regex(@"\d+")
         let m = r.Match(cellName)
