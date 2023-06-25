@@ -214,12 +214,12 @@ module XlsxTest =
         let rps = typeof<Record>.GetProperties() |> Array.mapi (fun i pi -> RecordProperty.Create(pi, i, 0))
         
         let fn (doc: SpreadsheetDocument) =
-            getSheet "1. AWE Total Pay" doc
-            |> Option.bind (fun s ->
-                let wbp = getWorksheet s doc
-                
-                getRow wbp 10u
-                |> Option.map (createRecord<Record> rps))
+            match getSheet "1. AWE Total Pay" doc with
+            | Some s ->
+                getWorksheet s doc
+                |> Records.createRecordsFromWorksheet<Record> (Some 10) (Some 289)
+                |> List.ofSeq
+            | None -> failwith "Worksheet not found"
             
         
         let r = exec fn true path

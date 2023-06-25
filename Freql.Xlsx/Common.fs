@@ -52,7 +52,7 @@ module Common =
         worksheet.Worksheet.Descendants<Row>()
         |> Seq.filter (fun r -> r.RowIndex >= UInt32Value startIndex && r.RowIndex <= UInt32Value endIndex)
 
-    let getRows (worksheet: WorksheetPart) =
+    let getAllRows (worksheet: WorksheetPart) =
         worksheet.Worksheet.Descendants<Row>() :> seq<_>
 
     let getCell (worksheet: WorksheetPart) (cellRef: string) =

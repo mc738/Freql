@@ -1,6 +1,7 @@
 ﻿namespace Freql.Xlsx
 
 open System
+open DocumentFormat.OpenXml.Packaging
 
 module Records =
 
@@ -94,7 +95,7 @@ module Records =
         | Success of 'T
         | ValueErrors of ValueError list
         | UnhandledException of exn
-
+    
     let tryCreateRecord<'T> (properties: RecordProperty array) (row: Row) =
 
         let tryGetValue
@@ -280,7 +281,7 @@ module Records =
                 | Some c, st ->
                     match tryGetValue c st rp.Format true rp.OADate with
                     | Ok v -> okRs.Add(v)
-                    | Error e -> errRs.Add(v)
+                    | Error e -> errRs.Add(ValueError.InvalidValue(rp.PropertyInfo.Name, e))
                 | None, _ ->
                     errRs.Add(ValueError.ValueMissing(rp.PropertyInfo.Name, $"{rp.PropertyInfo.Name} value not found")))
 
@@ -480,3 +481,11 @@ module Records =
         let o = FSharpValue.MakeRecord(typeof<'T>, values)
 
         o :?> 'T
+
+    let createRecordsFromWorksheet<'T> (lowerBound: int option) (upperBound: int option) (worksheetPart: WorksheetPart) =
+        
+        let rps = typeof<'T>.GetProperties() |> Array.mapi (fun i pi -> RecordProperty.Create(pi, i, 0))
+        
+        getRows worksheetPart (lowerBound |> Option.map uint32) (upperBound |> Option.map uint32)
+        |> Seq.map (createRecord<'T> rps)
+        
