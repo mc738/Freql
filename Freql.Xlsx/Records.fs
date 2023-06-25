@@ -85,6 +85,216 @@ module Records =
     //    rp.NumberStyle
     //    |> Option.defaultValue NumberStyles.Float
 
+    [<RequireQualifiedAccess>]
+    type ValueError =
+        | ValueMissing of FieldName: string * Message: string
+        | InvalidValue of FieldName: string * Message: string
+
+    type CreateRecordResult<'T> =
+        | Success of 'T
+        | ValueErrors of ValueError list
+        | UnhandledException of exn
+
+    let tryCreateRecord<'T> (properties: RecordProperty array) (row: Row) =
+
+        let tryGetValue
+            (cell: Cell)
+            (st: SupportedType)
+            (format: string option)
+            (optionalErrorToNone: bool)
+            (oaDate: bool)
+            =
+            match st with
+            | SupportedType.Blob -> Error "Blob types not supported in xlsx"
+            | SupportedType.Boolean ->
+                match cellToBool cell with
+                | Some v -> box v |> Ok
+                | None -> Error "Value could not be extracted as type bool"
+            | SupportedType.Byte ->
+                match cellToInt cell |> Option.map byte with
+                | Some v -> box v |> Ok
+                | None -> Error "Value could not be extracted as type byte"
+            | SupportedType.Char ->
+                match cellToString cell |> Seq.tryItem 0 with
+                | Some v -> box v |> Ok
+                | None -> Error "Value could not be extracted as type char"
+            | SupportedType.Decimal ->
+                match cellToDecimal cell with
+                | Some v -> box v |> Ok
+                | None -> Error "Value could not be extracted as type decimal"
+            | SupportedType.Double ->
+                match cellToDouble cell with
+                | Some v -> box v |> Ok
+                | None -> Error "Value could not be extracted as type double"
+            | SupportedType.Float ->
+                match cellToDouble cell |> Option.map float32 with
+                | Some v -> box v |> Ok
+                | None -> Error "Value could not be extracted as type float"
+            | SupportedType.Int ->
+                match cellToInt cell with
+                | Some v -> box v |> Ok
+                | None -> Error "Value could not be extracted as type int"
+            | SupportedType.Short ->
+                match cellToInt cell |> Option.map int16 with
+                | Some v -> box v |> Ok
+                | None -> Error "Value could not be extracted as type short"
+            | SupportedType.Long ->
+                match cellToInt cell |> Option.map int64 with
+                | Some v -> box v |> Ok
+                | None -> Error "Value could not be extracted as type long"
+            | SupportedType.String -> cellToString cell |> box |> Ok
+            | SupportedType.DateTime ->
+                match oaDate with
+                | true ->
+                    match cellToOADateTime cell with
+                    | Some v -> box v |> Ok
+                    | None -> Error "Value could not be extracted as type datetime"
+                | false ->
+                    match cellToDateTime cell with
+                    | Some v -> box v |> Ok
+                    | None -> Error "Value could not be extracted as type datetime"
+            | SupportedType.Guid ->
+                match format with
+                | Some f ->
+                    match Guid.TryParseExact(cellToString cell, f) with
+                    | true, v -> box v |> Ok
+                    | false, _ -> Error $"Value could not be extracted as type guid (format: '{f}')"
+                | None ->
+                    match Guid.TryParse(cellToString cell) with
+                    | true, v -> box v |> Ok
+                    | false, _ -> Error "Value could not be extracted as type guid"
+            | SupportedType.Option ist ->
+                match ist with
+                | SupportedType.Blob -> Error "Blob types not supported in xlsx"
+                | SupportedType.Boolean ->
+                    match cellToBool cell with
+                    | Some v -> Some v |> box |> Ok
+                    | None ->
+                        match optionalErrorToNone with
+                        | true -> None |> box |> Ok
+                        | false -> Error "Value could not be extracted as type bool"
+                | SupportedType.Byte ->
+                    match cellToInt cell |> Option.map byte with
+                    | Some v -> Some v |> box |> Ok
+                    | None ->
+                        match optionalErrorToNone with
+                        | true -> None |> box |> Ok
+                        | false -> Error "Value could not be extracted as type byte"
+                | SupportedType.Char ->
+                    match cellToString cell |> Seq.tryItem 0 with
+                    | Some v -> Some v |> box |> Ok
+                    | None ->
+                        match optionalErrorToNone with
+                        | true -> None |> box |> Ok
+                        | false -> Error "Value could not be extracted as type char"
+                | SupportedType.Decimal ->
+                    match cellToString cell |> Seq.tryItem 0 with
+                    | Some v -> Some v |> box |> Ok
+                    | None ->
+                        match optionalErrorToNone with
+                        | true -> None |> box |> Ok
+                        | false -> Error "Value could not be extracted as type decimal"
+                | SupportedType.Double ->
+                    match cellToDouble cell with
+                    | Some v -> Some v |> box |> Ok
+                    | None ->
+                        match optionalErrorToNone with
+                        | true -> None |> box |> Ok
+                        | false -> Error "Value could not be extracted as type double"
+                | SupportedType.Float ->
+                    match cellToDouble cell |> Option.map float32 with
+                    | Some v -> Some v |> box |> Ok
+                    | None ->
+                        match optionalErrorToNone with
+                        | true -> None |> box |> Ok
+                        | false -> Error "Value could not be extracted as type float"
+                | SupportedType.Int ->
+                    match cellToInt cell with
+                    | Some v -> Some v |> box |> Ok
+                    | None ->
+                        match optionalErrorToNone with
+                        | true -> None |> box |> Ok
+                        | false -> Error "Value could not be extracted as type int"
+                | SupportedType.Short ->
+                    match cellToInt cell |> Option.map int16 with
+                    | Some v -> Some v |> box |> Ok
+                    | None ->
+                        match optionalErrorToNone with
+                        | true -> None |> box |> Ok
+                        | false -> Error "Value could not be extracted as type short"
+                | SupportedType.Long ->
+                    match cellToInt cell |> Option.map int64 with
+                    | Some v -> Some v |> box |> Ok
+                    | None ->
+                        match optionalErrorToNone with
+                        | true -> None |> box |> Ok
+                        | false -> Error "Value could not be extracted as type long"
+                | SupportedType.String -> cellToString cell |> Some |> box |> Ok
+                | SupportedType.DateTime ->
+                    match oaDate with
+                    | true ->
+                        match cellToOADateTime cell with
+                        | Some v -> Some v |> box |> Ok
+                        | None ->
+                            match optionalErrorToNone with
+                            | true -> None |> box |> Ok
+                            | false -> Error "Value could not be extracted as type datetime"
+                    | false ->
+                        match cellToDateTime cell with
+                        | Some v -> Some v |> box |> Ok
+                        | None ->
+                            match optionalErrorToNone with
+                            | true -> None |> box |> Ok
+                            | false -> Error "Value could not be extracted as type datetime"
+                | SupportedType.Guid ->
+                    match format with
+                    | Some f ->
+                        match Guid.TryParseExact(cellToString cell, f) with
+                        | true, v -> Some v |> box |> Ok
+                        | false, _ ->
+                            match optionalErrorToNone with
+                            | true -> None |> box |> Ok
+                            | false -> Error $"Value could not be extracted as type guid (format: '{f}')"
+                    | None ->
+                        match Guid.TryParse(cellToString cell) with
+                        | true, v -> Some v |> box |> Ok
+                        | false, _ ->
+                            match optionalErrorToNone with
+                            | true -> None |> box |> Ok
+                            | false -> Error "Value could not be extracted as type guid"
+                | SupportedType.Option ist -> failwith "Nested option types not supported in xlsx"
+
+        // NOTE Not the most functional approach. Trying this out to see if it effective.
+        let okRs = ResizeArray<obj>(properties.Length)
+        let errRs = ResizeArray<ValueError>(properties.Length)
+
+        let values =
+            properties
+            |> Array.iter (fun rp ->
+                //printfn $"*** {i}"
+                // Look for format field.
+
+
+                match getCellFromRow row rp.ColumnName, rp.Type with
+                | None, SupportedType.Option _ -> okRs.Add(None |> box)
+                | Some c, st ->
+                    match tryGetValue c st rp.Format true rp.OADate with
+                    | Ok v -> okRs.Add(v)
+                    | Error e -> errRs.Add(v)
+                | None, _ ->
+                    errRs.Add(ValueError.ValueMissing(rp.PropertyInfo.Name, $"{rp.PropertyInfo.Name} value not found")))
+
+        match errRs.Count > 0 with
+        | true -> List.ofSeq errRs |> CreateRecordResult.ValueErrors
+        | false ->
+            try
+                let o = FSharpValue.MakeRecord(typeof<'T>, Array.ofSeq okRs)
+
+                (o :?> 'T) |> CreateRecordResult.Success
+            with exn ->
+                CreateRecordResult.UnhandledException exn
+
+
     let createRecord<'T> (properties: RecordProperty array) (row: Row) =
 
         let tryGetValue
