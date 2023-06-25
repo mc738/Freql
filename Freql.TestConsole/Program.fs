@@ -180,15 +180,38 @@ type CustomerPurchase =
 module XlsxTest =
     
     open Freql.Xlsx
+    open Freql.Xlsx.Records
     
     type Record =
         {
-            Test: int
+            [<XlsxOptions(ColumnName = "A", OADate = true)>]
+            Date: DateTime
+            [<XlsxColumnName("B")>]
+            WholeEconomy: decimal
+            [<XlsxColumnName("E")>]
+            PrivateSector: decimal
+            [<XlsxColumnName("H")>]
+            PublicSector: decimal
+            [<XlsxColumnName("K")>]
+            Services: decimal
+            [<XlsxColumnName("N")>]
+            FinanceSector: decimal
+            [<XlsxColumnName("Q")>]
+            PublicSectorExcludingFiance: decimal
+            [<XlsxColumnName("T")>]
+            Manufacturing: decimal
+            [<XlsxColumnName("W")>]
+            Construction: decimal
+            [<XlsxColumnName("Z")>]
+            WholeSale: decimal
+            
         }
     
     let path = "C:\\Users\\44748\\Downloads\\earn01jun2023.xlsx"
     
     let run _ =
+        
+        let rps = typeof<Record>.GetProperties() |> Array.mapi (fun i pi -> RecordProperty.Create(pi, i, 0))
         
         let fn (doc: SpreadsheetDocument) =
             getSheet "1. AWE Total Pay" doc
@@ -196,7 +219,7 @@ module XlsxTest =
                 let wbp = getWorksheet s doc
                 
                 getRow wbp 10u
-                |> Option.map getCellsFromRow)
+                |> Option.map (createRecord<Record> rps))
             
         
         let r = exec fn true path

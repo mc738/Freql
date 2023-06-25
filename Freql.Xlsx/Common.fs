@@ -39,6 +39,15 @@ module Common =
         worksheet.Worksheet.Descendants<Row>()
         |> Seq.tryFind (fun r -> r.RowIndex = UInt32Value index)
 
+    let getRows (worksheet: WorksheetPart) (lowerBound: uint32 option) (upperBound: uint32 option) =
+        worksheet.Worksheet.Descendants<Row>()
+        |> Seq.filter (fun r ->
+            match lowerBound, upperBound with
+            | Some lb, Some ub -> r.RowIndex >= UInt32Value lb && r.RowIndex <= UInt32Value ub
+            | Some lb, None -> r.RowIndex >= UInt32Value lb
+            | None, Some ub -> r.RowIndex <= UInt32Value ub
+            | None, None -> true)
+
     let getRowRange (worksheet: WorksheetPart) (startIndex: uint32) (endIndex: uint32) =
         worksheet.Worksheet.Descendants<Row>()
         |> Seq.filter (fun r -> r.RowIndex >= UInt32Value startIndex && r.RowIndex <= UInt32Value endIndex)
@@ -53,52 +62,61 @@ module Common =
     let getCellValue (worksheet: WorksheetPart) (cellRef: string) =
         getCell worksheet cellRef |> Option.map (fun c -> c.CellValue)
 
+    let cellToString (cell: Cell) = cell.CellValue.Text
+
+    let cellToBool (cell: Cell) =
+        match cell.CellValue.TryGetBoolean() with
+        | true, v -> Some v
+        | false, _ -> None
+
+    let cellToDecimal (cell: Cell) =
+        match cell.CellValue.TryGetDecimal() with
+        | true, v -> Some v
+        | false, _ -> None
+
+    let cellToDouble (cell: Cell) =
+        match cell.CellValue.TryGetDouble() with
+        | true, v -> Some v
+        | false, _ -> None
+
+    let cellToInt (cell: Cell) =
+        match cell.CellValue.TryGetInt() with
+        | true, v -> Some v
+        | false, _ -> None
+
+    let cellToDateTime (cell: Cell) =
+        match cell.CellValue.TryGetDateTime() with
+        | true, v -> Some v
+        | false, _ -> None
+
+    let cellToOADateTime (cell: Cell) =
+        cellToDouble cell |> Option.map DateTime.FromOADate
+
+    let cellToDateTimeOffset (cell: Cell) =
+        match cell.CellValue.TryGetDateTimeOffset() with
+        | true, v -> Some v
+        | false, _ -> None
 
     let getCellValueAsString (worksheet: WorksheetPart) (cellRef: string) =
         getCell worksheet cellRef |> Option.map (fun c -> c.CellValue.Text)
 
     let getCellValueAsBool (worksheet: WorksheetPart) (cellRef: string) =
-        getCell worksheet cellRef
-        |> Option.bind (fun c ->
-            match c.CellValue.TryGetBoolean() with
-            | true, v -> Some v
-            | false, _ -> None)
+        getCell worksheet cellRef |> Option.bind cellToBool
 
     let getCellValueAsDecimal (worksheet: WorksheetPart) (cellRef: string) =
-        getCell worksheet cellRef
-        |> Option.bind (fun c ->
-            match c.CellValue.TryGetDecimal() with
-            | true, v -> Some v
-            | false, _ -> None)
+        getCell worksheet cellRef |> Option.bind cellToDecimal
 
     let getCellValueAsDouble (worksheet: WorksheetPart) (cellRef: string) =
-        getCell worksheet cellRef
-        |> Option.bind (fun c ->
-            match c.CellValue.TryGetDouble() with
-            | true, v -> Some v
-            | false, _ -> None)
+        getCell worksheet cellRef |> Option.bind cellToDouble
 
     let getCellValueAsInt (worksheet: WorksheetPart) (cellRef: string) =
-        getCell worksheet cellRef
-        |> Option.bind (fun c ->
-            match c.CellValue.TryGetInt() with
-            | true, v -> Some v
-            | false, _ -> None)
+        getCell worksheet cellRef |> Option.bind cellToInt
 
     let getCellValueAsDateTime (worksheet: WorksheetPart) (cellRef: string) =
-        getCell worksheet cellRef
-        |> Option.bind (fun c ->
-            match c.CellValue.TryGetDateTime() with
-            | true, v -> Some v
-            | false, _ -> None)
+        getCell worksheet cellRef |> Option.bind cellToDateTime
 
     let getCellValueAsDateTimeOffset (worksheet: WorksheetPart) (cellRef: string) =
-        getCell worksheet cellRef
-        |> Option.bind (fun c ->
-            match c.CellValue.TryGetDateTimeOffset() with
-            | true, v -> Some v
-            | false, _ -> None)
-
+        getCell worksheet cellRef |> Option.bind cellToDateTimeOffset
 
     let getCellFromRow (row: Row) (columnName: string) =
         row.Descendants<Cell>()
@@ -158,7 +176,7 @@ module Common =
         match tryIndexToColumnName index with
         | Ok cn -> cn
         | Error e -> failwith e
-        
+
     let getRowIndex (cellName: string) =
         let r = Regex(@"\d+")
         let m = r.Match(cellName)
