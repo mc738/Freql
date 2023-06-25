@@ -3,6 +3,8 @@
     <PropertyGroup>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
         <TargetFrameworks>net6.0;net5.0</TargetFrameworks>
+        <PackageProjectUrl>https://github.com/mc738/Freql</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/mc738/Freql</RepositoryUrl>
     </PropertyGroup>
 
     <ItemGroup>
