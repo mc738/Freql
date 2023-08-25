@@ -298,6 +298,8 @@ type SqlServerContext(connection, transaction) =
        connection.Close()
        connection.Dispose()
     
+    member _.GetConnection() = connection
+    
     member handler.Select<'T> tableName =
         QueryHelpers.selectAll<'T> tableName connection transaction
 
