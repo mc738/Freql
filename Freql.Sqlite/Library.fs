@@ -483,6 +483,8 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
         connection.Close()
         connection.Dispose()
 
+    member _.GetConnection() = connection
+    
     /// <summary>
     /// Select all items from a table and map them to type 'T.
     /// </summary>
