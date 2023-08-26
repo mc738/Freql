@@ -385,6 +385,8 @@ type PostgreSQLContext(connection, transaction) =
     member _.Close() =
        connection.Close()
        connection.Dispose()
+       
+    member _.GetConnection() = connection
     
     /// Select all items from a table and map them to type 'T.
     member handler.Select<'T> tableName =
