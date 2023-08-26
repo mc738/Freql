@@ -300,6 +300,8 @@ type SqlServerContext(connection, transaction) =
     
     member _.GetConnection() = connection
     
+    member _.ClearPool() = SqlConnection.ClearPool(connection)
+    
     member handler.Select<'T> tableName =
         QueryHelpers.selectAll<'T> tableName connection transaction
 
