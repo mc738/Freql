@@ -484,9 +484,9 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
         connection.Dispose()
 
     member _.GetConnection() = connection
-    
+
     member _.ClearPool() = SqliteConnection.ClearPool(connection)
-    
+
     /// <summary>
     /// Select all items from a table and map them to type 'T.
     /// </summary>
@@ -693,9 +693,13 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
             Error message
         | None -> Error "No active transaction."
 
-    member _.CreateFunction<'T1,'TResult>(name: string, fn: 'T1 -> 'TResult, ?isDeterministic: bool) =
+    member _.CreateFunction<'T1, 'TResult>(name: string, fn: 'T1 -> 'TResult, ?isDeterministic: bool) =
         match isDeterministic with
         | Some v -> connection.CreateFunction(name, fn, v)
         | None -> connection.CreateFunction(name, fn)
-        
-    
+
+    member ctx.RegisterRegexFunction() =
+        ctx.CreateFunction(
+            "regexp",
+            fun (pattern: string, input: string) -> System.Text.RegularExpressions.Regex.IsMatch(input, pattern)
+        )
