@@ -485,6 +485,8 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
 
     member _.GetConnection() = connection
     
+    member _.ClearPool() = SqliteConnection.ClearPool(connection)
+    
     /// <summary>
     /// Select all items from a table and map them to type 'T.
     /// </summary>
