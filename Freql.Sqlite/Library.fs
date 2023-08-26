@@ -692,3 +692,10 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
             t.Rollback()
             Error message
         | None -> Error "No active transaction."
+
+    member _.CreateFunction<'T1,'TResult>(name: string, fn: 'T1 -> 'TResult, ?isDeterministic: bool) =
+        match isDeterministic with
+        | Some v -> connection.CreateFunction(name, fn, v)
+        | None -> connection.CreateFunction(name, fn)
+        
+    
