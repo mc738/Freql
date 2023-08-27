@@ -1,6 +1,7 @@
 ﻿namespace Freql.Sqlite
 
 open System
+open System.Data
 open System.IO
 open Freql.Core.Common
 open Freql.Core.Common.Mapping
@@ -493,6 +494,9 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
     
     member _.GetDatabase() = connection.Database
     
+    
+    member _.OnStateChange(fn: StateChangeEventArgs -> unit) = connection.StateChange.Add(fn)
+        
     /// <summary>
     /// Select all items from a table and map them to type 'T.
     /// </summary>
