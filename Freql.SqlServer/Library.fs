@@ -306,6 +306,8 @@ type SqlServerContext(connection, transaction) =
     
     member _.GetConnectionState() = connection.State
     
+    member _.GetDatabase() = connection.Database
+    
     member handler.Select<'T> tableName =
         QueryHelpers.selectAll<'T> tableName connection transaction
 
