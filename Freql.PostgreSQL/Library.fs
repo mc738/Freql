@@ -390,6 +390,8 @@ type PostgreSQLContext(connection, transaction) =
     
     member _.ClearPool() = NpgsqlConnection.ClearPool(connection)
     
+    member _.ClearAllPools() = NpgsqlConnection.ClearAllPools()
+    
     /// Select all items from a table and map them to type 'T.
     member handler.Select<'T> tableName =
         QueryHelpers.selectAll<'T> tableName connection transaction
