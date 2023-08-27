@@ -391,6 +391,8 @@ type MySqlContext(connection, transaction) =
     
     member _.ClearAllPools() = MySqlConnection.ClearAllPools()
     
+    member _.GetConnectionState() = connection.State
+    
     /// Select all items from a table and map them to type 'T.
     member handler.Select<'T> tableName =
         QueryHelpers.selectAll<'T> tableName connection transaction
