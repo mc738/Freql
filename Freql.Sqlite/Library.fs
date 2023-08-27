@@ -491,6 +491,8 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
     
     member _.GetConnectionState() = connection.State
     
+    member _.GetDatabase() = connection.Database
+    
     /// <summary>
     /// Select all items from a table and map them to type 'T.
     /// </summary>
