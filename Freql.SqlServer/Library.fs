@@ -308,6 +308,9 @@ type SqlServerContext(connection, transaction) =
     
     member _.GetDatabase() = connection.Database
     
+    member _.OnStateChange(fn: StateChangeEventArgs -> unit) = connection.StateChange.Add(fn)
+        
+    
     member handler.Select<'T> tableName =
         QueryHelpers.selectAll<'T> tableName connection transaction
 
