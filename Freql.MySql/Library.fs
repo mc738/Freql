@@ -395,8 +395,8 @@ type MySqlContext(connection, transaction) =
     
     member _.GetDatabase() = connection.Database
     
-    member _.Ping() = connection.Ping()
-    
+    member _.OnStateChange(fn: StateChangeEventArgs -> unit) = connection.StateChange.Add(fn)
+        
     /// Select all items from a table and map them to type 'T.
     member handler.Select<'T> tableName =
         QueryHelpers.selectAll<'T> tableName connection transaction
