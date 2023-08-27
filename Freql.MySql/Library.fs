@@ -395,6 +395,7 @@ type MySqlContext(connection, transaction) =
     
     member _.GetDatabase() = connection.Database
     
+    member _.Ping() = connection.Ping()
     
     /// Select all items from a table and map them to type 'T.
     member handler.Select<'T> tableName =
