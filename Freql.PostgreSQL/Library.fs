@@ -395,7 +395,9 @@ type PostgreSQLContext(connection, transaction) =
     member _.GetConnectionState() = connection.State
     
     member _.GetDatabase() = connection.Database
-   
+    
+    member _.OnStateChange(fn: StateChangeEventArgs -> unit) = connection.StateChange.Add(fn)
+    
     /// Select all items from a table and map them to type 'T.
     member handler.Select<'T> tableName =
         QueryHelpers.selectAll<'T> tableName connection transaction
