@@ -10,6 +10,40 @@ open Freql.Core.Utils
 
 module private QueryHelpers =
 
+    let createConnectionString
+        (path: string)
+        (mode: SqliteOpenMode option)
+        (cache: SqliteCacheMode option)
+        (password: string option)
+        (pooling: bool option)
+        (defaultTimeOut: int option)
+        =
+        let mutable connectionString = SqliteConnectionStringBuilder()
+
+        connectionString.DataSource <- path
+
+        match mode with
+        | Some m -> connectionString.Mode <- m
+        | None -> ()
+
+        match cache with
+        | Some c -> connectionString.Cache <- c
+        | None -> ()
+
+        match password with
+        | Some p -> connectionString.Password <- p
+        | None -> ()
+
+        match pooling with
+        | Some p -> connectionString.Pooling <- p
+        | None -> ()
+
+        match defaultTimeOut with
+        | Some dto -> connectionString.DefaultTimeout <- dto
+        | None -> ()
+
+        connectionString.ToString()
+
     let mapParameters<'T> (mappedObj: MappedObject) (parameters: 'T) =
         mappedObj.Fields
         |> List.sortBy (fun p -> p.Index)
@@ -430,10 +464,18 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
 
         member ctx.Dispose() = ctx.Close()
 
-    static member Create(path: string) =
+    static member Create
+        (
+            path: string,
+            ?mode: SqliteOpenMode,
+            ?cache: SqliteCacheMode,
+            ?password: string,
+            ?pooling: bool,
+            ?defaultTimeOut: int
+        ) =
         File.WriteAllBytes(path, [||])
 
-        use conn = new SqliteConnection($"Data Source={path}")
+        use conn = new SqliteConnection(QueryHelpers.createConnectionString path mode cache password pooling defaultTimeOut)
 
         new SqliteContext(conn, None)
 
@@ -446,31 +488,8 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
             ?pooling: bool,
             ?defaultTimeOut: int
         ) =
-        let mutable connectionString = SqliteConnectionStringBuilder()
-
-        connectionString.DataSource <- path
-
-        match mode with
-        | Some m -> connectionString.Mode <- m
-        | None -> ()
-
-        match cache with
-        | Some c -> connectionString.Cache <- c
-        | None -> ()
-
-        match password with
-        | Some p -> connectionString.Password <- p
-        | None -> ()
-
-        match pooling with
-        | Some p -> connectionString.Pooling <- p
-        | None -> ()
-
-        match defaultTimeOut with
-        | Some dto -> connectionString.DefaultTimeout <- dto
-        | None -> ()
-
-        use conn = new SqliteConnection(connectionString.ToString())
+        use conn =
+            new SqliteConnection(QueryHelpers.createConnectionString path mode cache password pooling defaultTimeOut)
 
         new SqliteContext(conn, None)
 
@@ -489,14 +508,14 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
     member _.ClearPool() = SqliteConnection.ClearPool(connection)
 
     member _.ClearAllPools() = SqliteConnection.ClearAllPools()
-    
+
     member _.GetConnectionState() = connection.State
-    
+
     member _.GetDatabase() = connection.Database
-    
-    
+
+
     member _.OnStateChange(fn: StateChangeEventArgs -> unit) = connection.StateChange.Add(fn)
-        
+
     /// <summary>
     /// Select all items from a table and map them to type 'T.
     /// </summary>
