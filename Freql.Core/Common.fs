@@ -2,6 +2,7 @@
 
 open System
 open System.IO
+open System.Reflection
 open System.Text.RegularExpressions
 open Microsoft.FSharp.Reflection
 open Freql.Core.Utils
@@ -248,7 +249,7 @@ module Mapping =
     type RecordBuilder() =
 
         /// Create a F# record from a list of FieldValue's and a type.
-        static member Create<'T>(values: FieldValue list) =
+        static member Create<'T>(values: FieldValue list, ?bindingFlags: Reflection.BindingFlags) =
             let t = typeof<'T>
 
             let v =
@@ -257,7 +258,10 @@ module Mapping =
                 |> List.map (fun v -> v.Value)
                 |> Array.ofList
 
-            let o = FSharpValue.MakeRecord(t, v)
+            let o =
+                match bindingFlags with
+                | Some bf ->  FSharpValue.MakeRecord(t, v, bf)
+                | None -> FSharpValue.MakeRecord(t, v)
 
             o :?> 'T
     
@@ -277,3 +281,13 @@ module Mapping =
 
                 f.MappingName, v)
         |> Map.ofList
+        
+    [<RequireQualifiedAccess>]    
+    type BindingType =
+        | Default
+        | AllowPrivate
+        
+        member bt.ToFlags() =
+            match bt with
+            | Default -> BindingFlags.Default
+            | AllowPrivate -> BindingFlags.Public ||| BindingFlags.NonPublic
