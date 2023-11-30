@@ -90,12 +90,60 @@ module private QueryHelpers =
                     | SupportedType.Option _ -> None :> obj // Nested options not allowed.
 
         [ while reader.Read() do
+              printfn "Mapping result"
               mappedObj.Fields
               |> List.map (fun f ->
                   let o = reader.GetOrdinal(f.MappingName)
                   let value = getValue reader o f.Type
                   { Index = f.Index; Value = value })
               |> (fun v -> RecordBuilder.Create<'T> v) ]
+
+    let deferredMapResults<'T> (mappedObj: MappedObject) (reader: SqliteDataReader) =
+        let getValue (reader: SqliteDataReader) o supportType =
+            match supportType with
+            | SupportedType.Boolean -> reader.GetBoolean(o) :> obj
+            | SupportedType.Byte -> reader.GetByte(o) :> obj
+            | SupportedType.Char -> reader.GetChar(o) :> obj
+            | SupportedType.Decimal -> reader.GetDecimal(o) :> obj
+            | SupportedType.Double -> reader.GetDouble(o) :> obj
+            | SupportedType.Float -> reader.GetFloat(o) :> obj
+            | SupportedType.Int -> reader.GetInt32(o) :> obj
+            | SupportedType.Short -> reader.GetInt16(o) :> obj
+            | SupportedType.Long -> reader.GetInt64(o) :> obj
+            | SupportedType.String -> reader.GetString(o) :> obj
+            | SupportedType.DateTime -> reader.GetDateTime(o) :> obj
+            | SupportedType.Guid -> reader.GetGuid(o) :> obj
+            | SupportedType.Blob -> BlobField.FromStream(reader.GetStream(o)) :> obj
+            | SupportedType.Option st ->
+                match reader.IsDBNull(o) with
+                | true -> None :> obj
+                | false ->
+                    match st with
+                    | SupportedType.Boolean -> Some(reader.GetBoolean(o)) :> obj
+                    | SupportedType.Byte -> Some(reader.GetByte(o)) :> obj
+                    | SupportedType.Char -> Some(reader.GetChar(o)) :> obj
+                    | SupportedType.Decimal -> Some(reader.GetDecimal(o)) :> obj
+                    | SupportedType.Double -> Some(reader.GetDouble(o)) :> obj
+                    | SupportedType.Float -> Some(reader.GetFloat(o)) :> obj
+                    | SupportedType.Int -> Some(reader.GetInt32(o)) :> obj
+                    | SupportedType.Short -> Some(reader.GetInt16(o)) :> obj
+                    | SupportedType.Long -> Some(reader.GetInt64(o)) :> obj
+                    | SupportedType.String -> Some(reader.GetString(o)) :> obj
+                    | SupportedType.DateTime -> Some(reader.GetDateTime(o)) :> obj
+                    | SupportedType.Guid -> Some(reader.GetGuid(o)) :> obj
+                    | SupportedType.Blob -> Some(BlobField.FromStream(reader.GetStream(o))) :> obj
+                    | SupportedType.Option _ -> None :> obj // Nested options not allowed.
+
+        seq {
+            while reader.Read() do
+                printfn "Mapping result (deferred)"
+                mappedObj.Fields
+                |> List.map (fun f ->
+                    let o = reader.GetOrdinal(f.MappingName)
+                    let value = getValue reader o f.Type
+                    { Index = f.Index; Value = value })
+                |> (fun v -> RecordBuilder.Create<'T> v)
+        }
 
     let noParam (connection: SqliteConnection) (sql: string) (transaction: SqliteTransaction option) =
         connection.Open()
@@ -277,6 +325,28 @@ module private QueryHelpers =
         use reader = comm.ExecuteReader()
 
         mapResults<'T> mappedObj reader
+        
+    let deferredSelectAll<'T> (tableName: string) (connection: SqliteConnection) (transaction: SqliteTransaction option) =
+        let mappedObj = MappedObject.Create<'T>()
+
+        let fields =
+            mappedObj.Fields
+            |> List.sortBy (fun p -> p.Index)
+            |> List.map (fun f -> f.MappingName)
+
+        let fieldsString = String.Join(',', fields)
+
+        let sql =
+            $"""
+        SELECT {fieldsString}
+        FROM {tableName}
+        """
+
+        let comm = noParam connection sql transaction
+
+        use reader = comm.ExecuteReader()
+
+        deferredMapResults<'T> mappedObj reader
 
     let select<'T, 'P>
         (sql: string)
@@ -293,6 +363,21 @@ module private QueryHelpers =
 
         mapResults<'T> tMappedObj reader
 
+    let deferredSelect<'T, 'P>
+        (sql: string)
+        (connection: SqliteConnection)
+        (parameters: 'P)
+        (transaction: SqliteTransaction option)
+        =
+        let tMappedObj = MappedObject.Create<'T>()
+        let pMappedObj = MappedObject.Create<'P>()
+
+        let comm = prepare connection sql pMappedObj parameters transaction
+
+        use reader = comm.ExecuteReader()
+
+        deferredMapResults<'T> tMappedObj reader
+    
     let selectAnon<'T>
         (sql: string)
         (connection: SqliteConnection)
@@ -306,6 +391,20 @@ module private QueryHelpers =
         use reader = comm.ExecuteReader()
 
         mapResults<'T> tMappedObj reader
+        
+    let deferredSelectAnon<'T>
+        (sql: string)
+        (connection: SqliteConnection)
+        (parameters: obj list)
+        (transaction: SqliteTransaction option)
+        =
+        let tMappedObj = MappedObject.Create<'T>()
+
+        let comm = prepareAnon connection sql parameters transaction
+
+        use reader = comm.ExecuteReader()
+
+        deferredMapResults<'T> tMappedObj reader
 
     let selectSingle<'T, 'P>
         (sql: string)
@@ -475,7 +574,8 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
         ) =
         File.WriteAllBytes(path, [||])
 
-        use conn = new SqliteConnection(QueryHelpers.createConnectionString path mode cache password pooling defaultTimeOut)
+        use conn =
+            new SqliteConnection(QueryHelpers.createConnectionString path mode cache password pooling defaultTimeOut)
 
         new SqliteContext(conn, None)
 
@@ -523,7 +623,10 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
     /// <returns>A list of type 'T</returns>
     member handler.Select<'T> tableName =
         QueryHelpers.selectAll<'T> tableName connection transaction
-
+        
+    member handler.DeferredSelect<'T> tableName =
+        QueryHelpers.deferredSelectAll<'T> tableName connection transaction
+        
     /// <summary>
     /// Select data based on a verbatim sql and parameters of type 'P.
     /// Map the result to type 'T.
@@ -544,6 +647,9 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
     /// <returns>A list of type 'T</returns>
     member handler.SelectAnon<'T>(sql, parameters) =
         QueryHelpers.selectAnon<'T> sql connection parameters transaction
+        
+    member _.DeferredSelect<'T>(sql, parameters) =
+        QueryHelpers.deferredSelectAnon<'T> sql connection parameters transaction
 
     /// <summary>
     /// Select a single 'T based on an sql string and a list of obj for parameters.
