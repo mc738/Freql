@@ -98,7 +98,7 @@ module private QueryHelpers =
                   { Index = f.Index; Value = value })
               |> (fun v -> RecordBuilder.Create<'T> v) ]
 
-    let deferredMapResults<'T> (mappedObj: MappedObject) (reader: SqliteDataReader) =
+    let deferredMapResults<'T> (mappedObj: MappedObject) (comm: SqliteCommand) =
         let getValue (reader: SqliteDataReader) o supportType =
             match supportType with
             | SupportedType.Boolean -> reader.GetBoolean(o) :> obj
@@ -135,6 +135,8 @@ module private QueryHelpers =
                     | SupportedType.Option _ -> None :> obj // Nested options not allowed.
 
         seq {
+            use reader = comm.ExecuteReader()
+            
             while reader.Read() do
                 printfn "Mapping result (deferred)"
                 mappedObj.Fields
@@ -346,7 +348,7 @@ module private QueryHelpers =
 
         use reader = comm.ExecuteReader()
 
-        deferredMapResults<'T> mappedObj reader
+        deferredMapResults<'T> mappedObj comm
 
     let select<'T, 'P>
         (sql: string)
@@ -374,9 +376,9 @@ module private QueryHelpers =
 
         let comm = prepare connection sql pMappedObj parameters transaction
 
-        use reader = comm.ExecuteReader()
+        //use reader = comm.ExecuteReader()
 
-        deferredMapResults<'T> tMappedObj reader
+        deferredMapResults<'T> tMappedObj comm
     
     let selectAnon<'T>
         (sql: string)
@@ -402,9 +404,9 @@ module private QueryHelpers =
 
         let comm = prepareAnon connection sql parameters transaction
 
-        use reader = comm.ExecuteReader()
+        //use reader = comm.ExecuteReader()
 
-        deferredMapResults<'T> tMappedObj reader
+        deferredMapResults<'T> tMappedObj comm
 
     let selectSingle<'T, 'P>
         (sql: string)
