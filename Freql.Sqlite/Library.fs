@@ -100,7 +100,7 @@ module private QueryHelpers =
     /// <summary>
     /// Map the requests of a sql command in a deferred way.
     /// This takes a SqliteCommand rather than a SqliteDataReader because the reader needs to still be open when it
-    /// the seq is enumerated. 
+    /// the seq is enumerated.
     /// </summary>
     /// <param name="mappedObj"></param>
     /// <param name="comm"></param>
@@ -142,7 +142,7 @@ module private QueryHelpers =
 
         seq {
             use reader = comm.ExecuteReader()
-            
+
             while reader.Read() do
                 mappedObj.Fields
                 |> List.map (fun f ->
@@ -243,7 +243,7 @@ module private QueryHelpers =
 
         use reader = comm.ExecuteReader()
         mapper reader
-        
+
     let deferredBespoke<'T>
         (connection: SqliteConnection)
         (sql: string)
@@ -251,15 +251,15 @@ module private QueryHelpers =
         (mapper: SqliteDataReader -> 'T seq)
         (transaction: SqliteTransaction option)
         =
-        
+
         let comm = prepareAnon connection sql parameters transaction
 
         seq {
             use reader = comm.ExecuteReader()
-            
+
             yield! mapper reader
         }
-        
+
     /// A bespoke query, the caller needs to provide a mapping function. This returns a single 'T.
     let bespokeSingle<'T>
         (connection: SqliteConnection)
@@ -272,7 +272,7 @@ module private QueryHelpers =
 
         use reader = comm.ExecuteReader()
         mapper reader
-        
+
     let create<'T> (tableName: string) (connection: SqliteConnection) (transaction: SqliteTransaction option) =
         let mappedObj = MappedObject.Create<'T>()
 
@@ -348,8 +348,12 @@ module private QueryHelpers =
         use reader = comm.ExecuteReader()
 
         mapResults<'T> mappedObj reader
-        
-    let deferredSelectAll<'T> (tableName: string) (connection: SqliteConnection) (transaction: SqliteTransaction option) =
+
+    let deferredSelectAll<'T>
+        (tableName: string)
+        (connection: SqliteConnection)
+        (transaction: SqliteTransaction option)
+        =
         let mappedObj = MappedObject.Create<'T>()
 
         let fields =
@@ -400,7 +404,7 @@ module private QueryHelpers =
         //use reader = comm.ExecuteReader()
 
         deferredMapResults<'T> tMappedObj comm
-    
+
     let selectAnon<'T>
         (sql: string)
         (connection: SqliteConnection)
@@ -414,7 +418,7 @@ module private QueryHelpers =
         use reader = comm.ExecuteReader()
 
         mapResults<'T> tMappedObj reader
-        
+
     let deferredSelectAnon<'T>
         (sql: string)
         (connection: SqliteConnection)
@@ -464,7 +468,7 @@ module private QueryHelpers =
         let comm = noParam connection sql transaction
 
         deferredMapResults<'T> tMappedObj comm
-    
+
     /// Special handling is needed for `INSERT` query to accommodate blobs.
     /// This module aims to wrap as much of that up to in one place.
     [<RequireQualifiedAccess>]
@@ -653,7 +657,7 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
     /// <returns>A list of type 'T</returns>
     member handler.Select<'T> tableName =
         QueryHelpers.selectAll<'T> tableName connection transaction
-      
+
     /// <summary>
     /// Select all items from a table and map to type 'T.
     /// This uses a deferred query so results are only created when the seq is enumerated.
@@ -662,7 +666,7 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
     /// <returns>A seq of type 'T</returns>
     member handler.DeferredSelect<'T> tableName =
         QueryHelpers.deferredSelectAll<'T> tableName connection transaction
-        
+
     /// <summary>
     /// Select data based on a verbatim sql and parameters of type 'P.
     /// Map the result to type 'T.
@@ -672,7 +676,7 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
     /// <returns>A list of type 'T</returns>
     member handler.SelectVerbatim<'T, 'P>(sql, parameters) =
         QueryHelpers.select<'T, 'P> sql connection parameters transaction
-        
+
     /// <summary>
     /// Select data based on a verbatim sql and parameters of type 'P.
     /// Map the result to type 'T.
@@ -694,8 +698,17 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
     /// <returns>A list of type 'T</returns>
     member handler.SelectAnon<'T>(sql, parameters) =
         QueryHelpers.selectAnon<'T> sql connection parameters transaction
-        
-    member _.DeferredSelect<'T>(sql, parameters) =
+
+    /// <summary>
+    /// Select a list of 'T based on an sql string and a list of obj for parameters.
+    /// Parameters will be assigned values @0,@1,@2 etc. based on their position in the list
+    /// when the are parameterized.
+    /// This uses a deferred query so results are only created when the seq is enumerated.
+    /// </summary>
+    /// <param name="sql">The sql query to be run</param>
+    /// <param name="parameters">A list of objects to be used are query parameters</param>
+    /// <returns>A seq of type 'T</returns>
+    member _.DeferredSelectAnon<'T>(sql, parameters) =
         QueryHelpers.deferredSelectAnon<'T> sql connection parameters transaction
 
     /// <summary>
@@ -703,16 +716,34 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
     /// This will return an optional value.
     /// Parameters will be assigned values @0,@1,@2 etc. based on their position in the list
     /// when the are parameterized.
+    /// It is best to limit the results or the query (with something like LIMIT 1),
+    /// to ensure optimum memory use (i.e. not creating results just to discard them straight away).
+    /// Alternatively call the DeferredSelectSingleAnon method which handles this issue via a deferred query.
     /// </summary>
     /// <param name="sql">The sql query to be run</param>
     /// <param name="parameters">A list of objects to be used are query parameters</param>
     /// <returns>An optional 'T</returns>
     member handler.SelectSingleAnon<'T>(sql, parameters) =
+        // NOTE - this could be rewritten as handler.SelectAnon<'T>(sql, parameters) |> List.tryHead
         let r = handler.SelectAnon<'T>(sql, parameters)
 
         match r.Length > 0 with
         | true -> r.Head |> Some
         | false -> None
+
+    /// <summary>
+    /// Select a single 'T based on an sql string and a list of obj for parameters.
+    /// This will return an optional value.
+    /// Parameters will be assigned values @0,@1,@2 etc. based on their position in the list
+    /// when the are parameterized.
+    /// Because this uses a deferred query it shouldn't matter if the query could potential return more than one result.
+    /// Only the first result will be handled.
+    /// </summary>
+    /// <param name="sql">The sql query to be run</param>
+    /// <param name="parameters">A list of objects to be used are query parameters</param>
+    /// <returns>An optional 'T</returns>
+    member ctx.DeferredSelectSingleAnon<'T>(sql, parameters) =
+        ctx.DeferredSelectAnon<'T>(sql, parameters) |> Seq.tryHead
 
     /// <summary>
     /// Select a list of 'T based on an sql string.
