@@ -649,16 +649,17 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
     /// <summary>
     /// Select all items from a table and map them to type 'T.
     /// </summary>
-    /// <param name="tableName">The name of the table</param>
+    /// <param name="tableName">The name of the table.</param>
     /// <returns>A list of type 'T</returns>
     member handler.Select<'T> tableName =
         QueryHelpers.selectAll<'T> tableName connection transaction
       
     /// <summary>
     /// Select all items from a table and map to type 'T.
-    /// This use
+    /// This uses a deferred query so results are only created when the seq is enumerated.
     /// </summary>
-    /// <param name="tableName"></param>
+    /// <param name="tableName">The name of the table.</param>
+    /// <returns>A seq of type 'T</returns>
     member handler.DeferredSelect<'T> tableName =
         QueryHelpers.deferredSelectAll<'T> tableName connection transaction
         
@@ -671,6 +672,17 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
     /// <returns>A list of type 'T</returns>
     member handler.SelectVerbatim<'T, 'P>(sql, parameters) =
         QueryHelpers.select<'T, 'P> sql connection parameters transaction
+        
+    /// <summary>
+    /// Select data based on a verbatim sql and parameters of type 'P.
+    /// Map the result to type 'T.
+    /// This uses a deferred query so results are only created when the seq is enumerated.
+    /// </summary>
+    /// <param name="sql">The sql query to be run</param>
+    /// <param name="parameters">A record of type 'P representing query parameters.</param>
+    /// <returns>A seq of type 'T</returns>
+    member _.DeferredSelectVerbatim<'T, 'P>(sql, parameters) =
+        QueryHelpers.deferredSelect<'T, 'P> sql connection parameters transaction
 
     /// <summary>
     /// Select a list of 'T based on an sql string and a list of obj for parameters.
