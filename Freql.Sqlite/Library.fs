@@ -98,6 +98,13 @@ module private QueryHelpers =
                   { Index = f.Index; Value = value })
               |> (fun v -> RecordBuilder.Create<'T> v) ]
 
+    /// <summary>
+    /// Map the requests of a sql command in a deferred way.
+    /// This takes a SqliteCommand rather than a SqliteDataReader because the reader needs to still be open when it
+    /// the seq is enumerated. 
+    /// </summary>
+    /// <param name="mappedObj"></param>
+    /// <param name="comm"></param>
     let deferredMapResults<'T> (mappedObj: MappedObject) (comm: SqliteCommand) =
         let getValue (reader: SqliteDataReader) o supportType =
             match supportType with
