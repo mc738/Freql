@@ -229,6 +229,26 @@ module private QueryHelpers =
 
         mapResults<'T> mappedObj reader
 
+    let deferredSelectAll<'T> (tableName: string) connection transaction =
+            let mappedObj = MappedObject.Create<'T>()
+
+            let fields =
+                mappedObj.Fields
+                |> List.sortBy (fun p -> p.Index)
+                |> List.map (fun f -> f.MappingName)
+
+            let fieldsString = String.Join(',', fields)
+
+            let sql =
+                $"""
+            SELECT {fieldsString}
+            FROM {tableName}
+            """
+
+            let comm = noParam connection sql transaction
+
+            deferredMapResults<'T> mappedObj comm
+    
     let select<'T, 'P> (sql: string) connection (parameters: 'P) transaction =
         let tMappedObj = MappedObject.Create<'T>()
         let pMappedObj = MappedObject.Create<'P>()
@@ -241,6 +261,16 @@ module private QueryHelpers =
         connection.Close()
         r
 
+    let deferredSelect<'T, 'P> (sql: string) connection (parameters: 'P) transaction =
+        let tMappedObj = MappedObject.Create<'T>()
+        let pMappedObj = MappedObject.Create<'P>()
+
+        let comm = prepare connection sql pMappedObj parameters transaction
+
+        // TODO test this actually works - the data reader is slightly different from MySql than Sqlite.
+        deferredMapResults<'T> tMappedObj comm
+
+    
     let selectAnon<'T> (sql: string) connection (parameters: obj list) transaction =
         let tMappedObj = MappedObject.Create<'T>()
         let comm = prepareAnon connection sql parameters transaction
