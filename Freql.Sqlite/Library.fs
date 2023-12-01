@@ -753,6 +753,16 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
     /// <returns>A list of type 'T</returns>
     member handler.SelectSql<'T> sql =
         QueryHelpers.selectSql<'T> sql connection transaction
+        
+    /// <summary>
+    /// Select a list of 'T based on an sql string.
+    /// No parameterization will take place with this, it should only be used with static sql strings.
+    /// This uses a deferred query so results are only created when the seq is enumerated.
+    /// </summary>
+    /// <param name="sql">The sql query to be run</param>
+    /// <returns>A list of type 'T</returns>
+    member handler.DeferredSelectSql<'T> sql =
+        QueryHelpers.deferredSelectSql<'T> sql connection transaction
 
     /// <summary>
     /// Select a single 'T from a table.
@@ -762,20 +772,46 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
     /// <param name="tableName">The name of the table</param>
     /// <returns>A 'T record.</returns>
     member handler.SelectSingle<'T> tableName = handler.Select<'T>(tableName).Head
+    
+    /// <summary>
+    /// Select a single 'T from a table.
+    /// This is useful if a table on contains one record. It will return the first from that table.
+    /// Be warned, this will throw an exception if the table is empty.
+    /// This uses a deferred query so results are only created when the seq is enumerated.
+    /// </summary>
+    /// <param name="tableName">The name of the table</param>
+    /// <returns>A 'T record.</returns>
+    member handler.DeferredSelectSingle<'T> tableName = handler.DeferredSelect<'T>(tableName) |> Seq.head
 
     /// <summary>
     /// Select data based on a verbatim sql and parameters of type 'P.
     /// The first result is mapped to type 'T option.
+    /// It is best to limit the results or the query (with something like LIMIT 1),
+    /// to ensure optimum memory use (i.e. not creating results just to discard them straight away).
+    /// Alternatively call the DeferredSelectSingleAnon method which handles this issue via a deferred query.
     /// </summary>
     /// <param name="sql">The sql query to be run</param>
     /// <param name="parameters">A record of type 'P representing query parameters.</param>
     /// <returns>An optional 'T</returns>
     member handler.SelectSingleVerbatim<'T, 'P>(sql: string, parameters: 'P) =
+        // NOTE - this could be rewritten to use List.tryHead
         let result = handler.SelectVerbatim<'T, 'P>(sql, parameters)
 
         match result.Length with
         | 0 -> None
         | _ -> Some result.Head
+        
+    /// <summary>
+    /// Select data based on a verbatim sql and parameters of type 'P.
+    /// The first result is mapped to type 'T option.
+    /// Because this uses a deferred query it shouldn't matter if the query could potential return more than one result.
+    /// Only the first result will be handled.
+    /// </summary>
+    /// <param name="sql">The sql query to be run</param>
+    /// <param name="parameters">A record of type 'P representing query parameters.</param>
+    /// <returns>An optional 'T</returns>
+    member handler.DeferredSelectSingleVerbatim<'T, 'P>(sql: string, parameters: 'P) =
+        handler.DeferredSelectVerbatim<'T, 'P>(sql, parameters) |> Seq.tryHead
 
     /// <summary>
     /// Execute a create table query based on a generic record type.
