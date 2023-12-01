@@ -13,15 +13,10 @@ module private QueryHelpers =
     let mapParameters<'T> (mappedObj: MappedObject) (parameters: 'T) =
         mappedObj.Fields
         |> List.sortBy (fun p -> p.Index)
-        |> List.map
-            (fun f ->
-                let v =
-                    mappedObj
-                        .Type
-                        .GetProperty(f.FieldName)
-                        .GetValue(parameters)
+        |> List.map (fun f ->
+            let v = mappedObj.Type.GetProperty(f.FieldName).GetValue(parameters)
 
-                f.MappingName, v)
+            f.MappingName, v)
         |> Map.ofList
 
     let mapResults<'T> (mappedObj: MappedObject) (reader: MySqlDataReader) =
@@ -62,12 +57,59 @@ module private QueryHelpers =
 
         [ while reader.Read() do
               mappedObj.Fields
-              |> List.map
-                  (fun f ->
-                      let o = reader.GetOrdinal(f.MappingName)
-                      let value = getValue reader o f.Type
-                      { Index = f.Index; Value = value })
+              |> List.map (fun f ->
+                  let o = reader.GetOrdinal(f.MappingName)
+                  let value = getValue reader o f.Type
+                  { Index = f.Index; Value = value })
               |> (fun v -> RecordBuilder.Create<'T> v) ]
+
+    let deferredMapResults<'T> (mappedObj: MappedObject) (comm: MySqlCommand) =
+        let getValue (reader: MySqlDataReader) (o: int) supportType =
+            match supportType with
+            | SupportedType.Boolean -> reader.GetBoolean(o) :> obj
+            | SupportedType.Byte -> reader.GetByte(o) :> obj
+            | SupportedType.Char -> reader.GetChar(o) :> obj
+            | SupportedType.Decimal -> reader.GetDecimal(o) :> obj
+            | SupportedType.Double -> reader.GetDouble(o) :> obj
+            | SupportedType.Float -> reader.GetFloat(o) :> obj
+            | SupportedType.Int -> reader.GetInt32(o) :> obj
+            | SupportedType.Short -> reader.GetInt16(o) :> obj
+            | SupportedType.Long -> reader.GetInt64(o) :> obj
+            | SupportedType.String -> reader.GetString(o) :> obj
+            | SupportedType.DateTime -> reader.GetDateTime(o) :> obj
+            | SupportedType.Guid -> reader.GetGuid(o) :> obj
+            | SupportedType.Blob -> BlobField.FromStream(reader.GetStream(o)) :> obj
+            | SupportedType.Option st ->
+                match reader.IsDBNull(o) with
+                | true -> None :> obj
+                | false ->
+                    match st with
+                    | SupportedType.Boolean -> Some(reader.GetBoolean(o)) :> obj
+                    | SupportedType.Byte -> Some(reader.GetByte(o)) :> obj
+                    | SupportedType.Char -> Some(reader.GetChar(o)) :> obj
+                    | SupportedType.Decimal -> Some(reader.GetDecimal(o)) :> obj
+                    | SupportedType.Double -> Some(reader.GetDouble(o)) :> obj
+                    | SupportedType.Float -> Some(reader.GetFloat(o)) :> obj
+                    | SupportedType.Int -> Some(reader.GetInt32(o)) :> obj
+                    | SupportedType.Short -> Some(reader.GetInt16(o)) :> obj
+                    | SupportedType.Long -> Some(reader.GetInt64(o)) :> obj
+                    | SupportedType.String -> Some(reader.GetString(o)) :> obj
+                    | SupportedType.DateTime -> Some(reader.GetDateTime(o)) :> obj
+                    | SupportedType.Guid -> Some(reader.GetGuid(o)) :> obj
+                    | SupportedType.Blob -> Some(BlobField.FromStream(reader.GetStream(o))) :> obj
+                    | SupportedType.Option _ -> None :> obj // Nested options not allowed.
+
+        seq {
+            use reader = comm.ExecuteReader()
+
+            while reader.Read() do
+                mappedObj.Fields
+                |> List.map (fun f ->
+                    let o = reader.GetOrdinal(f.MappingName)
+                    let value = getValue reader o f.Type
+                    { Index = f.Index; Value = value })
+                |> (fun v -> RecordBuilder.Create<'T> v)
+        }
 
     let noParam (connection: MySqlConnection) (sql: string) (transaction: MySqlTransaction option) =
 
@@ -81,7 +123,7 @@ module private QueryHelpers =
 
         // TODO add ability to set timeout?
         // comm.CommandTimeout <- 5000
-        
+
         comm
 
     let prepare<'P>
@@ -108,24 +150,29 @@ module private QueryHelpers =
 
         // TODO add ability to set timeout?
         // comm.CommandTimeout <- 5000
-        
+
         comm.Prepare()
         comm
 
-    let prepareAnon (connection: MySqlConnection) (sql: string) (parameters: obj list) (transaction: MySqlTransaction option) =
-        
+    let prepareAnon
+        (connection: MySqlConnection)
+        (sql: string)
+        (parameters: obj list)
+        (transaction: MySqlTransaction option)
+        =
+
         if connection.State = ConnectionState.Closed then
             connection.Open()
-        
+
         use comm =
             match transaction with
-                | Some t -> new MySqlCommand(sql, connection, t)
-                | None -> new MySqlCommand(sql, connection)
-       
+            | Some t -> new MySqlCommand(sql, connection, t)
+            | None -> new MySqlCommand(sql, connection)
+
         parameters
         |> List.mapi (fun i v -> comm.Parameters.AddWithValue($"@{i}", v))
         |> ignore
-        
+
         // TODO add ability to set timeout?
         // comm.CommandTimeout <- 5000
 
@@ -134,29 +181,28 @@ module private QueryHelpers =
 
     let rawNonQuery connection sql transaction =
         let comm = noParam connection sql transaction
-        
+
         comm.ExecuteNonQuery()
 
     let verbatimNonQuery<'P> connection sql (parameters: 'P) transaction =
         let mappedObj = MappedObject.Create<'P>()
 
-        let comm =
-            prepare connection sql mappedObj parameters transaction
-        
+        let comm = prepare connection sql mappedObj parameters transaction
+
         comm.ExecuteNonQuery()
 
-    let verbatimNonQueryAnon<'P> connection (sql: string) (parameters: obj list) transaction  =
+    let verbatimNonQueryAnon<'P> connection (sql: string) (parameters: obj list) transaction =
         let comm = prepareAnon connection sql parameters transaction
         comm.ExecuteNonQuery()
-        
-    /// A bespoke query, the caller needs to provide a mapping function. This returns a list of 'T.    
-    let bespoke<'T> connection (sql: string) (parameters: obj list) (mapper: MySqlDataReader -> 'T list) transaction  =
+
+    /// A bespoke query, the caller needs to provide a mapping function. This returns a list of 'T.
+    let bespoke<'T> connection (sql: string) (parameters: obj list) (mapper: MySqlDataReader -> 'T list) transaction =
         let comm = prepareAnon connection sql parameters transaction
         use reader = comm.ExecuteReader()
         mapper reader
-        
+
     /// A bespoke query, the caller needs to provide a mapping function. This returns a single 'T.
-    let bespokeSingle<'T> connection (sql: string) (parameters: obj list) (mapper: MySqlDataReader -> 'T) transaction  =
+    let bespokeSingle<'T> connection (sql: string) (parameters: obj list) (mapper: MySqlDataReader -> 'T) transaction =
         let comm = prepareAnon connection sql parameters transaction
         use reader = comm.ExecuteReader()
         mapper reader
@@ -187,8 +233,7 @@ module private QueryHelpers =
         let tMappedObj = MappedObject.Create<'T>()
         let pMappedObj = MappedObject.Create<'P>()
 
-        let comm =
-            prepare connection sql pMappedObj parameters transaction
+        let comm = prepare connection sql pMappedObj parameters transaction
 
         use reader = comm.ExecuteReader()
 
@@ -196,32 +241,30 @@ module private QueryHelpers =
         connection.Close()
         r
 
-    let selectAnon<'T>  (sql: string) connection (parameters: obj list) transaction =
+    let selectAnon<'T> (sql: string) connection (parameters: obj list) transaction =
         let tMappedObj = MappedObject.Create<'T>()
-        let comm =
-            prepareAnon connection sql parameters transaction
+        let comm = prepareAnon connection sql parameters transaction
 
         use reader = comm.ExecuteReader()
 
         mapResults<'T> tMappedObj reader
-       
+
     let selectSingle<'T, 'P> (sql: string) connection (parameters: 'P) transaction =
         let tMappedObj = MappedObject.Create<'T>()
         let pMappedObj = MappedObject.Create<'P>()
 
-        let comm =
-            prepare connection sql pMappedObj parameters transaction
+        let comm = prepare connection sql pMappedObj parameters transaction
 
         let r = comm.ExecuteScalar()
-                
+
         use reader = comm.ExecuteReader()
 
         mapResults<'T> tMappedObj reader
-      
-    let executeScalar<'T>(sql: string) connection transaction =
+
+    let executeScalar<'T> (sql: string) connection transaction =
         let comm = noParam connection sql transaction
         comm.ExecuteScalar() :?> 'T
-         
+
     let selectSql<'T> (sql: string) connection transaction =
         let tMappedObj = MappedObject.Create<'T>()
 
@@ -233,9 +276,9 @@ module private QueryHelpers =
         connection.Close()
         r
 
-    
+
     /// Special handling is needed for `INSERT` query to accommodate blobs.
-    /// This module aims to wrap as much of that up to in one place.    
+    /// This module aims to wrap as much of that up to in one place.
     [<RequireQualifiedAccess>]
     module private Insert =
 
@@ -250,7 +293,7 @@ module private QueryHelpers =
 
                         match f.Type with
                         | SupportedType.Option SupportedType.Blob ->
-                            
+
                             (*
                             NOTE - example of handling optional blob fields (from Freql.Sqlite)
                             let value =
@@ -313,7 +356,7 @@ module private QueryHelpers =
                 match transaction with
                 | Some t -> new MySqlCommand(sql, connection, t)
                 | None -> new MySqlCommand(sql, connection)
-            
+
             mappedObj.Fields
             |> List.sortBy (fun p -> p.Index)
             |> List.fold
@@ -321,20 +364,13 @@ module private QueryHelpers =
                     match f.Type with
                     | SupportedType.Blob -> acc // Skip blob types, they will be handled with `BlobCallBacks`.
                     | SupportedType.Option _ ->
-                        match mappedObj
-                                  .Type
-                                  .GetProperty(f.FieldName)
-                                  .GetValue(parameters) with
+                        match mappedObj.Type.GetProperty(f.FieldName).GetValue(parameters) with
                         | null -> acc @ [ f.MappingName, DBNull.Value :> obj ]
-                        | SomeObj (v1) -> acc @ [ f.MappingName, v1 ]
+                        | SomeObj(v1) -> acc @ [ f.MappingName, v1 ]
                         | _ -> acc @ [ f.MappingName, DBNull.Value :> obj ]
                     | _ ->
                         acc
-                        @ [ f.MappingName,
-                            mappedObj
-                                .Type
-                                .GetProperty(f.FieldName)
-                                .GetValue(parameters) ])
+                        @ [ f.MappingName, mappedObj.Type.GetProperty(f.FieldName).GetValue(parameters) ])
                 []
             |> Map.ofList
             |> Map.map (fun k v -> comm.Parameters.AddWithValue(k, v))
@@ -342,28 +378,28 @@ module private QueryHelpers =
 
             // TODO add ability to set timeout?
             // comm.CommandTimeout <- 5000
-            
+
             comm.Prepare()
             comm
-            
+
     let insert<'T> (tableName: string) connection (data: 'T) transaction =
         let mappedObj = MappedObject.Create<'T>()
 
-        let sql =
-            Insert.createQuery tableName mappedObj data
+        let sql = Insert.createQuery tableName mappedObj data
 
         // Get the last inserted id.
-        let comm =
-            Insert.prepareQuery connection sql mappedObj data transaction
+        let comm = Insert.prepareQuery connection sql mappedObj data transaction
 
         comm.ExecuteNonQuery() |> ignore
-        
-        
+
+
         let idSql = "SELECT LAST_INSERT_ID();"
+
         use idComm =
-                match transaction with
-                | Some t -> new MySqlCommand(idSql, connection, t)
-                | None -> new MySqlCommand(idSql, connection)
+            match transaction with
+            | Some t -> new MySqlCommand(idSql, connection, t)
+            | None -> new MySqlCommand(idSql, connection)
+
         let rowId = idComm.ExecuteScalar() :?> uint64
 
         rowId
@@ -371,10 +407,9 @@ module private QueryHelpers =
 type MySqlContext(connection, transaction) =
 
     interface IDisposable with
-        
-        member ctx.Dispose() =
-            ctx.Close()
-    
+
+        member ctx.Dispose() = ctx.Close()
+
     static member Connect(connectionString: string) =
 
         use conn = new MySqlConnection(connectionString)
@@ -382,21 +417,21 @@ type MySqlContext(connection, transaction) =
         new MySqlContext(conn, None)
 
     member _.Close() =
-       connection.Close()
-       connection.Dispose()
-    
+        connection.Close()
+        connection.Dispose()
+
     member _.GetConnection() = connection
-    
+
     member _.ClearPool() = MySqlConnection.ClearPool(connection)
-    
+
     member _.ClearAllPools() = MySqlConnection.ClearAllPools()
-    
+
     member _.GetConnectionState() = connection.State
-    
+
     member _.GetDatabase() = connection.Database
-    
+
     member _.OnStateChange(fn: StateChangeEventArgs -> unit) = connection.StateChange.Add(fn)
-        
+
     /// Select all items from a table and map them to type 'T.
     member handler.Select<'T> tableName =
         QueryHelpers.selectAll<'T> tableName connection transaction
@@ -411,32 +446,32 @@ type MySqlContext(connection, transaction) =
     /// when the are parameterized.
     member handler.SelectAnon<'T>(sql, parameters) =
         QueryHelpers.selectAnon<'T> sql connection parameters transaction
-            
+
     /// Select a single 'T based on an sql string and a list of obj for parameters.
     /// This will return an optional value.
     /// Parameters will be assigned values @0,@1,@2 etc. based on their position in the list
     /// when the are parameterized.
     member handler.SelectSingleAnon<'T>(sql, parameters) =
         let r = handler.SelectAnon<'T>(sql, parameters)
+
         match r.Length > 0 with
         | true -> r.Head |> Some
         | false -> None
-           
+
     /// Select a list of 'T based on an sql string.
     /// No parameterization will take place with this, it should only be used with static sql strings.
     member handler.SelectSql<'T> sql =
         QueryHelpers.selectSql<'T> (sql) connection transaction
-    
+
     /// Select a single 'T from a table.
     /// This is useful if a table on contains one record. It will return the first from that table.
     /// Be warned, this will throw an exception if the table is empty.
     member handler.SelectSingle<'T> tableName = handler.Select<'T>(tableName).Head
-    
+
     /// Select data based on a verbatim sql and parameters of type 'P.
     /// The first result is mapped to type 'T option.
     member handler.SelectSingleVerbatim<'T, 'P>(sql: string, parameters: 'P) =
-        let result =
-            handler.SelectVerbatim<'T, 'P>(sql, parameters)
+        let result = handler.SelectVerbatim<'T, 'P>(sql, parameters)
 
         match List.isEmpty result with
         | true -> None
@@ -451,7 +486,7 @@ type MySqlContext(connection, transaction) =
     member handler.ExecuteVerbatimNonQuery<'P>(sql: string, parameters: 'P) =
         QueryHelpers.verbatimNonQuery connection sql parameters transaction
 
-    
+
     /// Execute a verbatim non query. The parameters passed will be mapped to the sql query.
     member handler.ExecuteAnonNonQuery<'P>(sql: string, parameters) =
         QueryHelpers.verbatimNonQueryAnon connection sql parameters transaction
@@ -462,9 +497,7 @@ type MySqlContext(connection, transaction) =
 
     /// Execute a collection of insert queries.
     member handler.InsertList<'T>(tableName: string, values: 'T list) =
-        values
-        |> List.map (fun v -> handler.Insert<'T>(tableName, v))
-        |> ignore
+        values |> List.map (fun v -> handler.Insert<'T>(tableName, v)) |> ignore
 
 
     /// Execute a collection of commands in a transaction.
@@ -477,22 +510,20 @@ type MySqlContext(connection, transaction) =
 
         use transaction = connection.BeginTransaction()
 
-        use qh =
-            new MySqlContext(connection, Some transaction)
+        use qh = new MySqlContext(connection, Some transaction)
 
         try
             let r = transactionFn qh
             transaction.Commit()
             Ok r
-        with
-        | exn ->
+        with exn ->
             // Needed? ensures open for rollback?
             if connection.State = ConnectionState.Closed then
                 connection.Open()
-                
+
             transaction.Rollback()
             Error $"Could not complete transaction. Error: {exn.Message}"
-            
+
     /// <summary>
     /// Execute a collection of commands in a transaction.
     /// While a transaction is active on a connection non transaction commands can not be executed.
@@ -505,11 +536,9 @@ type MySqlContext(connection, transaction) =
     member handler.ExecuteInTransactionV2<'R>(transactionFn: MySqlContext -> Result<'R, string>) =
         connection.Open()
 
-        use transaction =
-            connection.BeginTransaction()
+        use transaction = connection.BeginTransaction()
 
-        use qh =
-           new MySqlContext(connection, Some transaction)
+        use qh = new MySqlContext(connection, Some transaction)
 
         try
             match transactionFn qh with
@@ -519,19 +548,19 @@ type MySqlContext(connection, transaction) =
             | Error e ->
                 transaction.Rollback()
                 Error e
-        with
-        | exn ->
+        with exn ->
             transaction.Rollback()
             Error $"Could not complete transaction. Exception: {exn.Message}"
-                 
+
     /// Execute sql that produces a scalar result.
     member handler.ExecuteScalar<'T>(sql) =
         QueryHelpers.executeScalar<'T> sql connection transaction
-                       
+
     /// Execute a bespoke query, it is upto to the caller to provide the sql, the parameters and the result mapping function.
     member handler.Bespoke<'T>(sql, parameters, (mapper: MySqlDataReader -> 'T list)) =
-        QueryHelpers.bespoke connection sql  parameters  mapper transaction
+        QueryHelpers.bespoke connection sql parameters mapper transaction
 
     /// Test the database connection.
     /// Useful for health checks.
-    member handler.TestConnection() = QueryHelpers.executeScalar<int> "SELECT 1" connection transaction
+    member handler.TestConnection() =
+        QueryHelpers.executeScalar<int> "SELECT 1" connection transaction
