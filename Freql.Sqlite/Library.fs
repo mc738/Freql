@@ -90,7 +90,6 @@ module private QueryHelpers =
                     | SupportedType.Option _ -> None :> obj // Nested options not allowed.
 
         [ while reader.Read() do
-              printfn "Mapping result"
               mappedObj.Fields
               |> List.map (fun f ->
                   let o = reader.GetOrdinal(f.MappingName)
@@ -145,7 +144,6 @@ module private QueryHelpers =
             use reader = comm.ExecuteReader()
             
             while reader.Read() do
-                printfn "Mapping result (deferred)"
                 mappedObj.Fields
                 |> List.map (fun f ->
                     let o = reader.GetOrdinal(f.MappingName)
@@ -245,7 +243,23 @@ module private QueryHelpers =
 
         use reader = comm.ExecuteReader()
         mapper reader
+        
+    let deferredBespoke<'T>
+        (connection: SqliteConnection)
+        (sql: string)
+        (parameters: obj list)
+        (mapper: SqliteDataReader -> 'T seq)
+        (transaction: SqliteTransaction option)
+        =
+        
+        let comm = prepareAnon connection sql parameters transaction
 
+        seq {
+            use reader = comm.ExecuteReader()
+            
+            yield! mapper reader
+        }
+        
     /// A bespoke query, the caller needs to provide a mapping function. This returns a single 'T.
     let bespokeSingle<'T>
         (connection: SqliteConnection)
@@ -258,7 +272,7 @@ module private QueryHelpers =
 
         use reader = comm.ExecuteReader()
         mapper reader
-
+        
     let create<'T> (tableName: string) (connection: SqliteConnection) (transaction: SqliteTransaction option) =
         let mappedObj = MappedObject.Create<'T>()
 
@@ -444,6 +458,13 @@ module private QueryHelpers =
 
         mapResults<'T> tMappedObj reader
 
+    let deferredSelectSql<'T> (sql: string) (connection: SqliteConnection) (transaction: SqliteTransaction option) =
+        let tMappedObj = MappedObject.Create<'T>()
+
+        let comm = noParam connection sql transaction
+
+        deferredMapResults<'T> tMappedObj comm
+    
     /// Special handling is needed for `INSERT` query to accommodate blobs.
     /// This module aims to wrap as much of that up to in one place.
     [<RequireQualifiedAccess>]
@@ -632,7 +653,12 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
     /// <returns>A list of type 'T</returns>
     member handler.Select<'T> tableName =
         QueryHelpers.selectAll<'T> tableName connection transaction
-        
+      
+    /// <summary>
+    /// Select all items from a table and map to type 'T.
+    /// This use
+    /// </summary>
+    /// <param name="tableName"></param>
     member handler.DeferredSelect<'T> tableName =
         QueryHelpers.deferredSelectAll<'T> tableName connection transaction
         
