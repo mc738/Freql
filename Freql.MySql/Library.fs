@@ -269,7 +269,6 @@ module private QueryHelpers =
 
         // TODO test this actually works - the data reader is slightly different from MySql than Sqlite.
         deferredMapResults<'T> tMappedObj comm
-
     
     let selectAnon<'T> (sql: string) connection (parameters: obj list) transaction =
         let tMappedObj = MappedObject.Create<'T>()
@@ -278,6 +277,13 @@ module private QueryHelpers =
         use reader = comm.ExecuteReader()
 
         mapResults<'T> tMappedObj reader
+        
+    
+    let deferredSelectAnon<'T> (sql: string) connection (parameters: obj list) transaction =
+        let tMappedObj = MappedObject.Create<'T>()
+        let comm = prepareAnon connection sql parameters transaction
+
+        deferredMapResults<'T> tMappedObj comm
 
     let selectSingle<'T, 'P> (sql: string) connection (parameters: 'P) transaction =
         let tMappedObj = MappedObject.Create<'T>()
@@ -290,7 +296,17 @@ module private QueryHelpers =
         use reader = comm.ExecuteReader()
 
         mapResults<'T> tMappedObj reader
+        
+    let deferredSelectSingle<'T, 'P> (sql: string) connection (parameters: 'P) transaction =
+        let tMappedObj = MappedObject.Create<'T>()
+        let pMappedObj = MappedObject.Create<'P>()
 
+        let comm = prepare connection sql pMappedObj parameters transaction
+
+        let r = comm.ExecuteScalar()
+
+        deferredMapResults<'T> tMappedObj comm
+        
     let executeScalar<'T> (sql: string) connection transaction =
         let comm = noParam connection sql transaction
         comm.ExecuteScalar() :?> 'T
