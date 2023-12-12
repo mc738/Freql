@@ -948,6 +948,71 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
         | Some v -> connection.CreateFunction(name, fn, v)
         | None -> connection.CreateFunction(name, fn)
 
+    member _.CreateFunction<'T1, 'T2, 'TResult>(name: string, fn: 'T1 -> 'T2 -> 'TResult, ?isDeterministic: bool) =
+        match isDeterministic with
+        | Some v -> connection.CreateFunction(name, fn, v)
+        | None -> connection.CreateFunction(name, fn)
+
+    member _.CreateFunction<'T1, 'T2, 'T3, 'TResult>
+        (
+            name: string,
+            fn: 'T1 -> 'T2 -> 'T3 -> 'TResult,
+            ?isDeterministic: bool
+        ) =
+        match isDeterministic with
+        | Some v -> connection.CreateFunction(name, fn, v)
+        | None -> connection.CreateFunction(name, fn)
+
+    member _.CreateFunction<'T1, 'T2, 'T3, 'T4, 'TResult>
+        (
+            name: string,
+            fn: 'T1 -> 'T2 -> 'T3 -> 'T4 -> 'TResult,
+            ?isDeterministic: bool
+        ) =
+        match isDeterministic with
+        | Some v -> connection.CreateFunction(name, fn, v)
+        | None -> connection.CreateFunction(name, fn)
+
+    member _.CreateFunction<'T1, 'T2, 'T3, 'T4, 'T5, 'TResult>
+        (
+            name: string,
+            fn: 'T1 -> 'T2 -> 'T3 -> 'T4 -> 'T5 -> 'TResult,
+            ?isDeterministic: bool
+        ) =
+        match isDeterministic with
+        | Some v -> connection.CreateFunction(name, fn, v)
+        | None -> connection.CreateFunction(name, fn)
+
+    member _.CreateFunction<'T1, 'T2, 'T3, 'T4, 'T5, 'T6, 'TResult>
+        (
+            name: string,
+            fn: 'T1 -> 'T2 -> 'T3 -> 'T4 -> 'T5 -> 'T6 -> 'TResult,
+            ?isDeterministic: bool
+        ) =
+        match isDeterministic with
+        | Some v -> connection.CreateFunction(name, fn, v)
+        | None -> connection.CreateFunction(name, fn)
+
+    member _.CreateFunction<'T1, 'T2, 'T3, 'T4, 'T5, 'T6, 'T7, 'TResult>
+        (
+            name: string,
+            fn: 'T1 -> 'T2 -> 'T3 -> 'T4 -> 'T5 -> 'T6 -> 'T7 -> 'TResult,
+            ?isDeterministic: bool
+        ) =
+        match isDeterministic with
+        | Some v -> connection.CreateFunction(name, fn, v)
+        | None -> connection.CreateFunction(name, fn)
+
+    member _.CreateFunction<'T1, 'T2, 'T3, 'T4, 'T5, 'T6, 'T7, 'T8, 'TResult>
+        (
+            name: string,
+            fn: 'T1 -> 'T2 -> 'T3 -> 'T4 -> 'T5 -> 'T6 -> 'T7 -> 'T8 -> 'TResult,
+            ?isDeterministic: bool
+        ) =
+        match isDeterministic with
+        | Some v -> connection.CreateFunction(name, fn, v)
+        | None -> connection.CreateFunction(name, fn)
+
     member ctx.RegisterRegexFunction() =
         ctx.CreateFunction(
             "regexp",
