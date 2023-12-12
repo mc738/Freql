@@ -753,7 +753,7 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
     /// <returns>A list of type 'T</returns>
     member handler.SelectSql<'T> sql =
         QueryHelpers.selectSql<'T> sql connection transaction
-        
+
     /// <summary>
     /// Select a list of 'T based on an sql string.
     /// No parameterization will take place with this, it should only be used with static sql strings.
@@ -772,7 +772,7 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
     /// <param name="tableName">The name of the table</param>
     /// <returns>A 'T record.</returns>
     member handler.SelectSingle<'T> tableName = handler.Select<'T>(tableName).Head
-    
+
     /// <summary>
     /// Select a single 'T from a table.
     /// This is useful if a table on contains one record. It will return the first from that table.
@@ -781,7 +781,8 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
     /// </summary>
     /// <param name="tableName">The name of the table</param>
     /// <returns>A 'T record.</returns>
-    member handler.DeferredSelectSingle<'T> tableName = handler.DeferredSelect<'T>(tableName) |> Seq.head
+    member handler.DeferredSelectSingle<'T> tableName =
+        handler.DeferredSelect<'T>(tableName) |> Seq.head
 
     /// <summary>
     /// Select data based on a verbatim sql and parameters of type 'P.
@@ -800,7 +801,7 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
         match result.Length with
         | 0 -> None
         | _ -> Some result.Head
-        
+
     /// <summary>
     /// Select data based on a verbatim sql and parameters of type 'P.
     /// The first result is mapped to type 'T option.
@@ -952,3 +953,8 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
             "regexp",
             fun (pattern: string, input: string) -> System.Text.RegularExpressions.Regex.IsMatch(input, pattern)
         )
+
+    member ctx.CreateAggregate<'T>(name: string, fn: 'T -> 'T, ?isDeterministic: bool) =
+        match isDeterministic with
+        | Some v -> connection.CreateAggregate(name, fn, v)
+        | None -> connection.CreateAggregate(name, fn)
