@@ -1022,6 +1022,16 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
         match isDeterministic with
         | Some v -> connection.CreateFunction(name, fn, v)
         | None -> connection.CreateFunction(name, fn)
+        
+    member _.CreateFunction<'T1, 'T2, 'T3, 'T4, 'T5, 'T6, 'T7, 'T8, 'T9, 'T10, 'TResult>
+        (
+            name: string,
+            fn: 'T1 -> 'T2 -> 'T3 -> 'T4 -> 'T5 -> 'T6 -> 'T7 -> 'T8 -> 'T9 -> 'T10 -> 'TResult,
+            ?isDeterministic: bool
+        ) =
+        match isDeterministic with
+        | Some v -> connection.CreateFunction(name, fn, v)
+        | None -> connection.CreateFunction(name, fn)
 
     member ctx.RegisterRegexFunction() =
         ctx.CreateFunction(
