@@ -882,20 +882,21 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
             let r = transactionFn qh
             transaction.Commit()
             Ok r
-        with _ ->
+        with exn ->
             transaction.Rollback()
-            Error "Could not complete transaction"
+            Error { Message = $"Could not complete transaction. Exception: {exn.Message}"; Exception = Some exn }
 
     /// <summary>
-    /// Execute a collection of commands in a transaction.
+    /// Try and execute a collection of commands in a transaction.
     /// While a transaction is active on a connection non transaction commands can not be executed.
     /// This is no check for this for this is not thread safe.
     /// Also be warned, this use general error handling so an exception will roll the transaction back.
-    /// This accepts a function that returns a result. If the result is Error, the transaction will be rolled back.
+    /// This accepts a function that returns a result (and thus is excepted to be able to fail).
+    /// If the result is Error, the transaction will be rolled back.
     /// This means you no longer have to throw an exception to rollback the transaction.
     /// </summary>
     /// <param name="transactionFn">The transaction function to be attempted.</param>
-    member handler.ExecuteInTransactionV2<'R>(transactionFn: SqliteContext -> Result<'R, string>) =
+    member handler.TryExecuteInTransaction<'R>(transactionFn: SqliteContext -> Result<'R, string>) =
         connection.Open()
 
         use transaction = connection.BeginTransaction()
@@ -909,10 +910,10 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
                 Ok r
             | Error e ->
                 transaction.Rollback()
-                Error e
+                Error { Message = e; Exception = None }
         with exn ->
             transaction.Rollback()
-            Error $"Could not complete transaction. Exception: {exn.Message}"
+            Error { Message = $"Could not complete transaction. Exception: {exn.Message}"; Exception = Some exn }
 
 
     /// Execute sql that produces a scalar result.

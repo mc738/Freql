@@ -29,6 +29,9 @@ module ``deferred results development test 30-11-23`` =
         
         let deferred = ctx.DeferredSelect<TestRecord> "test_data" |> Seq.take 5
         
+        let deferred = ctx.DeferredSelect<TestRecord> "test_data" |> Seq.skip 5 |> Seq.take 5
+
+
         nonDeferred |> List.iter (fun r -> printfn $"Non deferred - {r.Id}")
         deferred |> Seq.iter (fun r -> printfn $"Deferred - {r.Id}")
         

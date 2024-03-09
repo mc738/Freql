@@ -368,7 +368,7 @@ type SqlServerContext(connection, transaction) =
         with
         | _ ->
             transaction.Rollback()
-            Error "Could not complete transaction"
+            Error { Message = $"Could not complete transaction. Exception: {exn.Message}"; Exception = Some exn }
                           
     /// Execute sql that produces a scalar result.
     member handler.ExecuteScalar<'T>(sql) =
