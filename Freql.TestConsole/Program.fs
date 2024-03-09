@@ -6,6 +6,7 @@ open System.Globalization
 open System.IO
 open System.Text
 open System.Text.RegularExpressions
+open DocumentFormat.OpenXml.Packaging
 open Freql.MySql
 open Freql.Sqlite
 open Freql.Tools.CodeGeneration
@@ -176,9 +177,62 @@ type CustomerPurchase =
       Discount: decimal
       Profit: decimal }
 
+module XlsxTest =
+    
+    open Freql.Xlsx
+    open Freql.Xlsx.Records
+    
+    type Record =
+        {
+            [<XlsxOptions(ColumnName = "A", OADate = true)>]
+            Date: DateTime
+            [<XlsxColumnName("B")>]
+            WholeEconomy: decimal
+            [<XlsxColumnName("E")>]
+            PrivateSector: decimal
+            [<XlsxColumnName("H")>]
+            PublicSector: decimal
+            [<XlsxColumnName("K")>]
+            Services: decimal
+            [<XlsxColumnName("N")>]
+            FinanceSector: decimal
+            [<XlsxColumnName("Q")>]
+            PublicSectorExcludingFiance: decimal
+            [<XlsxColumnName("T")>]
+            Manufacturing: decimal
+            [<XlsxColumnName("W")>]
+            Construction: decimal
+            [<XlsxColumnName("Z")>]
+            WholeSale: decimal
+            
+        }
+    
+    let path = "C:\\Users\\44748\\Downloads\\earn01jun2023.xlsx"
+    
+    let run _ =
+        
+        let rps = typeof<Record>.GetProperties() |> Array.mapi (fun i pi -> RecordProperty.Create(pi, i, 0))
+        
+        let fn (doc: SpreadsheetDocument) =
+            match getSheet "1. AWE Total Pay" doc with
+            | Some s ->
+                getWorksheet s doc
+                |> Records.createRecordsFromWorksheet<Record> (Some 10) (Some 289)
+                |> List.ofSeq
+            | None -> failwith "Worksheet not found"
+            
+        
+        let r = exec fn true path
+        
+        
+        ()
+
+
 [<EntryPoint>]
 let main argv =
 
+    XlsxTest.run ()
+    
     //let r = CsvParser.parseFile true "C:\\ProjectData\\DataSets\\SuperStore\\Sample - Superstore.csv" 
     
     //let t = CsvParser2.parseFile<CustomerPurchase> true "C:\\ProjectData\\DataSets\\SuperStore\\Sample - Superstore.csv" 

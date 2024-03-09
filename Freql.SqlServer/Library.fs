@@ -298,6 +298,19 @@ type SqlServerContext(connection, transaction) =
        connection.Close()
        connection.Dispose()
     
+    member _.GetConnection() = connection
+    
+    member _.ClearPool() = SqlConnection.ClearPool(connection)
+    
+    member _.ClearAllPools() = SqlConnection.ClearAllPools()
+    
+    member _.GetConnectionState() = connection.State
+    
+    member _.GetDatabase() = connection.Database
+    
+    member _.OnStateChange(fn: StateChangeEventArgs -> unit) = connection.StateChange.Add(fn)
+        
+    
     member handler.Select<'T> tableName =
         QueryHelpers.selectAll<'T> tableName connection transaction
 
@@ -355,7 +368,7 @@ type SqlServerContext(connection, transaction) =
         with
         | _ ->
             transaction.Rollback()
-            Error "Could not complete transaction"
+            Error { Message = $"Could not complete transaction. Exception: {exn.Message}"; Exception = Some exn }
                           
     /// Execute sql that produces a scalar result.
     member handler.ExecuteScalar<'T>(sql) =

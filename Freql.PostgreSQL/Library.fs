@@ -385,6 +385,18 @@ type PostgreSQLContext(connection, transaction) =
     member _.Close() =
        connection.Close()
        connection.Dispose()
+       
+    member _.GetConnection() = connection
+    
+    member _.ClearPool() = NpgsqlConnection.ClearPool(connection)
+    
+    member _.ClearAllPools() = NpgsqlConnection.ClearAllPools()
+    
+    member _.GetConnectionState() = connection.State
+    
+    member _.GetDatabase() = connection.Database
+    
+    member _.OnStateChange(fn: StateChangeEventArgs -> unit) = connection.StateChange.Add(fn)
     
     /// Select all items from a table and map them to type 'T.
     member handler.Select<'T> tableName =

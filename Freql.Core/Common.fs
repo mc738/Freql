@@ -2,6 +2,7 @@
 
 open System
 open System.IO
+open System.Reflection
 open System.Text.RegularExpressions
 open Microsoft.FSharp.Reflection
 open Freql.Core.Utils
@@ -12,9 +13,9 @@ module Types =
     /// A blob field.
     type BlobField =
         { Value: Stream }
-        
+
         static member Empty() = { Value = Stream.Null }
-        
+
         static member FromStream(stream: Stream) = { Value = stream }
 
         static member FromBytes(ms: MemoryStream) = BlobField.FromStream(ms)
@@ -26,6 +27,10 @@ module Types =
                 use ms = new MemoryStream()
                 blob.Value.CopyTo(ms)
                 ms.ToArray()
+
+    type TransactionFailure =
+        { Message: string
+          Exception: Exception option }
 
     (*
     /// A json file, stored as a blob in the database.
@@ -83,13 +88,17 @@ module Types =
         let stringName = getName<string>
 
         let blobName = getName<BlobField>
-        
+
         let isOption (value: string) =
-            Regex.Match(value, "(?<=Microsoft.FSharp.Core.FSharpOption`1\[\[).+?(?=\,)").Success
-            
+            Regex
+                .Match(value, "(?<=Microsoft.FSharp.Core.FSharpOption`1\[\[).+?(?=\,)")
+                .Success
+
         let getOptionType value =
             // Maybe a bit wasteful doing this twice.
-            Regex.Match(value, "(?<=Microsoft.FSharp.Core.FSharpOption`1\[\[).+?(?=\,)").Value
+            Regex
+                .Match(value, "(?<=Microsoft.FSharp.Core.FSharpOption`1\[\[).+?(?=\,)")
+                .Value
 
     /// An internal DU for representing supported types.
     [<RequireQualifiedAccess>]
@@ -127,8 +136,9 @@ module Types =
             | t when t = TypeHelpers.blobName -> Ok SupportedType.Blob
             | t when TypeHelpers.isOption t = true ->
                 let ot = TypeHelpers.getOptionType t
+
                 match SupportedType.TryFromName ot with
-                | Ok st -> Ok (SupportedType.Option st)
+                | Ok st -> Ok(SupportedType.Option st)
                 | Error e -> Error e
             | _ -> Error $"Type `{name}` not supported."
 
@@ -146,7 +156,7 @@ module Types =
 /// Mapping functionality.
 module Mapping =
 
-    /// Attribute for declaring a specific column name for a field to be read from. 
+    /// Attribute for declaring a specific column name for a field to be read from.
     type MappedFieldAttribute(name: string) =
 
         inherit Attribute()
@@ -223,32 +233,27 @@ module Mapping =
             let fields =
                 t.GetProperties()
                 |> List.ofSeq
-                |> List.mapi
-                    (fun i pi ->
-                        { FieldName = pi.Name
-                          MappingName = pi.Name.ToSnakeCase()
-                          Index = i
-                          Type = SupportedType.FromType(pi.PropertyType) })
+                |> List.mapi (fun i pi ->
+                    { FieldName = pi.Name
+                      MappingName = pi.Name.ToSnakeCase()
+                      Index = i
+                      Type = SupportedType.FromType(pi.PropertyType) })
 
             { Fields = fields; Type = t }
 
         /// Get the fields as a map with the index as key.
         member map.GetIndexedMap() =
-            map.Fields
-            |> List.map (fun f -> f.Index, f)
-            |> Map.ofList
+            map.Fields |> List.map (fun f -> f.Index, f) |> Map.ofList
 
         /// Get the fields as a map with the name as key.
         member map.GetNamedMap() =
-            map.Fields
-            |> List.map (fun f -> f.MappingName, f)
-            |> Map.ofList
+            map.Fields |> List.map (fun f -> f.MappingName, f) |> Map.ofList
 
     /// F# record building class.
     type RecordBuilder() =
 
         /// Create a F# record from a list of FieldValue's and a type.
-        static member Create<'T>(values: FieldValue list) =
+        static member Create<'T>(values: FieldValue list, ?bindingFlags: Reflection.BindingFlags) =
             let t = typeof<'T>
 
             let v =
@@ -257,23 +262,31 @@ module Mapping =
                 |> List.map (fun v -> v.Value)
                 |> Array.ofList
 
-            let o = FSharpValue.MakeRecord(t, v)
+            let o =
+                match bindingFlags with
+                | Some bf -> FSharpValue.MakeRecord(t, v, bf)
+                | None -> FSharpValue.MakeRecord(t, v)
 
             o :?> 'T
-    
+
     /// Map parameters of type 'T to a Map<string,obj> based on the MappedField's mapping name.
     /// This is a useful helper.
     let mapParameters<'T> (mappedObj: MappedObject) (parameters: 'T) =
         // TODO This could be worth adding a test to.
         mappedObj.Fields
         |> List.sortBy (fun p -> p.Index)
-        |> List.map
-            (fun f ->
-                let v =
-                    mappedObj
-                        .Type
-                        .GetProperty(f.FieldName)
-                        .GetValue(parameters)
+        |> List.map (fun f ->
+            let v = mappedObj.Type.GetProperty(f.FieldName).GetValue(parameters)
 
-                f.MappingName, v)
+            f.MappingName, v)
         |> Map.ofList
+
+    [<RequireQualifiedAccess>]
+    type BindingType =
+        | Default
+        | AllowPrivate
+
+        member bt.ToFlags() =
+            match bt with
+            | Default -> BindingFlags.Default
+            | AllowPrivate -> BindingFlags.Public ||| BindingFlags.NonPublic

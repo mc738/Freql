@@ -1,6 +1,7 @@
 ﻿namespace Freql.Sqlite
 
 open System
+open System.Data
 open System.IO
 open Freql.Core.Common
 open Freql.Core.Common.Mapping
@@ -8,6 +9,40 @@ open Microsoft.Data.Sqlite
 open Freql.Core.Utils
 
 module private QueryHelpers =
+
+    let createConnectionString
+        (path: string)
+        (mode: SqliteOpenMode option)
+        (cache: SqliteCacheMode option)
+        (password: string option)
+        (pooling: bool option)
+        (defaultTimeOut: int option)
+        =
+        let mutable connectionString = SqliteConnectionStringBuilder()
+
+        connectionString.DataSource <- path
+
+        match mode with
+        | Some m -> connectionString.Mode <- m
+        | None -> ()
+
+        match cache with
+        | Some c -> connectionString.Cache <- c
+        | None -> ()
+
+        match password with
+        | Some p -> connectionString.Password <- p
+        | None -> ()
+
+        match pooling with
+        | Some p -> connectionString.Pooling <- p
+        | None -> ()
+
+        match defaultTimeOut with
+        | Some dto -> connectionString.DefaultTimeout <- dto
+        | None -> ()
+
+        connectionString.ToString()
 
     let mapParameters<'T> (mappedObj: MappedObject) (parameters: 'T) =
         mappedObj.Fields
@@ -61,6 +96,61 @@ module private QueryHelpers =
                   let value = getValue reader o f.Type
                   { Index = f.Index; Value = value })
               |> (fun v -> RecordBuilder.Create<'T> v) ]
+
+    /// <summary>
+    /// Map the requests of a sql command in a deferred way.
+    /// This takes a SqliteCommand rather than a SqliteDataReader because the reader needs to still be open when it
+    /// the seq is enumerated.
+    /// </summary>
+    /// <param name="mappedObj"></param>
+    /// <param name="comm"></param>
+    let deferredMapResults<'T> (mappedObj: MappedObject) (comm: SqliteCommand) =
+        let getValue (reader: SqliteDataReader) o supportType =
+            match supportType with
+            | SupportedType.Boolean -> reader.GetBoolean(o) :> obj
+            | SupportedType.Byte -> reader.GetByte(o) :> obj
+            | SupportedType.Char -> reader.GetChar(o) :> obj
+            | SupportedType.Decimal -> reader.GetDecimal(o) :> obj
+            | SupportedType.Double -> reader.GetDouble(o) :> obj
+            | SupportedType.Float -> reader.GetFloat(o) :> obj
+            | SupportedType.Int -> reader.GetInt32(o) :> obj
+            | SupportedType.Short -> reader.GetInt16(o) :> obj
+            | SupportedType.Long -> reader.GetInt64(o) :> obj
+            | SupportedType.String -> reader.GetString(o) :> obj
+            | SupportedType.DateTime -> reader.GetDateTime(o) :> obj
+            | SupportedType.Guid -> reader.GetGuid(o) :> obj
+            | SupportedType.Blob -> BlobField.FromStream(reader.GetStream(o)) :> obj
+            | SupportedType.Option st ->
+                match reader.IsDBNull(o) with
+                | true -> None :> obj
+                | false ->
+                    match st with
+                    | SupportedType.Boolean -> Some(reader.GetBoolean(o)) :> obj
+                    | SupportedType.Byte -> Some(reader.GetByte(o)) :> obj
+                    | SupportedType.Char -> Some(reader.GetChar(o)) :> obj
+                    | SupportedType.Decimal -> Some(reader.GetDecimal(o)) :> obj
+                    | SupportedType.Double -> Some(reader.GetDouble(o)) :> obj
+                    | SupportedType.Float -> Some(reader.GetFloat(o)) :> obj
+                    | SupportedType.Int -> Some(reader.GetInt32(o)) :> obj
+                    | SupportedType.Short -> Some(reader.GetInt16(o)) :> obj
+                    | SupportedType.Long -> Some(reader.GetInt64(o)) :> obj
+                    | SupportedType.String -> Some(reader.GetString(o)) :> obj
+                    | SupportedType.DateTime -> Some(reader.GetDateTime(o)) :> obj
+                    | SupportedType.Guid -> Some(reader.GetGuid(o)) :> obj
+                    | SupportedType.Blob -> Some(BlobField.FromStream(reader.GetStream(o))) :> obj
+                    | SupportedType.Option _ -> None :> obj // Nested options not allowed.
+
+        seq {
+            use reader = comm.ExecuteReader()
+
+            while reader.Read() do
+                mappedObj.Fields
+                |> List.map (fun f ->
+                    let o = reader.GetOrdinal(f.MappingName)
+                    let value = getValue reader o f.Type
+                    { Index = f.Index; Value = value })
+                |> (fun v -> RecordBuilder.Create<'T> v)
+        }
 
     let noParam (connection: SqliteConnection) (sql: string) (transaction: SqliteTransaction option) =
         connection.Open()
@@ -154,6 +244,22 @@ module private QueryHelpers =
         use reader = comm.ExecuteReader()
         mapper reader
 
+    let deferredBespoke<'T>
+        (connection: SqliteConnection)
+        (sql: string)
+        (parameters: obj list)
+        (mapper: SqliteDataReader -> 'T seq)
+        (transaction: SqliteTransaction option)
+        =
+
+        let comm = prepareAnon connection sql parameters transaction
+
+        seq {
+            use reader = comm.ExecuteReader()
+
+            yield! mapper reader
+        }
+
     /// A bespoke query, the caller needs to provide a mapping function. This returns a single 'T.
     let bespokeSingle<'T>
         (connection: SqliteConnection)
@@ -243,6 +349,32 @@ module private QueryHelpers =
 
         mapResults<'T> mappedObj reader
 
+    let deferredSelectAll<'T>
+        (tableName: string)
+        (connection: SqliteConnection)
+        (transaction: SqliteTransaction option)
+        =
+        let mappedObj = MappedObject.Create<'T>()
+
+        let fields =
+            mappedObj.Fields
+            |> List.sortBy (fun p -> p.Index)
+            |> List.map (fun f -> f.MappingName)
+
+        let fieldsString = String.Join(',', fields)
+
+        let sql =
+            $"""
+        SELECT {fieldsString}
+        FROM {tableName}
+        """
+
+        let comm = noParam connection sql transaction
+
+        use reader = comm.ExecuteReader()
+
+        deferredMapResults<'T> mappedObj comm
+
     let select<'T, 'P>
         (sql: string)
         (connection: SqliteConnection)
@@ -258,6 +390,21 @@ module private QueryHelpers =
 
         mapResults<'T> tMappedObj reader
 
+    let deferredSelect<'T, 'P>
+        (sql: string)
+        (connection: SqliteConnection)
+        (parameters: 'P)
+        (transaction: SqliteTransaction option)
+        =
+        let tMappedObj = MappedObject.Create<'T>()
+        let pMappedObj = MappedObject.Create<'P>()
+
+        let comm = prepare connection sql pMappedObj parameters transaction
+
+        //use reader = comm.ExecuteReader()
+
+        deferredMapResults<'T> tMappedObj comm
+
     let selectAnon<'T>
         (sql: string)
         (connection: SqliteConnection)
@@ -271,6 +418,20 @@ module private QueryHelpers =
         use reader = comm.ExecuteReader()
 
         mapResults<'T> tMappedObj reader
+
+    let deferredSelectAnon<'T>
+        (sql: string)
+        (connection: SqliteConnection)
+        (parameters: obj list)
+        (transaction: SqliteTransaction option)
+        =
+        let tMappedObj = MappedObject.Create<'T>()
+
+        let comm = prepareAnon connection sql parameters transaction
+
+        //use reader = comm.ExecuteReader()
+
+        deferredMapResults<'T> tMappedObj comm
 
     let selectSingle<'T, 'P>
         (sql: string)
@@ -300,6 +461,13 @@ module private QueryHelpers =
         use reader = comm.ExecuteReader()
 
         mapResults<'T> tMappedObj reader
+
+    let deferredSelectSql<'T> (sql: string) (connection: SqliteConnection) (transaction: SqliteTransaction option) =
+        let tMappedObj = MappedObject.Create<'T>()
+
+        let comm = noParam connection sql transaction
+
+        deferredMapResults<'T> tMappedObj comm
 
     /// Special handling is needed for `INSERT` query to accommodate blobs.
     /// This module aims to wrap as much of that up to in one place.
@@ -429,10 +597,19 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
 
         member ctx.Dispose() = ctx.Close()
 
-    static member Create(path: string) =
+    static member Create
+        (
+            path: string,
+            ?mode: SqliteOpenMode,
+            ?cache: SqliteCacheMode,
+            ?password: string,
+            ?pooling: bool,
+            ?defaultTimeOut: int
+        ) =
         File.WriteAllBytes(path, [||])
 
-        use conn = new SqliteConnection($"Data Source={path}")
+        use conn =
+            new SqliteConnection(QueryHelpers.createConnectionString path mode cache password pooling defaultTimeOut)
 
         new SqliteContext(conn, None)
 
@@ -445,31 +622,8 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
             ?pooling: bool,
             ?defaultTimeOut: int
         ) =
-        let mutable connectionString = SqliteConnectionStringBuilder()
-
-        connectionString.DataSource <- path
-
-        match mode with
-        | Some m -> connectionString.Mode <- m
-        | None -> ()
-
-        match cache with
-        | Some c -> connectionString.Cache <- c
-        | None -> ()
-
-        match password with
-        | Some p -> connectionString.Password <- p
-        | None -> ()
-
-        match pooling with
-        | Some p -> connectionString.Pooling <- p
-        | None -> ()
-
-        match defaultTimeOut with
-        | Some dto -> connectionString.DefaultTimeout <- dto
-        | None -> ()
-
-        use conn = new SqliteConnection(connectionString.ToString())
+        use conn =
+            new SqliteConnection(QueryHelpers.createConnectionString path mode cache password pooling defaultTimeOut)
 
         new SqliteContext(conn, None)
 
@@ -483,13 +637,35 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
         connection.Close()
         connection.Dispose()
 
+    member _.GetConnection() = connection
+
+    member _.ClearPool() = SqliteConnection.ClearPool(connection)
+
+    member _.ClearAllPools() = SqliteConnection.ClearAllPools()
+
+    member _.GetConnectionState() = connection.State
+
+    member _.GetDatabase() = connection.Database
+
+
+    member _.OnStateChange(fn: StateChangeEventArgs -> unit) = connection.StateChange.Add(fn)
+
     /// <summary>
     /// Select all items from a table and map them to type 'T.
     /// </summary>
-    /// <param name="tableName">The name of the table</param>
+    /// <param name="tableName">The name of the table.</param>
     /// <returns>A list of type 'T</returns>
     member handler.Select<'T> tableName =
         QueryHelpers.selectAll<'T> tableName connection transaction
+
+    /// <summary>
+    /// Select all items from a table and map to type 'T.
+    /// This uses a deferred query so results are only created when the seq is enumerated.
+    /// </summary>
+    /// <param name="tableName">The name of the table.</param>
+    /// <returns>A seq of type 'T</returns>
+    member handler.DeferredSelect<'T> tableName =
+        QueryHelpers.deferredSelectAll<'T> tableName connection transaction
 
     /// <summary>
     /// Select data based on a verbatim sql and parameters of type 'P.
@@ -500,6 +676,17 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
     /// <returns>A list of type 'T</returns>
     member handler.SelectVerbatim<'T, 'P>(sql, parameters) =
         QueryHelpers.select<'T, 'P> sql connection parameters transaction
+
+    /// <summary>
+    /// Select data based on a verbatim sql and parameters of type 'P.
+    /// Map the result to type 'T.
+    /// This uses a deferred query so results are only created when the seq is enumerated.
+    /// </summary>
+    /// <param name="sql">The sql query to be run</param>
+    /// <param name="parameters">A record of type 'P representing query parameters.</param>
+    /// <returns>A seq of type 'T</returns>
+    member _.DeferredSelectVerbatim<'T, 'P>(sql, parameters) =
+        QueryHelpers.deferredSelect<'T, 'P> sql connection parameters transaction
 
     /// <summary>
     /// Select a list of 'T based on an sql string and a list of obj for parameters.
@@ -513,20 +700,50 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
         QueryHelpers.selectAnon<'T> sql connection parameters transaction
 
     /// <summary>
+    /// Select a list of 'T based on an sql string and a list of obj for parameters.
+    /// Parameters will be assigned values @0,@1,@2 etc. based on their position in the list
+    /// when the are parameterized.
+    /// This uses a deferred query so results are only created when the seq is enumerated.
+    /// </summary>
+    /// <param name="sql">The sql query to be run</param>
+    /// <param name="parameters">A list of objects to be used are query parameters</param>
+    /// <returns>A seq of type 'T</returns>
+    member _.DeferredSelectAnon<'T>(sql, parameters) =
+        QueryHelpers.deferredSelectAnon<'T> sql connection parameters transaction
+
+    /// <summary>
     /// Select a single 'T based on an sql string and a list of obj for parameters.
     /// This will return an optional value.
     /// Parameters will be assigned values @0,@1,@2 etc. based on their position in the list
     /// when the are parameterized.
+    /// It is best to limit the results or the query (with something like LIMIT 1),
+    /// to ensure optimum memory use (i.e. not creating results just to discard them straight away).
+    /// Alternatively call the DeferredSelectSingleAnon method which handles this issue via a deferred query.
     /// </summary>
     /// <param name="sql">The sql query to be run</param>
     /// <param name="parameters">A list of objects to be used are query parameters</param>
     /// <returns>An optional 'T</returns>
     member handler.SelectSingleAnon<'T>(sql, parameters) =
+        // NOTE - this could be rewritten as handler.SelectAnon<'T>(sql, parameters) |> List.tryHead
         let r = handler.SelectAnon<'T>(sql, parameters)
 
         match r.Length > 0 with
         | true -> r.Head |> Some
         | false -> None
+
+    /// <summary>
+    /// Select a single 'T based on an sql string and a list of obj for parameters.
+    /// This will return an optional value.
+    /// Parameters will be assigned values @0,@1,@2 etc. based on their position in the list
+    /// when the are parameterized.
+    /// Because this uses a deferred query it shouldn't matter if the query could potential return more than one result.
+    /// Only the first result will be handled.
+    /// </summary>
+    /// <param name="sql">The sql query to be run</param>
+    /// <param name="parameters">A list of objects to be used are query parameters</param>
+    /// <returns>An optional 'T</returns>
+    member ctx.DeferredSelectSingleAnon<'T>(sql, parameters) =
+        ctx.DeferredSelectAnon<'T>(sql, parameters) |> Seq.tryHead
 
     /// <summary>
     /// Select a list of 'T based on an sql string.
@@ -538,6 +755,16 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
         QueryHelpers.selectSql<'T> sql connection transaction
 
     /// <summary>
+    /// Select a list of 'T based on an sql string.
+    /// No parameterization will take place with this, it should only be used with static sql strings.
+    /// This uses a deferred query so results are only created when the seq is enumerated.
+    /// </summary>
+    /// <param name="sql">The sql query to be run</param>
+    /// <returns>A list of type 'T</returns>
+    member handler.DeferredSelectSql<'T> sql =
+        QueryHelpers.deferredSelectSql<'T> sql connection transaction
+
+    /// <summary>
     /// Select a single 'T from a table.
     /// This is useful if a table on contains one record. It will return the first from that table.
     /// Be warned, this will throw an exception if the table is empty.
@@ -547,18 +774,45 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
     member handler.SelectSingle<'T> tableName = handler.Select<'T>(tableName).Head
 
     /// <summary>
+    /// Select a single 'T from a table.
+    /// This is useful if a table on contains one record. It will return the first from that table.
+    /// Be warned, this will throw an exception if the table is empty.
+    /// This uses a deferred query so results are only created when the seq is enumerated.
+    /// </summary>
+    /// <param name="tableName">The name of the table</param>
+    /// <returns>A 'T record.</returns>
+    member handler.DeferredSelectSingle<'T> tableName =
+        handler.DeferredSelect<'T>(tableName) |> Seq.head
+
+    /// <summary>
     /// Select data based on a verbatim sql and parameters of type 'P.
     /// The first result is mapped to type 'T option.
+    /// It is best to limit the results or the query (with something like LIMIT 1),
+    /// to ensure optimum memory use (i.e. not creating results just to discard them straight away).
+    /// Alternatively call the DeferredSelectSingleAnon method which handles this issue via a deferred query.
     /// </summary>
     /// <param name="sql">The sql query to be run</param>
     /// <param name="parameters">A record of type 'P representing query parameters.</param>
     /// <returns>An optional 'T</returns>
     member handler.SelectSingleVerbatim<'T, 'P>(sql: string, parameters: 'P) =
+        // NOTE - this could be rewritten to use List.tryHead
         let result = handler.SelectVerbatim<'T, 'P>(sql, parameters)
 
         match result.Length with
         | 0 -> None
         | _ -> Some result.Head
+
+    /// <summary>
+    /// Select data based on a verbatim sql and parameters of type 'P.
+    /// The first result is mapped to type 'T option.
+    /// Because this uses a deferred query it shouldn't matter if the query could potential return more than one result.
+    /// Only the first result will be handled.
+    /// </summary>
+    /// <param name="sql">The sql query to be run</param>
+    /// <param name="parameters">A record of type 'P representing query parameters.</param>
+    /// <returns>An optional 'T</returns>
+    member handler.DeferredSelectSingleVerbatim<'T, 'P>(sql: string, parameters: 'P) =
+        handler.DeferredSelectVerbatim<'T, 'P>(sql, parameters) |> Seq.tryHead
 
     /// <summary>
     /// Execute a create table query based on a generic record type.
@@ -628,20 +882,21 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
             let r = transactionFn qh
             transaction.Commit()
             Ok r
-        with _ ->
+        with exn ->
             transaction.Rollback()
-            Error "Could not complete transaction"
+            Error { Message = $"Could not complete transaction. Exception: {exn.Message}"; Exception = Some exn }
 
     /// <summary>
-    /// Execute a collection of commands in a transaction.
+    /// Try and execute a collection of commands in a transaction.
     /// While a transaction is active on a connection non transaction commands can not be executed.
     /// This is no check for this for this is not thread safe.
     /// Also be warned, this use general error handling so an exception will roll the transaction back.
-    /// This accepts a function that returns a result. If the result is Error, the transaction will be rolled back.
+    /// This accepts a function that returns a result (and thus is excepted to be able to fail).
+    /// If the result is Error, the transaction will be rolled back.
     /// This means you no longer have to throw an exception to rollback the transaction.
     /// </summary>
     /// <param name="transactionFn">The transaction function to be attempted.</param>
-    member handler.ExecuteInTransactionV2<'R>(transactionFn: SqliteContext -> Result<'R, string>) =
+    member handler.TryExecuteInTransaction<'R>(transactionFn: SqliteContext -> Result<'R, string>) =
         connection.Open()
 
         use transaction = connection.BeginTransaction()
@@ -655,10 +910,10 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
                 Ok r
             | Error e ->
                 transaction.Rollback()
-                Error e
+                Error { Message = e; Exception = None }
         with exn ->
             transaction.Rollback()
-            Error $"Could not complete transaction. Exception: {exn.Message}"
+            Error { Message = $"Could not complete transaction. Exception: {exn.Message}"; Exception = Some exn }
 
 
     /// Execute sql that produces a scalar result.
@@ -688,3 +943,125 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
             t.Rollback()
             Error message
         | None -> Error "No active transaction."
+
+    member _.CreateFunction<'T1, 'TResult>(name: string, fn: 'T1 -> 'TResult, ?isDeterministic: bool) =
+        match isDeterministic with
+        | Some v -> connection.CreateFunction(name, fn, v)
+        | None -> connection.CreateFunction(name, fn)
+
+    member _.CreateFunction<'T1, 'T2, 'TResult>(name: string, fn: 'T1 -> 'T2 -> 'TResult, ?isDeterministic: bool) =
+        match isDeterministic with
+        | Some v -> connection.CreateFunction(name, fn, v)
+        | None -> connection.CreateFunction(name, fn)
+
+    member _.CreateFunction<'T1, 'T2, 'T3, 'TResult>
+        (
+            name: string,
+            fn: 'T1 -> 'T2 -> 'T3 -> 'TResult,
+            ?isDeterministic: bool
+        ) =
+        match isDeterministic with
+        | Some v -> connection.CreateFunction(name, fn, v)
+        | None -> connection.CreateFunction(name, fn)
+
+    member _.CreateFunction<'T1, 'T2, 'T3, 'T4, 'TResult>
+        (
+            name: string,
+            fn: 'T1 -> 'T2 -> 'T3 -> 'T4 -> 'TResult,
+            ?isDeterministic: bool
+        ) =
+        match isDeterministic with
+        | Some v -> connection.CreateFunction(name, fn, v)
+        | None -> connection.CreateFunction(name, fn)
+
+    member _.CreateFunction<'T1, 'T2, 'T3, 'T4, 'T5, 'TResult>
+        (
+            name: string,
+            fn: 'T1 -> 'T2 -> 'T3 -> 'T4 -> 'T5 -> 'TResult,
+            ?isDeterministic: bool
+        ) =
+        match isDeterministic with
+        | Some v -> connection.CreateFunction(name, fn, v)
+        | None -> connection.CreateFunction(name, fn)
+
+    member _.CreateFunction<'T1, 'T2, 'T3, 'T4, 'T5, 'T6, 'TResult>
+        (
+            name: string,
+            fn: 'T1 -> 'T2 -> 'T3 -> 'T4 -> 'T5 -> 'T6 -> 'TResult,
+            ?isDeterministic: bool
+        ) =
+        match isDeterministic with
+        | Some v -> connection.CreateFunction(name, fn, v)
+        | None -> connection.CreateFunction(name, fn)
+
+    member _.CreateFunction<'T1, 'T2, 'T3, 'T4, 'T5, 'T6, 'T7, 'TResult>
+        (
+            name: string,
+            fn: 'T1 -> 'T2 -> 'T3 -> 'T4 -> 'T5 -> 'T6 -> 'T7 -> 'TResult,
+            ?isDeterministic: bool
+        ) =
+        match isDeterministic with
+        | Some v -> connection.CreateFunction(name, fn, v)
+        | None -> connection.CreateFunction(name, fn)
+
+    member _.CreateFunction<'T1, 'T2, 'T3, 'T4, 'T5, 'T6, 'T7, 'T8, 'TResult>
+        (
+            name: string,
+            fn: 'T1 -> 'T2 -> 'T3 -> 'T4 -> 'T5 -> 'T6 -> 'T7 -> 'T8 -> 'TResult,
+            ?isDeterministic: bool
+        ) =
+        match isDeterministic with
+        | Some v -> connection.CreateFunction(name, fn, v)
+        | None -> connection.CreateFunction(name, fn)
+        
+    member _.CreateFunction<'T1, 'T2, 'T3, 'T4, 'T5, 'T6, 'T7, 'T8, 'T9, 'TResult>
+        (
+            name: string,
+            fn: 'T1 -> 'T2 -> 'T3 -> 'T4 -> 'T5 -> 'T6 -> 'T7 -> 'T8 -> 'T9 -> 'TResult,
+            ?isDeterministic: bool
+        ) =
+        match isDeterministic with
+        | Some v -> connection.CreateFunction(name, fn, v)
+        | None -> connection.CreateFunction(name, fn)
+        
+    member _.CreateFunction<'T1, 'T2, 'T3, 'T4, 'T5, 'T6, 'T7, 'T8, 'T9, 'T10, 'TResult>
+        (
+            name: string,
+            fn: 'T1 -> 'T2 -> 'T3 -> 'T4 -> 'T5 -> 'T6 -> 'T7 -> 'T8 -> 'T9 -> 'T10 -> 'TResult,
+            ?isDeterministic: bool
+        ) =
+        match isDeterministic with
+        | Some v -> connection.CreateFunction(name, fn, v)
+        | None -> connection.CreateFunction(name, fn)
+        
+    member _.CreateFunction<'T1, 'T2, 'T3, 'T4, 'T5, 'T6, 'T7, 'T8, 'T9, 'T10, 'T11, 'TResult>
+        (
+            name: string,
+            fn: 'T1 -> 'T2 -> 'T3 -> 'T4 -> 'T5 -> 'T6 -> 'T7 -> 'T8 -> 'T9 -> 'T10 -> 'T11 -> 'TResult,
+            ?isDeterministic: bool
+        ) =
+        match isDeterministic with
+        | Some v -> connection.CreateFunction(name, fn, v)
+        | None -> connection.CreateFunction(name, fn)
+
+    member _.CreateFunction<'T1, 'T2, 'T3, 'T4, 'T5, 'T6, 'T7, 'T8, 'T9, 'T10, 'T11, 'T12, 'TResult>
+        (
+            name: string,
+            fn: 'T1 -> 'T2 -> 'T3 -> 'T4 -> 'T5 -> 'T6 -> 'T7 -> 'T8 -> 'T9 -> 'T10 -> 'T11 -> 'T12 -> 'TResult,
+            ?isDeterministic: bool
+        ) =
+        match isDeterministic with
+        | Some v -> connection.CreateFunction(name, fn, v)
+        | None -> connection.CreateFunction(name, fn)
+
+    
+    member ctx.RegisterRegexFunction() =
+        ctx.CreateFunction(
+            "regexp",
+            fun (pattern: string, input: string) -> System.Text.RegularExpressions.Regex.IsMatch(input, pattern)
+        )
+
+    member ctx.CreateAggregate<'T>(name: string, fn: 'T -> 'T, ?isDeterministic: bool) =
+        match isDeterministic with
+        | Some v -> connection.CreateAggregate(name, fn, v)
+        | None -> connection.CreateAggregate(name, fn)
