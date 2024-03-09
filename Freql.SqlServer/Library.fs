@@ -366,7 +366,7 @@ type SqlServerContext(connection, transaction) =
             transaction.Commit()
             Ok r
         with
-        | _ ->
+        | exn ->
             transaction.Rollback()
             Error { Message = $"Could not complete transaction. Exception: {exn.Message}"; Exception = Some exn }
                           
