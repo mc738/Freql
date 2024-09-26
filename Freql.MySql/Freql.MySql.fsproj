@@ -10,15 +10,15 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <Compile Include="Library.fs" />
+        <Compile Include="Library.fs"/>
     </ItemGroup>
 
     <ItemGroup>
-      <PackageReference Include="MySql.Data" Version="8.3.0" />
+        <PackageReference Include="MySql.Data" Version="8.3.0"/>
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\Freql.Core\Freql.Core.fsproj" />
+        <ProjectReference Include="..\Freql.Core\Freql.Core.fsproj"/>
     </ItemGroup>
 
 </Project>

@@ -8,11 +8,11 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <Compile Include="Library.fs" />
+        <Compile Include="Library.fs"/>
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\Freql.Core\Freql.Core.fsproj" />
+        <ProjectReference Include="..\Freql.Core\Freql.Core.fsproj"/>
     </ItemGroup>
 
 </Project>
