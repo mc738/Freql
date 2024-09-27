@@ -237,7 +237,12 @@ module CodeGeneration =
                      yield! lines |> List.map (fun l -> if String.IsNullOrWhiteSpace l |> not then $"    {l}" else l)
                  | None -> () ]
            DocumentCommentLines = [
+               "/// <summary>"
                $"/// A record representing a row in the table `{table.Name}`."
+               "/// </summary>"
+               "/// <remarks>"
+               $"/// This record was generated via Freql.Tools on {DateTime.UtcNow}"
+               "/// </remarks>"
            ] }: Records.Record)
         |> Records.create profile
 
@@ -373,6 +378,9 @@ module CodeGeneration =
           "/// this should be considered an internal function (not exposed in public APIs)."
           "/// Parameters are assigned names based on their order in 0 indexed array. For example: @0,@1,@2..."
           "/// </summary>"
+          "/// <remarks>"
+          $"/// This function was generated via Freql.Tools on {DateTime.UtcNow}"
+          "/// </remarks>"
           "/// <example>"
           "/// <code>"
           $"/// select{name}Record ctx \"WHERE `field` = @0\" [ box `value` ]"
@@ -388,8 +396,15 @@ module CodeGeneration =
           $"/// It is up to the caller to verify the sql and parameters are correct,"
           "/// this should be considered an internal function (not exposed in public APIs)."
           "/// Parameters are assigned names based on their order in 0 indexed array. For example: @0,@1,@2..."
-          $"/// Example: select{name}Records ctx \"WHERE `field` = @0\" [ box `value` ]"
           "/// </summary>"
+          "/// <remarks>"
+          $"/// This function was generated via Freql.Tools on {DateTime.UtcNow}"
+          "/// </remarks>"
+          "/// <example>"
+          "/// <code>"
+          $"/// select{name}Records ctx \"WHERE `field` = @0\" [ box `value` ]"
+          "/// </code>"
+          "/// </example>"
           $"let select{name}Records (context: {settings.ContextTypeName}) (query: string list) (parameters: obj list) ="
           $"    let sql = [ Records.{name}.SelectSql() ] @ query |> buildSql"
           $"    context.SelectAnon<Records.{name}>(sql, parameters)" ]
