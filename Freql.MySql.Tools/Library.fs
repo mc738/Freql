@@ -535,7 +535,8 @@ module MySqlCodeGeneration =
                fun cd ->
                    String.Equals(cd.Name, "id", StringComparison.InvariantCulture)
                    |> not
-           ContextTypeName = "MySqlContext" }: GeneratorSettings<MySqlColumnDefinition>)
+           ContextTypeName = "MySqlContext"
+           BespokeSectionHandler = fun _ -> None }: GeneratorSettings<MySqlColumnDefinition>)
 
     let createTableDetails (table: MySqlTableDefinition) =
         ({ Name = table.Name
