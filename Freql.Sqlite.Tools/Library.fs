@@ -243,7 +243,6 @@ open SqliteMetadata
 module SqliteCodeGeneration =
 
     open Freql.Tools.CodeGeneration
-    open Freql.Core.Utils.Extensions
 
     let getType (typeReplacements: TypeReplacement list) (cd: SqliteColumnDefinition) =
         match cd.Type.ToUpper() with
@@ -304,7 +303,7 @@ module SqliteCodeGeneration =
            BespokeSectionHandler = fun _ -> [ yield! utilsModule ] |> Some }
         : GeneratorSettings<SqliteColumnDefinition>)
 
-    let generateIndexes (table: SqliteTableDefinition) =
+    let generateIndexes (ctx: TableGenerationContext) (table: SqliteTableDefinition) =
         let indexes = table.Indexes |> Seq.choose (fun i -> i.Sql)
 
         let indexCount = indexes |> Seq.length
@@ -324,7 +323,7 @@ module SqliteCodeGeneration =
                             "      \"\"\"" ])
                   |> Seq.collect id ]
 
-    let generateTriggers (table: SqliteTableDefinition) =
+    let generateTriggers (ctx: TableGenerationContext) (table: SqliteTableDefinition) =
         let triggers = table.Triggers |> Seq.choose (fun i -> i.Sql)
 
         let triggerCount = triggers |> Seq.length
@@ -343,26 +342,31 @@ module SqliteCodeGeneration =
                         else
                             "      \"\"\"" ])
                   |> Seq.collect id ]
-            
-    let generateInitializeSql (table: SqliteTableDefinition) =
-        [
-            "static member InitializationSql(checkIfExists: bool) ="
-            $"    [ {table.Name.ToPascalCase()}.CreateTableSql()"
-            "      |> Utils.updateCheckIfExists checkIfExists \"TABLE\""
-            "      yield!"
-            $"          {table.Name.ToPascalCase()}.CreateIndexesSql()"
-            "          |> List.map (Utils.updateCheckIfExists checkIfExists \"INDEX\")"
-            "      yield!"
-            $"          {table.Name.ToPascalCase()}.CreateTriggersSql()"
-            "          |> List.map (Utils.updateCheckIfExists checkIfExists \"TRIGGER\")  ]"
-        ]
-        
+
+    let generateInitializeSql (ctx: TableGenerationContext) (table: SqliteTableDefinition) =
+        [ "static member InitializationSql(checkIfExists: bool) ="
+          $"    [ {ctx.Name}.CreateTableSql()"
+          "      |> Utils.updateCheckIfExists checkIfExists \"TABLE\""
+          "      yield!"
+          $"          {ctx.Name}.CreateIndexesSql()"
+          "          |> List.map (Utils.updateCheckIfExists checkIfExists \"INDEX\")"
+          "      yield!"
+          $"          {ctx.Name}.CreateTriggersSql()"
+          "          |> List.map (Utils.updateCheckIfExists checkIfExists \"TRIGGER\")  ]" ]
+
 
     let createTableDetails (table: SqliteTableDefinition) =
         ({ Name = table.Name
            Sql = table.Sql
            Columns = table.Columns |> List.ofSeq
-           BespokeMethodsHandler = fun _ -> [ yield! generateIndexes table; ""; yield! generateTriggers table ] |> Some }
+           BespokeMethodsHandler =
+             fun ctx ->
+                 [ yield! generateIndexes ctx table
+                   ""
+                   yield! generateTriggers ctx table
+                   ""
+                   yield! generateInitializeSql ctx table ]
+                 |> Some }
         : TableDetails<SqliteColumnDefinition>)
 
     /// Generate F# records from a list of MySqlTableDefinition records.

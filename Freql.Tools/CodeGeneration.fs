@@ -190,7 +190,12 @@ module CodeGeneration =
         { Name: string
           Sql: string
           Columns: 'Col list
-          BespokeMethodsHandler: unit -> string list option }
+          BespokeMethodsHandler: TableGenerationContext -> string list option }
+        
+    and TableGenerationContext =
+        {
+            Name: string
+        }
 
     let createRecord<'Col>
         (profile: Configuration.GeneratorProfile)
@@ -225,7 +230,7 @@ module CodeGeneration =
 
         let tableName = $"    static member TableName() = \"{table.Name}\""
 
-        ({ Name =
+        let name =
             match
                 profile.TableNameReplacements
                 |> List.ofSeq
@@ -233,6 +238,10 @@ module CodeGeneration =
             with
             | Some tnr -> $"{tnr.ReplacementName.ToPascalCase()}"
             | None -> $"{table.Name.ToPascalCase()}"
+        
+        let tgc = ({ Name = name }: TableGenerationContext)
+        
+        ({ Name = name
            Fields = fields
            IncludeBlank = true
            AdditionMethods =
@@ -241,7 +250,7 @@ module CodeGeneration =
                yield! selectSql
                ""
                tableName
-               match table.BespokeMethodsHandler() with
+               match table.BespokeMethodsHandler tgc with
                | Some lines ->
                    ""
 
