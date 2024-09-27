@@ -540,7 +540,8 @@ module MySqlCodeGeneration =
     let createTableDetails (table: MySqlTableDefinition) =
         ({ Name = table.Name
            Sql = table.Sql
-           Columns = table.Columns |> List.ofSeq }: TableDetails<MySqlColumnDefinition>)
+           Columns = table.Columns |> List.ofSeq
+           BespokeMethodsHandler = fun _ -> None }: TableDetails<MySqlColumnDefinition>)
 
     /// Generate F# records from a list of MySqlTableDefinition records.
     let generate (profile: Configuration.GeneratorProfile) (database: MySqlDatabaseDefinition) =

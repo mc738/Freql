@@ -127,7 +127,9 @@ module SqliteMetadata =
           [<JsonPropertyName("name")>]
           Name: string
           [<JsonPropertyName("seqNo")>]
-          SeqNo: int }
+          SeqNo: int
+          [<JsonPropertyName("sql")>]
+          Sql: string option }
 
     type SqliteForeignKeyDefinition =
         { [<JsonPropertyName("id")>]
@@ -147,6 +149,12 @@ module SqliteMetadata =
           [<JsonPropertyName("match")>]
           Match: string }
 
+    type SqliteTriggerDefinition =
+        { [<JsonPropertyName("name")>]
+          Name: string
+          [<JsonPropertyName("sql")>]
+          Sql: string option }
+
     type SqliteTableDefinition =
         { [<JsonPropertyName("name")>]
           Name: string
@@ -157,16 +165,19 @@ module SqliteMetadata =
           [<JsonPropertyName("foreignKeys")>]
           ForeignKeys: SqliteForeignKeyDefinition seq
           [<JsonPropertyName("indexes")>]
-          Indexes: SqliteIndexDefinition seq }
+          Indexes: SqliteIndexDefinition seq
+          [<JsonPropertyName("triggers")>]
+          Triggers: SqliteTriggerDefinition seq }
 
     type SqliteDatabaseDefinition =
         { [<JsonPropertyName("tables")>]
           Tables: SqliteTableDefinition seq }
 
-    let createIndexDefinition (tableName: string) (record: Internal.IndexRecord) =
+    let createIndexDefinition (tableName: string) (record: Internal.IndexRecord) (sql: string option) =
         { TableName = tableName
           Name = record.Name
-          SeqNo = record.Seqno }
+          SeqNo = record.Seqno
+          Sql = sql }
 
     let get (ctx: SqliteContext) =
         let masterRecords = Internal.getMasterRecords ctx
@@ -177,6 +188,8 @@ module SqliteMetadata =
 
         let indexes = masterRecords |> List.filter (fun mr -> mr.Type = "index")
 
+        let triggers = masterRecords |> List.filter (fun mr -> mr.Type = "trigger")
+
         tables
         |> List.map (fun tmr ->
             let indexes =
@@ -184,7 +197,7 @@ module SqliteMetadata =
                 |> List.filter (fun fmr -> fmr.TblName = tmr.TblName)
                 |> List.map (fun fmr ->
                     match Internal.getIndexRecord fmr.Name ctx with
-                    | Some ir -> createIndexDefinition fmr.TblName ir
+                    | Some ir -> createIndexDefinition fmr.TblName ir fmr.Sql
                     | None -> failwith $"Missing index record: {fmr.Name}")
 
             let foreignKeys =
@@ -216,7 +229,11 @@ module SqliteMetadata =
                Sql = tmr.Sql |> Option.defaultValue ""
                Columns = columns
                ForeignKeys = foreignKeys
-               Indexes = indexes }
+               Indexes = indexes
+               Triggers =
+                 triggers
+                 |> List.filter (fun mr -> mr.TblName = tmr.TblName)
+                 |> List.map (fun t -> { Name = t.Name; Sql = t.Sql }) }
             : SqliteTableDefinition))
         |> fun tdl -> ({ Tables = tdl }: SqliteDatabaseDefinition)
 
@@ -274,11 +291,26 @@ module SqliteCodeGeneration =
                *)
            ContextTypeName = "SqliteContext" }
         : GeneratorSettings<SqliteColumnDefinition>)
+    
+    let generateIndexes (table: SqliteTableDefinition) =
+        let indexCount = table.Indexes |> Seq.length
+        if indexCount = 0 then
+            [ "static member CreateIndexesSql() = []" ]
+        else
+            [ "static member CreateIndexesSql() ="
+              yield!
+                  table.Indexes
+                  |> Seq.mapi (fun i index ->
+                      [ if (i = 0) then "    [ \"\"\"" else "      "
+                        $"      {index.Sql}"
+                        if (i = indexCount - 1) then "      \"\"\" ]" else "      \"\"\"" ])
+                  |> Seq.collect id ]
 
     let createTableDetails (table: SqliteTableDefinition) =
         ({ Name = table.Name
            Sql = table.Sql
-           Columns = table.Columns |> List.ofSeq }
+           Columns = table.Columns |> List.ofSeq
+           BespokeMethodsHandler = fun _ -> [ yield! generateIndexes table ] |> Some }
         : TableDetails<SqliteColumnDefinition>)
 
     /// Generate F# records from a list of MySqlTableDefinition records.
