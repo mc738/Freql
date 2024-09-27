@@ -293,16 +293,18 @@ module SqliteCodeGeneration =
         : GeneratorSettings<SqliteColumnDefinition>)
     
     let generateIndexes (table: SqliteTableDefinition) =
-        let indexCount = table.Indexes |> Seq.length
+        let indexes = table.Indexes |> Seq.choose (fun i -> i.Sql)
+        
+        let indexCount = indexes |> Seq.length
         if indexCount = 0 then
             [ "static member CreateIndexesSql() = []" ]
         else
             [ "static member CreateIndexesSql() ="
               yield!
-                  table.Indexes
+                  indexes
                   |> Seq.mapi (fun i index ->
                       [ if (i = 0) then "    [ \"\"\"" else "      "
-                        $"      {index.Sql}"
+                        $"      {index}"
                         if (i = indexCount - 1) then "      \"\"\" ]" else "      \"\"\"" ])
                   |> Seq.collect id ]
 
