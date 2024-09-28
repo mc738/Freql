@@ -305,7 +305,7 @@ module SqliteCodeGeneration =
            BespokeBottomSectionHandler = fun _ -> None }
         : GeneratorSettings<SqliteColumnDefinition>)
 
-    let generateIndexes (ctx: TableGenerationContext) (table: SqliteTableDefinition) =
+    let generateIndexes (ctx: TableGeneratorContext) (table: SqliteTableDefinition) =
         let indexes = table.Indexes |> Seq.choose (fun i -> i.Sql)
 
         let indexCount = indexes |> Seq.length
@@ -325,7 +325,7 @@ module SqliteCodeGeneration =
                             "      \"\"\"" ])
                   |> Seq.collect id ]
 
-    let generateTriggers (ctx: TableGenerationContext) (table: SqliteTableDefinition) =
+    let generateTriggers (ctx: TableGeneratorContext) (table: SqliteTableDefinition) =
         let triggers = table.Triggers |> Seq.choose (fun i -> i.Sql)
 
         let triggerCount = triggers |> Seq.length
@@ -345,7 +345,7 @@ module SqliteCodeGeneration =
                             "      \"\"\"" ])
                   |> Seq.collect id ]
 
-    let generateInitializeSql (ctx: TableGenerationContext) (table: SqliteTableDefinition) =
+    let generateInitializeSql (ctx: TableGeneratorContext) (table: SqliteTableDefinition) =
         [ "static member InitializationSql(checkIfExists: bool) ="
           $"    [ {ctx.Name}.CreateTableSql()"
           "      |> Utils.updateCheckIfExists checkIfExists \"TABLE\""
