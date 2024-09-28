@@ -193,17 +193,17 @@ module CodeGeneration =
             /// This is useful for generating utility functions etc. that could be used in other modules,
             /// such as in BespokeMethodsHandlers and additional methods.
             /// </summary>
-            BespokeTopSectionHandler: GeneratorContext -> string list option
+            BespokeTopSectionHandler: GeneratorContext<'Col> -> string list option
             /// <summary>
             /// A handler to generate database engine specific code that will appear at the bottom of output file.
             /// This is useful for generating helper and extension functions based on the generated code.
             /// </summary>
-            BespokeBottomSectionHandler: GeneratorContext -> string list option
+            BespokeBottomSectionHandler: GeneratorContext<'Col> -> string list option
         }
         
-    and GeneratorContext = { Profile: Configuration.GeneratorProfile }
+    and GeneratorContext<'Col> = { Profile: Configuration.GeneratorProfile; Tables: TableDetails<'Col> list }
 
-    type TableDetails<'Col> =
+    and TableDetails<'Col> =
         { OriginalName: string
           ReplacementName: string option
           Sql: string
@@ -303,7 +303,7 @@ module CodeGeneration =
         (settings: GeneratorSettings<'Col>)
         (tables: TableDetails<'Col> list)
         =
-        [ match settings.BespokeTopSectionHandler { Profile = profile } with
+        [ match settings.BespokeTopSectionHandler { Profile = profile; Tables = tables } with
           | Some ls ->
               yield! ls
               ""
@@ -500,7 +500,7 @@ module CodeGeneration =
         (settings: GeneratorSettings<'Col>)
         (tables: TableDetails<'Col> list)
         =
-        [ match settings.BespokeTopSectionHandler { Profile = profile } with
+        [ match settings.BespokeTopSectionHandler { Profile = profile; Tables = tables } with
           | Some ls ->
               yield! ls
               ""

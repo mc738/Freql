@@ -244,10 +244,11 @@ open SqliteMetadata
 module SqliteCodeGeneration =
 
     open Freql.Tools.CodeGeneration
-    
+    open Freql.Core.Utils.Extensions
+
     [<RequireQualifiedAccess>]
     module TopSection =
-        
+
         let utilsModule =
             [ "module private Utils ="
               ""
@@ -261,24 +262,47 @@ module SqliteCodeGeneration =
               ""
               "            regex.Replace(value, $\"CREATE {name} IF NOT EXISTS\", 1)" ]
 
-        let generate (ctx: GeneratorContext) = [ yield! utilsModule ] |> Some
-
-        
-        
-        ()
+        let generate (ctx: GeneratorContext<SqliteColumnDefinition>) = [ yield! utilsModule ] |> Some
 
     [<RequireQualifiedAccess>]
     module BottomSection =
-        
-        
-        let generate (ctx: GeneratorContext) =
 
-            [
+        let orderTables () =
 
-            ]
+            ()
+
+        let createInitializationSql (orderedTableNames: string list) =
+            match orderedTableNames.Length with
+            | 0 -> [ "    let sql (checkIfExists: bool) = []" ]
+            | 1 ->
+                [ $"    let sql (checkIfExist: bool) = [ Records.{orderedTableNames.Head}.InitializationSql checkIfExists ]" ]
+            | _ ->
+                [ "let sql (checkIfExist: bool) ="
+                  yield!
+                      orderedTableNames
+                      |> List.mapi (fun i name ->
+                          let startBlock =
+                              match i with
+                              | 0 -> "    [ "
+                              | _ -> "      "
+
+                          let endBlock =
+                              match i with
+                              | _ when orderedTableNames.Length - 1 = i -> " ]"
+                              | _ -> ""
+
+                          $"{startBlock}Records.{orderedTableNames}.InitializationSql checkIfExists{endBlock}") ]
+
+        let generate (ctx: GeneratorContext<SqliteColumnDefinition>) =
+            let orderedTableNames = ctx.Tables |> List.map (fun t -> t.ReplacementName |> Option.defaultValue t.OriginalName |> fun tn -> tn.ToPascalCase())
+
+            [ "[<RequireQualifiedAccess>]"
+              "module Initialization ="
+              "    let sql (checkIfExists: bool) ="
+              yield! orderedTableNames ]
             |> Some
-        
-    
+
+
     let getType (typeReplacements: TypeReplacement list) (cd: SqliteColumnDefinition) =
         match cd.Type.ToUpper() with
         | "TEXT" -> "string"
@@ -307,8 +331,6 @@ module SqliteCodeGeneration =
                 typeReplacements
                 |> List.fold (fun ts tr -> tr.AttemptInitReplacement(cd.Name, ts)) ts
         | false -> "None"
-
-    
 
     let generatorSettings (profile: Configuration.GeneratorProfile) =
         ({ Imports = [ "Freql.Core.Common"; "Freql.Sqlite" ]
