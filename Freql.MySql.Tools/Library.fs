@@ -442,6 +442,8 @@ module MySqlMetaData =
 
         ({ Name = databaseName; Tables = tables }: MySqlDatabaseDefinition)
 
+open MySqlMetaData
+
 [<RequireQualifiedAccess>]
 module MySqlCodeGeneration =
 
@@ -550,7 +552,7 @@ module MySqlCodeGeneration =
            ContextTypeName = "MySqlContext"
            BespokeTopSectionHandler = fun _ -> None
            BespokeBottomSectionHandler = fun _ -> None }
-        : GeneratorSettings<MySqlColumnDefinition>)
+        : GeneratorSettings<MySqlTableDefinition, MySqlColumnDefinition>)
 
     let createTableDetails (profile: Configuration.GeneratorProfile) (table: MySqlTableDefinition) =
         ({ OriginalName = table.Name
@@ -560,9 +562,10 @@ module MySqlCodeGeneration =
              |> List.tryFind (fun tnr -> String.Equals(tnr.Name, table.Name, StringComparison.Ordinal))
              |> Option.map (fun tnr -> tnr.ReplacementName)
            Sql = table.Sql
+           Table = table 
            Columns = table.Columns |> List.ofSeq
            BespokeMethodsHandler = fun _ -> None }
-        : TableDetails<MySqlColumnDefinition>)
+        : TableDetails<MySqlTableDefinition, MySqlColumnDefinition>)
 
     /// Generate F# records from a list of MySqlTableDefinition records.
     let generate (profile: Configuration.GeneratorProfile) (database: MySqlDatabaseDefinition) =

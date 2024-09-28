@@ -178,44 +178,45 @@ module CodeGeneration =
             | Some init, true -> init
             | _ -> initValue
 
-    type GeneratorSettings<'Col> =
+    type GeneratorSettings<'TTable, 'TColumn> =
         {
             Imports: string list
             IncludeJsonAttributes: bool
             TypeReplacements: TypeReplacement list
-            TypeHandler: TypeReplacement list -> 'Col -> string
-            TypeInitHandler: TypeReplacement list -> 'Col -> string
-            NameHandler: 'Col -> string
-            InsertColumnFilter: 'Col -> bool
+            TypeHandler: TypeReplacement list -> 'TColumn -> string
+            TypeInitHandler: TypeReplacement list -> 'TColumn -> string
+            NameHandler: 'TColumn -> string
+            InsertColumnFilter: 'TColumn -> bool
             ContextTypeName: string
             /// <summary>
             /// A handler to generate database engine specific code that will appear at the top of output file.
             /// This is useful for generating utility functions etc. that could be used in other modules,
             /// such as in BespokeMethodsHandlers and additional methods.
             /// </summary>
-            BespokeTopSectionHandler: GeneratorContext<'Col> -> string list option
+            BespokeTopSectionHandler: GeneratorContext<'TTable, 'TColumn> -> string list option
             /// <summary>
             /// A handler to generate database engine specific code that will appear at the bottom of output file.
             /// This is useful for generating helper and extension functions based on the generated code.
             /// </summary>
-            BespokeBottomSectionHandler: GeneratorContext<'Col> -> string list option
+            BespokeBottomSectionHandler: GeneratorContext<'TTable, 'TColumn> -> string list option
         }
         
-    and GeneratorContext<'Col> = { Profile: Configuration.GeneratorProfile; Tables: TableDetails<'Col> list }
+    and GeneratorContext<'TTable, 'TColumn> = { Profile: Configuration.GeneratorProfile; Tables: TableDetails<'TTable, 'TColumn> list }
 
-    and TableDetails<'Col> =
+    and TableDetails<'TTable, 'TColumn> =
         { OriginalName: string
           ReplacementName: string option
           Sql: string
-          Columns: 'Col list
+          Table: 'TTable
+          Columns: 'TColumn list
           BespokeMethodsHandler: TableGeneratorContext -> string list option }
 
     and TableGeneratorContext = { Name: string }
 
-    let createRecord<'Col>
+    let createRecord<'TTable, 'TColumn>
         (profile: Configuration.GeneratorProfile)
-        (settings: GeneratorSettings<'Col>)
-        (table: TableDetails<'Col>)
+        (settings: GeneratorSettings<'TTable, 'TColumn>)
+        (table: TableDetails<'TTable, 'TColumn>)
         =
 
         let fields =
@@ -283,10 +284,10 @@ module CodeGeneration =
 
     let indent1 text = indent 1 text
 
-    let createBoilerPlate
+    let createBoilerPlate<'TTable, 'TColumn>
         (profile: Configuration.GeneratorProfile)
-        (settings: GeneratorSettings<'Col>)
-        (tables: TableDetails<'Col> list)
+        (settings: GeneratorSettings<'TTable, 'TColumn>)
+        (tables: TableDetails<'TTable, 'TColumn> list)
         =
         [ yield! Header.lines
           ""
@@ -298,10 +299,10 @@ module CodeGeneration =
           yield! settings.Imports |> List.map (fun i -> $"open {i}")
           "" ]
 
-    let createBespokeTopSection
+    let createBespokeTopSection<'TTable, 'TColumn>
         (profile: Configuration.GeneratorProfile)
-        (settings: GeneratorSettings<'Col>)
-        (tables: TableDetails<'Col> list)
+        (settings: GeneratorSettings<'TTable, 'TColumn>)
+        (tables: TableDetails<'TTable, 'TColumn> list)
         =
         [ match settings.BespokeTopSectionHandler { Profile = profile; Tables = tables } with
           | Some ls ->
@@ -309,10 +310,10 @@ module CodeGeneration =
               ""
           | None -> () ]
 
-    let createRecords<'Col>
+    let createRecords<'TTable, 'TColumn>
         (profile: Configuration.GeneratorProfile)
-        (settings: GeneratorSettings<'Col>)
-        (tables: TableDetails<'Col> list)
+        (settings: GeneratorSettings<'TTable, 'TColumn>)
+        (tables: TableDetails<'TTable, 'TColumn> list)
         =
 
         // Create the core record.
@@ -350,10 +351,10 @@ module CodeGeneration =
     // let insertFoo (parameters: AddFooParameters) (context: MySqlContext) =
     //     context.insert(Records.FooRecord.TableName(), parameters)
 
-    let generateAddParameters<'Col>
+    let generateAddParameters<'TTable, 'TColumn>
         (profile: Configuration.GeneratorProfile)
-        (settings: GeneratorSettings<'Col>)
-        (table: TableDetails<'Col>)
+        (settings: GeneratorSettings<'TTable, 'TColumn>)
+        (table: TableDetails<'TTable, 'TColumn>)
         =
         let name =
             table.ReplacementName
@@ -384,10 +385,10 @@ module CodeGeneration =
         |> Records.create profile
 
 
-    let generateInsertOperation<'Col>
+    let generateInsertOperation<'TTable, 'TColumn>
         (profile: Configuration.GeneratorProfile)
-        (settings: GeneratorSettings<'Col>)
-        (table: TableDetails<'Col>)
+        (settings: GeneratorSettings<'TTable, 'TColumn>)
+        (table: TableDetails<'TTable, 'TColumn>)
         =
 
         let name =
@@ -398,10 +399,10 @@ module CodeGeneration =
         [ $"let insert{name} (context: {settings.ContextTypeName}) (parameters: Parameters.New{name}) ="
           $"    context.Insert(\"{table.OriginalName}\", parameters)" ]
 
-    let generateSelectOperation<'Col>
+    let generateSelectOperation<'TTable, 'TColumn>
         (profile: Configuration.GeneratorProfile)
-        (settings: GeneratorSettings<'Col>)
-        (table: TableDetails<'Col>)
+        (settings: GeneratorSettings<'TTable, 'TColumn>)
+        (table: TableDetails<'TTable, 'TColumn>)
         =
 
         let name =
@@ -448,10 +449,10 @@ module CodeGeneration =
           $"    let sql = [ Records.{name}.SelectSql() ] @ query |> buildSql"
           $"    context.SelectAnon<Records.{name}>(sql, parameters)" ]
 
-    let createParameters<'Col>
+    let createParameters<'TTable, 'TColumn>
         (profile: Configuration.GeneratorProfile)
-        (settings: GeneratorSettings<'Col>)
-        (tables: TableDetails<'Col> list)
+        (settings: GeneratorSettings<'TTable, 'TColumn>)
+        (tables: TableDetails<'TTable, 'TColumn> list)
         =
 
         // Create the core record.
@@ -466,10 +467,10 @@ module CodeGeneration =
           "module Parameters =" ]
         @ records
 
-    let createOperations<'Col>
+    let createOperations<'TTable, 'TColumn>
         (profile: Configuration.GeneratorProfile)
-        (settings: GeneratorSettings<'Col>)
-        (tables: TableDetails<'Col> list)
+        (settings: GeneratorSettings<'TTable, 'TColumn>)
+        (tables: TableDetails<'TTable, 'TColumn> list)
         =
 
         let buildSql =
@@ -495,21 +496,21 @@ module CodeGeneration =
           "" ]
         @ ops
 
-    let createBespokeBottomSection
+    let createBespokeBottomSection<'TTable, 'TColumn>
         (profile: Configuration.GeneratorProfile)
-        (settings: GeneratorSettings<'Col>)
-        (tables: TableDetails<'Col> list)
+        (settings: GeneratorSettings<'TTable, 'TColumn>)
+        (tables: TableDetails<'TTable, 'TColumn> list)
         =
-        [ match settings.BespokeTopSectionHandler { Profile = profile; Tables = tables } with
+        [ match settings.BespokeBottomSectionHandler { Profile = profile; Tables = tables } with
           | Some ls ->
               yield! ls
               ""
           | None -> () ]
 
-    let generateCode
+    let generateCode<'TTable, 'TColumn>
         (profile: Configuration.GeneratorProfile)
-        (settings: GeneratorSettings<'Col>)
-        (tables: TableDetails<'Col> list)
+        (settings: GeneratorSettings<'TTable, 'TColumn>)
+        (tables: TableDetails<'TTable, 'TColumn> list)
         =
 
         [ createBoilerPlate profile settings tables
