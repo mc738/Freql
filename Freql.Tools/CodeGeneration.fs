@@ -284,7 +284,11 @@ module CodeGeneration =
 
     let indent1 text = indent 1 text
 
-    let createBoilerPlate (profile: Configuration.GeneratorProfile) (settings: GeneratorSettings<'Col>) =
+    let createBoilerPlate
+        (profile: Configuration.GeneratorProfile)
+        (settings: GeneratorSettings<'Col>)
+        (tables: TableDetails<'Col> list)
+        =
         [ yield! Header.lines
           ""
           $"namespace {profile.Namespace}"
@@ -295,7 +299,11 @@ module CodeGeneration =
           yield! settings.Imports |> List.map (fun i -> $"open {i}")
           "" ]
 
-    let createBespokeTopSection (profile: Configuration.GeneratorProfile) (settings: GeneratorSettings<'Col>) =
+    let createBespokeTopSection
+        (profile: Configuration.GeneratorProfile)
+        (settings: GeneratorSettings<'Col>)
+        (tables: TableDetails<'Col> list)
+        =
         [ match settings.BespokeTopSectionHandler() with
           | Some ls ->
               yield! ls
@@ -500,16 +508,28 @@ module CodeGeneration =
           "" ]
         @ ops
 
+    let createBespokeBottomSection
+        (profile: Configuration.GeneratorProfile)
+        (settings: GeneratorSettings<'Col>)
+        (tables: TableDetails<'Col> list)
+        =
+        [ match settings.BespokeTopSectionHandler() with
+          | Some ls ->
+              yield! ls
+              ""
+          | None -> () ]
+
     let generateCode
         (profile: Configuration.GeneratorProfile)
         (settings: GeneratorSettings<'Col>)
         (tables: TableDetails<'Col> list)
         =
 
-        [ createBoilerPlate profile settings
-          createBespokeTopSection profile settings
+        [ createBoilerPlate profile settings tables
+          createBespokeTopSection profile settings tables
           createRecords profile settings tables
           createParameters profile settings tables
-          createOperations profile settings tables ]
+          createOperations profile settings tables
+          createBespokeBottomSection profile settings tables ]
         |> List.concat
         |> String.concat Environment.NewLine
