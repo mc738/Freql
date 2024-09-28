@@ -235,7 +235,7 @@ module SqliteMetadata =
                  |> List.filter (fun mr -> mr.TblName = tmr.TblName)
                  |> List.map (fun t -> { Name = t.Name; Sql = t.Sql }) }
             : SqliteTableDefinition))
-        
+
         |> fun tdl -> ({ Tables = tdl }: SqliteDatabaseDefinition)
 
 open SqliteMetadata
@@ -244,7 +244,41 @@ open SqliteMetadata
 module SqliteCodeGeneration =
 
     open Freql.Tools.CodeGeneration
+    
+    [<RequireQualifiedAccess>]
+    module TopSection =
+        
+        let utilsModule =
+            [ "module private Utils ="
+              ""
+              "    open System.Text.RegularExpressions"
+              ""
+              "    let updateCheckIfExists (update: bool) (name: string) (value: string) ="
+              "        match update with"
+              "        | false -> value"
+              "        | true ->"
+              "            let regex = Regex($\"CREATE {name}\")"
+              ""
+              "            regex.Replace(value, $\"CREATE {name} IF NOT EXISTS\", 1)" ]
 
+        let generate (ctx: GeneratorContext) = [ yield! utilsModule ] |> Some
+
+        
+        
+        ()
+
+    [<RequireQualifiedAccess>]
+    module BottomSection =
+        
+        
+        let generate (ctx: GeneratorContext) =
+
+            [
+
+            ]
+            |> Some
+        
+    
     let getType (typeReplacements: TypeReplacement list) (cd: SqliteColumnDefinition) =
         match cd.Type.ToUpper() with
         | "TEXT" -> "string"
@@ -274,18 +308,7 @@ module SqliteCodeGeneration =
                 |> List.fold (fun ts tr -> tr.AttemptInitReplacement(cd.Name, ts)) ts
         | false -> "None"
 
-    let utilsModule =
-        [ "module private Utils ="
-          ""
-          "    open System.Text.RegularExpressions"
-          ""
-          "    let updateCheckIfExists (update: bool) (name: string) (value: string) ="
-          "        match update with"
-          "        | false -> value"
-          "        | true ->"
-          "            let regex = Regex($\"CREATE {name}\")"
-          ""
-          "            regex.Replace(value, $\"CREATE {name} IF NOT EXISTS\", 1)" ]
+    
 
     let generatorSettings (profile: Configuration.GeneratorProfile) =
         ({ Imports = [ "Freql.Core.Common"; "Freql.Sqlite" ]
@@ -301,8 +324,8 @@ module SqliteCodeGeneration =
                    |> not
                *)
            ContextTypeName = "SqliteContext"
-           BespokeTopSectionHandler = fun _ -> [ yield! utilsModule ] |> Some
-           BespokeBottomSectionHandler = fun _ -> None }
+           BespokeTopSectionHandler = TopSection.generate
+           BespokeBottomSectionHandler = BottomSection.generate }
         : GeneratorSettings<SqliteColumnDefinition>)
 
     let generateIndexes (ctx: TableGeneratorContext) (table: SqliteTableDefinition) =
@@ -357,13 +380,13 @@ module SqliteCodeGeneration =
           "          |> List.map (Utils.updateCheckIfExists checkIfExists \"TRIGGER\")  ]" ]
 
     let createTableDetails (profile: Configuration.GeneratorProfile) (table: SqliteTableDefinition) =
-        
+
         ({ OriginalName = table.Name
            ReplacementName =
-               profile.TableNameReplacements
-               |> List.ofSeq
-               |> List.tryFind (fun tnr -> String.Equals(tnr.Name, table.Name, StringComparison.Ordinal))
-               |> Option.map (fun tnr -> tnr.ReplacementName)
+             profile.TableNameReplacements
+             |> List.ofSeq
+             |> List.tryFind (fun tnr -> String.Equals(tnr.Name, table.Name, StringComparison.Ordinal))
+             |> Option.map (fun tnr -> tnr.ReplacementName)
            Sql = table.Sql
            Columns = table.Columns |> List.ofSeq
            BespokeMethodsHandler =
@@ -379,7 +402,7 @@ module SqliteCodeGeneration =
     /// Generate F# records from a list of MySqlTableDefinition records.
     let generate (profile: Configuration.GeneratorProfile) (database: SqliteDatabaseDefinition) =
         let settings = generatorSettings profile
-        
+
         database.Tables
         |> List.ofSeq
         |> List.map (createTableDetails profile)
