@@ -527,7 +527,7 @@ module MySqlCodeGeneration =
            TypeReplacements =
                profile.TypeReplacements
                |> List.ofSeq
-               |> List.map (fun tr -> TypeReplacement.Create tr)
+               |> List.map TypeReplacement.Create
            TypeHandler = getType
            TypeInitHandler = getTypeInit
            NameHandler = fun cd -> cd.Name
@@ -536,7 +536,8 @@ module MySqlCodeGeneration =
                    String.Equals(cd.Name, "id", StringComparison.InvariantCulture)
                    |> not
            ContextTypeName = "MySqlContext"
-           BespokeSectionHandler = fun _ -> None }: GeneratorSettings<MySqlColumnDefinition>)
+           BespokeTopSectionHandler = fun _ -> None
+           BespokeBottomSectionHandler = fun _ -> None }: GeneratorSettings<MySqlColumnDefinition>)
 
     let createTableDetails (table: MySqlTableDefinition) =
         ({ Name = table.Name
@@ -546,15 +547,9 @@ module MySqlCodeGeneration =
 
     /// Generate F# records from a list of MySqlTableDefinition records.
     let generate (profile: Configuration.GeneratorProfile) (database: MySqlDatabaseDefinition) =
+        let settings = generatorSettings profile
+        
         database.Tables
         |> List.ofSeq
-        |> List.map (fun t -> createTableDetails t)
-        |> fun t ->
-            let settings = generatorSettings profile
-            [
-               createRecords profile settings t
-               createParameters profile settings t
-               generateOperations profile settings t
-            ]
-            |> List.concat
-            |> String.concat Environment.NewLine
+        |> List.map createTableDetails
+        |> generateCode profile settings

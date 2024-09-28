@@ -235,6 +235,7 @@ module SqliteMetadata =
                  |> List.filter (fun mr -> mr.TblName = tmr.TblName)
                  |> List.map (fun t -> { Name = t.Name; Sql = t.Sql }) }
             : SqliteTableDefinition))
+        
         |> fun tdl -> ({ Tables = tdl }: SqliteDatabaseDefinition)
 
 open SqliteMetadata
@@ -300,7 +301,8 @@ module SqliteCodeGeneration =
                    |> not
                *)
            ContextTypeName = "SqliteContext"
-           BespokeSectionHandler = fun _ -> [ yield! utilsModule ] |> Some }
+           BespokeTopSectionHandler = fun _ -> [ yield! utilsModule ] |> Some
+           BespokeBottomSectionHandler = fun _ -> None }
         : GeneratorSettings<SqliteColumnDefinition>)
 
     let generateIndexes (ctx: TableGenerationContext) (table: SqliteTableDefinition) =
@@ -354,7 +356,6 @@ module SqliteCodeGeneration =
           $"          {ctx.Name}.CreateTriggersSql()"
           "          |> List.map (Utils.updateCheckIfExists checkIfExists \"TRIGGER\")  ]" ]
 
-
     let createTableDetails (table: SqliteTableDefinition) =
         ({ Name = table.Name
            Sql = table.Sql
@@ -371,17 +372,12 @@ module SqliteCodeGeneration =
 
     /// Generate F# records from a list of MySqlTableDefinition records.
     let generate (profile: Configuration.GeneratorProfile) (database: SqliteDatabaseDefinition) =
+        let settings = generatorSettings profile
+        
         database.Tables
         |> List.ofSeq
         |> List.map createTableDetails
-        |> fun t ->
-            let settings = generatorSettings profile
-
-            [ createRecords profile settings t
-              createParameters profile settings t
-              generateOperations profile settings t ]
-            |> List.concat
-            |> String.concat Environment.NewLine
+        |> generateCode profile settings
 
 [<RequireQualifiedAccess>]
 module SqliteDatabaseComparison =

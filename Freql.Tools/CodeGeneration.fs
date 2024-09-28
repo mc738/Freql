@@ -132,8 +132,11 @@ module CodeGeneration =
                   yield! fields
                   ""
                   yield! blank
-                  ""
-                  yield! record.AdditionMethods ]
+                  match record.AdditionMethods.IsEmpty |> not with
+                  | true ->
+                      ""
+                      yield! record.AdditionMethods
+                  | false -> () ]
 
     module Functions =
 
@@ -176,26 +179,35 @@ module CodeGeneration =
             | _ -> initValue
 
     type GeneratorSettings<'Col> =
-        { Imports: string list
-          IncludeJsonAttributes: bool
-          TypeReplacements: TypeReplacement list
-          TypeHandler: TypeReplacement list -> 'Col -> string
-          TypeInitHandler: TypeReplacement list -> 'Col -> string
-          NameHandler: 'Col -> string
-          InsertColumnFilter: 'Col -> bool
-          ContextTypeName: string
-          BespokeSectionHandler: unit -> string list option }
+        {
+            Imports: string list
+            IncludeJsonAttributes: bool
+            TypeReplacements: TypeReplacement list
+            TypeHandler: TypeReplacement list -> 'Col -> string
+            TypeInitHandler: TypeReplacement list -> 'Col -> string
+            NameHandler: 'Col -> string
+            InsertColumnFilter: 'Col -> bool
+            ContextTypeName: string
+            /// <summary>
+            /// A handler to generate database engine specific code that will appear at the top of output file.
+            /// This is useful for generating utility functions etc. that could be used in other modules,
+            /// such as in BespokeMethodsHandlers and additional methods.
+            /// </summary>
+            BespokeTopSectionHandler: unit -> string list option
+            /// <summary>
+            /// A handler to generate database engine specific code that will appear at the bottom of output file.
+            /// This is useful for generating helper and extension functions based on the generated code.
+            /// </summary>
+            BespokeBottomSectionHandler: unit -> string list option
+        }
 
     type TableDetails<'Col> =
         { Name: string
           Sql: string
           Columns: 'Col list
           BespokeMethodsHandler: TableGenerationContext -> string list option }
-        
-    and TableGenerationContext =
-        {
-            Name: string
-        }
+
+    and TableGenerationContext = { Name: string }
 
     let createRecord<'Col>
         (profile: Configuration.GeneratorProfile)
@@ -238,9 +250,9 @@ module CodeGeneration =
             with
             | Some tnr -> $"{tnr.ReplacementName.ToPascalCase()}"
             | None -> $"{table.Name.ToPascalCase()}"
-        
+
         let tgc = ({ Name = name }: TableGenerationContext)
-        
+
         ({ Name = name
            Fields = fields
            IncludeBlank = true
@@ -272,6 +284,24 @@ module CodeGeneration =
 
     let indent1 text = indent 1 text
 
+    let createBoilerPlate (profile: Configuration.GeneratorProfile) (settings: GeneratorSettings<'Col>) =
+        [ yield! Header.lines
+          ""
+          $"namespace {profile.Namespace}"
+          ""
+          "open System"
+          if settings.IncludeJsonAttributes then
+              "open System.Text.Json.Serialization"
+          yield! settings.Imports |> List.map (fun i -> $"open {i}")
+          "" ]
+
+    let createBespokeTopSection (profile: Configuration.GeneratorProfile) (settings: GeneratorSettings<'Col>) =
+        [ match settings.BespokeTopSectionHandler() with
+          | Some ls ->
+              yield! ls
+              ""
+          | None -> () ]
+
     let createRecords<'Col>
         (profile: Configuration.GeneratorProfile)
         (settings: GeneratorSettings<'Col>)
@@ -285,21 +315,7 @@ module CodeGeneration =
             |> List.concat
             |> List.map indent1
 
-        [ yield! Header.lines
-          ""
-          $"namespace {profile.Namespace}"
-          ""
-          "open System"
-          if settings.IncludeJsonAttributes then
-              "open System.Text.Json.Serialization"
-          yield! settings.Imports |> List.map (fun i -> $"open {i}")
-          ""
-          match settings.BespokeSectionHandler () with
-          | Some ls ->
-              yield! ls
-              ""
-          | None -> ()
-          "/// <summary>"
+        [ "/// <summary>"
           $"/// Records representing database bindings for `{profile.Name}`."
           "/// </summary>"
           "/// <remarks>"
@@ -450,13 +466,12 @@ module CodeGeneration =
             |> List.concat
             |> List.map indent1
 
-        [ ""
-          $"/// Module generated on {DateTime.UtcNow} (utc) via Freql.Tools."
+        [ $"/// Module generated on {DateTime.UtcNow} (utc) via Freql.Tools."
           "[<RequireQualifiedAccess>]"
           "module Parameters =" ]
         @ records
 
-    let generateOperations<'Col>
+    let createOperations<'Col>
         (profile: Configuration.GeneratorProfile)
         (settings: GeneratorSettings<'Col>)
         (tables: TableDetails<'Col> list)
@@ -484,3 +499,17 @@ module CodeGeneration =
           indent1 buildSql
           "" ]
         @ ops
+
+    let generateCode
+        (profile: Configuration.GeneratorProfile)
+        (settings: GeneratorSettings<'Col>)
+        (tables: TableDetails<'Col> list)
+        =
+
+        [ createBoilerPlate profile settings
+          createBespokeTopSection profile settings
+          createRecords profile settings tables
+          createParameters profile settings tables
+          createOperations profile settings tables ]
+        |> List.concat
+        |> String.concat Environment.NewLine
