@@ -356,8 +356,14 @@ module SqliteCodeGeneration =
           $"          {ctx.Name}.CreateTriggersSql()"
           "          |> List.map (Utils.updateCheckIfExists checkIfExists \"TRIGGER\")  ]" ]
 
-    let createTableDetails (table: SqliteTableDefinition) =
-        ({ Name = table.Name
+    let createTableDetails (profile: Configuration.GeneratorProfile) (table: SqliteTableDefinition) =
+        
+        ({ OriginalName = table.Name
+           ReplacementName =
+               profile.TableNameReplacements
+               |> List.ofSeq
+               |> List.tryFind (fun tnr -> String.Equals(tnr.Name, table.Name, StringComparison.Ordinal))
+               |> Option.map (fun tnr -> tnr.ReplacementName)
            Sql = table.Sql
            Columns = table.Columns |> List.ofSeq
            BespokeMethodsHandler =
@@ -376,7 +382,7 @@ module SqliteCodeGeneration =
         
         database.Tables
         |> List.ofSeq
-        |> List.map createTableDetails
+        |> List.map (createTableDetails profile)
         |> generateCode profile settings
 
 [<RequireQualifiedAccess>]

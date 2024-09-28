@@ -204,7 +204,8 @@ module CodeGeneration =
     and GeneratorContext = { Profile: Configuration.GeneratorProfile }
 
     type TableDetails<'Col> =
-        { Name: string
+        { OriginalName: string
+          ReplacementName: string option
           Sql: string
           Columns: 'Col list
           BespokeMethodsHandler: TableGeneratorContext -> string list option }
@@ -232,27 +233,23 @@ module CodeGeneration =
 
         let selectFields =
             table.Columns
-            |> List.map (fun cd -> $"          {table.Name}.`{settings.NameHandler cd}`")
+            |> List.map (fun cd -> $"          {table.OriginalName}.`{settings.NameHandler cd}`")
             |> String.concat $",{Environment.NewLine}    "
 
         let selectSql =
             [ "    static member SelectSql() = \"\"\""
               $"    SELECT"
               $"{selectFields}"
-              $"    FROM {table.Name}"
+              $"    FROM {table.OriginalName}"
               "    \"\"\"" ]
 
-        let tableName = $"    static member TableName() = \"{table.Name}\""
+        let tableName = $"    static member TableName() = \"{table.OriginalName}\""
 
         let name =
-            match
-                profile.TableNameReplacements
-                |> List.ofSeq
-                |> List.tryFind (fun tnr -> String.Equals(tnr.Name, table.Name, StringComparison.Ordinal))
-            with
-            | Some tnr -> $"{tnr.ReplacementName.ToPascalCase()}"
-            | None -> $"{table.Name.ToPascalCase()}"
-
+            table.ReplacementName
+            |> Option.defaultValue table.OriginalName
+            |> fun n -> n.ToPascalCase()
+            
         let tgc = ({ Name = name }: TableGeneratorContext)
 
         ({ Name = name
@@ -274,7 +271,7 @@ module CodeGeneration =
                | None -> () ]
            DocumentCommentLines =
              [ "/// <summary>"
-               $"/// A record representing a row in the table `{table.Name}`."
+               $"/// A record representing a row in the table `{table.OriginalName}`."
                "/// </summary>"
                "/// <remarks>"
                $"/// This record was generated via Freql.Tools on {DateTime.UtcNow}"
@@ -359,13 +356,9 @@ module CodeGeneration =
         (table: TableDetails<'Col>)
         =
         let name =
-            match
-                profile.TableNameReplacements
-                |> List.ofSeq
-                |> List.tryFind (fun tnr -> String.Equals(tnr.Name, table.Name, StringComparison.Ordinal))
-            with
-            | Some tnr -> $"{tnr.ReplacementName.ToPascalCase()}"
-            | None -> $"{table.Name.ToPascalCase()}"
+            table.ReplacementName
+            |> Option.defaultValue table.OriginalName
+            |> fun n -> n.ToPascalCase()
 
         //let parametersRecords =
         table.Columns
@@ -382,7 +375,7 @@ module CodeGeneration =
                AdditionMethods = []
                DocumentCommentLines =
                  [ "/// <summary>"
-                   $"/// A record representing a new row in the table `{table.Name}`."
+                   $"/// A record representing a new row in the table `{table.OriginalName}`."
                    "/// </summary>"
                    "/// <remarks>"
                    $"/// This record was generated via Freql.Tools on {DateTime.UtcNow}"
@@ -398,16 +391,12 @@ module CodeGeneration =
         =
 
         let name =
-            match
-                profile.TableNameReplacements
-                |> List.ofSeq
-                |> List.tryFind (fun tnr -> String.Equals(tnr.Name, table.Name, StringComparison.Ordinal))
-            with
-            | Some tnr -> $"{tnr.ReplacementName.ToPascalCase()}"
-            | None -> $"{table.Name.ToPascalCase()}"
+            table.ReplacementName
+            |> Option.defaultValue table.OriginalName
+            |> fun n -> n.ToPascalCase()
 
         [ $"let insert{name} (context: {settings.ContextTypeName}) (parameters: Parameters.New{name}) ="
-          $"    context.Insert(\"{table.Name}\", parameters)" ]
+          $"    context.Insert(\"{table.OriginalName}\", parameters)" ]
 
     let generateSelectOperation<'Col>
         (profile: Configuration.GeneratorProfile)
@@ -416,16 +405,12 @@ module CodeGeneration =
         =
 
         let name =
-            match
-                profile.TableNameReplacements
-                |> List.ofSeq
-                |> List.tryFind (fun tnr -> String.Equals(tnr.Name, table.Name, StringComparison.Ordinal))
-            with
-            | Some tnr -> $"{tnr.ReplacementName.ToPascalCase()}"
-            | None -> $"{table.Name.ToPascalCase()}"
+            table.ReplacementName
+            |> Option.defaultValue table.OriginalName
+            |> fun n -> n.ToPascalCase()
 
         [ "/// <summary>"
-          $"/// Select a `Records.{name}` from the table `{table.Name}`."
+          $"/// Select a `Records.{name}` from the table `{table.OriginalName}`."
           $"/// Internally this calls `context.SelectSingleAnon&lt;Records.{name}&gt;` and uses Records.{name}.SelectSql()."
           $"/// The caller can provide extra string lines to create a query and boxed parameters."
           $"/// It is up to the caller to verify the sql and parameters are correct,"

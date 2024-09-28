@@ -306,119 +306,139 @@ module MySqlMetaData =
 
             context.SelectVerbatim<ConstraintRecord, ByName>(sql, { Name = databaseName })
 
-    type MySqlPrimaryKey = {
-        [<JsonPropertyName("columns")>] Columns: string seq
-    }
-    
-    type MySqlUniqueKey = {
-        [<JsonPropertyName("name")>] Name: string
-        [<JsonPropertyName("columns")>] Columns: string seq
-    }
-    
+    type MySqlPrimaryKey =
+        { [<JsonPropertyName("columns")>]
+          Columns: string seq }
+
+    type MySqlUniqueKey =
+        { [<JsonPropertyName("name")>]
+          Name: string
+          [<JsonPropertyName("columns")>]
+          Columns: string seq }
+
     type MySqlForeignKey =
-        { [<JsonPropertyName("name")>] Name: string
-          [<JsonPropertyName("tableName")>] TableName: string
-          [<JsonPropertyName("columnName")>] ColumnName: string
-          [<JsonPropertyName("referenceTableName")>] ReferenceTableName: string
-          [<JsonPropertyName("referenceColumnName")>] ReferenceColumnName: string }
+        { [<JsonPropertyName("name")>]
+          Name: string
+          [<JsonPropertyName("tableName")>]
+          TableName: string
+          [<JsonPropertyName("columnName")>]
+          ColumnName: string
+          [<JsonPropertyName("referenceTableName")>]
+          ReferenceTableName: string
+          [<JsonPropertyName("referenceColumnName")>]
+          ReferenceColumnName: string }
 
     type MySqlColumnDefinition =
-        { [<JsonPropertyName("name")>] Name: string
-          [<JsonPropertyName("notNull")>] NotNull: bool
-          [<JsonPropertyName("dataType")>] DataType: string
-          [<JsonPropertyName("columnType")>] ColumnType: string
-          [<JsonPropertyName("defaultValue")>] DefaultValue: string option
-          [<JsonPropertyName("autoIncrement")>] AutoIncrement: bool
-          [<JsonPropertyName("key")>] Key: string option }
+        { [<JsonPropertyName("name")>]
+          Name: string
+          [<JsonPropertyName("notNull")>]
+          NotNull: bool
+          [<JsonPropertyName("dataType")>]
+          DataType: string
+          [<JsonPropertyName("columnType")>]
+          ColumnType: string
+          [<JsonPropertyName("defaultValue")>]
+          DefaultValue: string option
+          [<JsonPropertyName("autoIncrement")>]
+          AutoIncrement: bool
+          [<JsonPropertyName("key")>]
+          Key: string option }
 
     type MySqlTableDefinition =
-        { [<JsonPropertyName("name")>] Name: string
-          [<JsonPropertyName("sql")>] Sql: string
-          [<JsonPropertyName("columns")>] Columns: MySqlColumnDefinition seq
-          [<JsonPropertyName("primaryKey")>] PrimaryKey: MySqlPrimaryKey
-          [<JsonPropertyName("uniqueKeys")>] UniqueKeys: MySqlUniqueKey seq
-          [<JsonPropertyName("foreignKeys")>] ForeignKeys: MySqlForeignKey seq }
+        { [<JsonPropertyName("name")>]
+          Name: string
+          [<JsonPropertyName("sql")>]
+          Sql: string
+          [<JsonPropertyName("columns")>]
+          Columns: MySqlColumnDefinition seq
+          [<JsonPropertyName("primaryKey")>]
+          PrimaryKey: MySqlPrimaryKey
+          [<JsonPropertyName("uniqueKeys")>]
+          UniqueKeys: MySqlUniqueKey seq
+          [<JsonPropertyName("foreignKeys")>]
+          ForeignKeys: MySqlForeignKey seq }
 
     type MySqlDatabaseDefinition =
-        { [<JsonPropertyName("name")>] Name: string
-          [<JsonPropertyName("tables")>] Tables: MySqlTableDefinition seq }
+        { [<JsonPropertyName("name")>]
+          Name: string
+          [<JsonPropertyName("tables")>]
+          Tables: MySqlTableDefinition seq }
 
     let get (databaseName: string) (context: MySqlContext) =
         let tables =
             let columns = Internal.getColumns databaseName context
 
-            let constraints =
-                Internal.getConstraints databaseName context
+            let constraints = Internal.getConstraints databaseName context
 
             Internal.getTableData databaseName context
-            |> List.map
-                (fun tr ->
-                    let tableConstraints =
-                        constraints
-                        |> List.filter (fun c -> String.Equals(tr.TableName, c.TableName, StringComparison.Ordinal))
+            |> List.map (fun tr ->
+                let tableConstraints =
+                    constraints
+                    |> List.filter (fun c -> String.Equals(tr.TableName, c.TableName, StringComparison.Ordinal))
 
-                    let tc =
-                        columns
-                        |> List.filter
-                            (fun c -> String.Equals(c.TableName, tr.TableName, StringComparison.OrdinalIgnoreCase))
-                        |> List.map
-                            (fun c ->
-                                ({ Name = c.ColumnName
-                                   NotNull = String.Equals(c.IsNullable, "NO", StringComparison.OrdinalIgnoreCase)
-                                   DataType = c.DataType
-                                   ColumnType = c.ColumnType
-                                   DefaultValue = c.ColumnDefault
-                                   Key = c.ColumnKey
-                                   AutoIncrement =
-                                       c.Extra
-                                       |> Option.bind
-                                           (fun e ->
-                                               String.Equals(e, "auto_increment", StringComparison.Ordinal)
-                                               |> Some)
-                                       |> Option.defaultValue false }: MySqlColumnDefinition))
+                let tc =
+                    columns
+                    |> List.filter (fun c ->
+                        String.Equals(c.TableName, tr.TableName, StringComparison.OrdinalIgnoreCase))
+                    |> List.map (fun c ->
+                        ({ Name = c.ColumnName
+                           NotNull = String.Equals(c.IsNullable, "NO", StringComparison.OrdinalIgnoreCase)
+                           DataType = c.DataType
+                           ColumnType = c.ColumnType
+                           DefaultValue = c.ColumnDefault
+                           Key = c.ColumnKey
+                           AutoIncrement =
+                             c.Extra
+                             |> Option.bind (fun e ->
+                                 String.Equals(e, "auto_increment", StringComparison.Ordinal) |> Some)
+                             |> Option.defaultValue false }
+                        : MySqlColumnDefinition))
 
-                    let (primaryKey, uniqueKeys, foreignKeys) =
-                        tableConstraints
-                        |> List.fold
-                            (fun (pkAcc, unAcc, fkAcc) con ->
-                                match con.ReferencedTableName, con.ReferenceColumnName, con.ConstraintName with
-                                | Some refTable, Some refCol, _ ->
-                                    ({ Name = con.ConstraintName
-                                       TableName = con.TableName
-                                       ColumnName = con.ColumnName
-                                       ReferenceTableName = refTable
-                                       ReferenceColumnName = refCol }: MySqlForeignKey)
-                                    |> fun fk -> (pkAcc, unAcc, fkAcc @ [ fk ])
-                                | _, _, n when String.Equals(n, "PRIMARY", StringComparison.Ordinal) ->
-                                    (pkAcc @ [ con ], unAcc, fkAcc)
-                                | _ -> (pkAcc, unAcc @ [ con ], fkAcc))
-                            ([], [], [])
-                        |> fun (pks, uks, fks) ->
-                            let pk =
-                                pks
-                                |> List.sortBy (fun pk -> pk.OrdinalPosition)
-                                |> List.map (fun pk -> pk.ColumnName)
-                                |> fun cn -> { Columns = cn }
-                            
-                            let ukc =
-                                uks
-                                |> List.groupBy (fun uk -> uk.ConstraintName)
-                                |> List.map (fun (conName, records) ->
-                                    records
-                                    |> List.sortBy (fun r -> r.OrdinalPosition)
-                                    |> List.map (fun r -> r.ColumnName)
-                                    |> fun cn ->{ Name = conName; Columns = cn })
-                            (pk, ukc, fks)
+                let (primaryKey, uniqueKeys, foreignKeys) =
+                    tableConstraints
+                    |> List.fold
+                        (fun (pkAcc, unAcc, fkAcc) con ->
+                            match con.ReferencedTableName, con.ReferenceColumnName, con.ConstraintName with
+                            | Some refTable, Some refCol, _ ->
+                                ({ Name = con.ConstraintName
+                                   TableName = con.TableName
+                                   ColumnName = con.ColumnName
+                                   ReferenceTableName = refTable
+                                   ReferenceColumnName = refCol }
+                                : MySqlForeignKey)
+                                |> fun fk -> (pkAcc, unAcc, fkAcc @ [ fk ])
+                            | _, _, n when String.Equals(n, "PRIMARY", StringComparison.Ordinal) ->
+                                (pkAcc @ [ con ], unAcc, fkAcc)
+                            | _ -> (pkAcc, unAcc @ [ con ], fkAcc))
+                        ([], [], [])
+                    |> fun (pks, uks, fks) ->
+                        let pk =
+                            pks
+                            |> List.sortBy (fun pk -> pk.OrdinalPosition)
+                            |> List.map (fun pk -> pk.ColumnName)
+                            |> fun cn -> { Columns = cn }
 
-                    ({ Name = tr.TableName
-                       Sql =
-                           Internal.getTableSql tr.TableName context
-                           |> Option.bind (fun r -> Some r.Sql)
-                           |> Option.defaultValue ""
-                       Columns = tc
-                       PrimaryKey = primaryKey
-                       UniqueKeys = uniqueKeys
-                       ForeignKeys = foreignKeys }: MySqlTableDefinition))
+                        let ukc =
+                            uks
+                            |> List.groupBy (fun uk -> uk.ConstraintName)
+                            |> List.map (fun (conName, records) ->
+                                records
+                                |> List.sortBy (fun r -> r.OrdinalPosition)
+                                |> List.map (fun r -> r.ColumnName)
+                                |> fun cn -> { Name = conName; Columns = cn })
+
+                        (pk, ukc, fks)
+
+                ({ Name = tr.TableName
+                   Sql =
+                     Internal.getTableSql tr.TableName context
+                     |> Option.bind (fun r -> Some r.Sql)
+                     |> Option.defaultValue ""
+                   Columns = tc
+                   PrimaryKey = primaryKey
+                   UniqueKeys = uniqueKeys
+                   ForeignKeys = foreignKeys }
+                : MySqlTableDefinition))
 
         ({ Name = databaseName; Tables = tables }: MySqlDatabaseDefinition)
 
@@ -467,9 +487,7 @@ module MySqlCodeGeneration =
         | "mediumblob"
         | "longblob" -> "BlobField"
         | _ -> failwith $"Unknown type: {cd.DataType}"
-        |> fun ts ->
-            typeReplacements
-            |> List.fold (fun ts tr -> tr.Attempt(cd.Name, ts)) ts
+        |> fun ts -> typeReplacements |> List.fold (fun ts tr -> tr.Attempt(cd.Name, ts)) ts
         |> fun s ->
             match cd.NotNull with
             | true -> s
@@ -524,32 +542,33 @@ module MySqlCodeGeneration =
     let generatorSettings (profile: Configuration.GeneratorProfile) =
         ({ Imports = [ "Freql.Core.Common"; "Freql.MySql" ]
            IncludeJsonAttributes = true
-           TypeReplacements =
-               profile.TypeReplacements
-               |> List.ofSeq
-               |> List.map TypeReplacement.Create
+           TypeReplacements = profile.TypeReplacements |> List.ofSeq |> List.map TypeReplacement.Create
            TypeHandler = getType
            TypeInitHandler = getTypeInit
            NameHandler = fun cd -> cd.Name
-           InsertColumnFilter =
-               fun cd ->
-                   String.Equals(cd.Name, "id", StringComparison.InvariantCulture)
-                   |> not
+           InsertColumnFilter = fun cd -> String.Equals(cd.Name, "id", StringComparison.InvariantCulture) |> not
            ContextTypeName = "MySqlContext"
            BespokeTopSectionHandler = fun _ -> None
-           BespokeBottomSectionHandler = fun _ -> None }: GeneratorSettings<MySqlColumnDefinition>)
+           BespokeBottomSectionHandler = fun _ -> None }
+        : GeneratorSettings<MySqlColumnDefinition>)
 
-    let createTableDetails (table: MySqlTableDefinition) =
-        ({ Name = table.Name
+    let createTableDetails (profile: Configuration.GeneratorProfile) (table: MySqlTableDefinition) =
+        ({ OriginalName = table.Name
+           ReplacementName =
+             profile.TableNameReplacements
+             |> List.ofSeq
+             |> List.tryFind (fun tnr -> String.Equals(tnr.Name, table.Name, StringComparison.Ordinal))
+             |> Option.map (fun tnr -> tnr.ReplacementName)
            Sql = table.Sql
            Columns = table.Columns |> List.ofSeq
-           BespokeMethodsHandler = fun _ -> None }: TableDetails<MySqlColumnDefinition>)
+           BespokeMethodsHandler = fun _ -> None }
+        : TableDetails<MySqlColumnDefinition>)
 
     /// Generate F# records from a list of MySqlTableDefinition records.
     let generate (profile: Configuration.GeneratorProfile) (database: MySqlDatabaseDefinition) =
         let settings = generatorSettings profile
-        
+
         database.Tables
         |> List.ofSeq
-        |> List.map createTableDetails
+        |> List.map (createTableDetails profile)
         |> generateCode profile settings
