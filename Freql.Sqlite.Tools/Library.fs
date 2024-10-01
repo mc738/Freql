@@ -35,7 +35,15 @@ module SqliteMetadata =
               Seq: int
               Table: string
               From: string
-              To: string
+              /// <summary>
+              /// The column the foreign key is linked to.
+              /// This can be null.
+              /// In that case it means it has been emitted and can be assumed to be the primary key of the table.
+              /// </summary>
+              /// <remarks>
+              /// https://youtrack.jetbrains.com/issue/DBE-19348
+              /// </remarks>
+              To: string option
               OnUpdate: string
               OnDelete: string
               Match: string }
@@ -140,8 +148,11 @@ module SqliteMetadata =
           Table: string
           [<JsonPropertyName("from")>]
           From: string
+          /// <summary>
+          /// If none, this can be assumed to be the PK of the referenced table.
+          /// </summary>
           [<JsonPropertyName("to")>]
-          To: string
+          To: string option
           [<JsonPropertyName("onUpdate")>]
           OnUpdate: string
           [<JsonPropertyName("onDelete")>]
@@ -309,12 +320,6 @@ module SqliteCodeGeneration =
             |> Seq.toList
             |> List.rev
         
-        let orderTables () =
-            
-            
-
-            ()
-
         let createInitializationSql (orderedTableNames: string list) =
             match orderedTableNames.Length with
             | 0 -> [ "    let sql (checkIfExists: bool) = []" ]
