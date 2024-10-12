@@ -454,13 +454,22 @@ type MySqlContext(connection, transaction) =
 
     interface IDisposable with
 
-        member ctx.Dispose() = ctx.Close()
+        member ctx.Dispose() =
+            ctx.Close()
 
     static member Connect(connectionString: string) =
 
-        use conn = new MySqlConnection(connectionString)
-
+        // let is used here instead of use.
+        // In `MySql.Data` version `8.0.33` use was fine.
+        // However, in `8.3.0` something changed and the connection would be disposed of instantly.
+        // Using let means it **should** be managed by the MySqlContext object,
+        // when the object is disposed the connect can be as well.
+        // This should also sort the issue.
+        // See https://github.com/mc738/Freql/issues/20
+        let conn = new MySqlConnection(connectionString)
+        
         new MySqlContext(conn, None)
+        
 
     member _.Close() =
         connection.Close()

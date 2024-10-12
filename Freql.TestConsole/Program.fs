@@ -15,6 +15,7 @@ open Microsoft.FSharp.Core
 open Freql.Csv
 open Freql.Csv.CsvParser
 open Microsoft.FSharp.Reflection
+open MySql.Data.MySqlClient
 
 // Convert an obj to amd obj option.
 let (|SomeObj|_|) =
@@ -227,11 +228,32 @@ module XlsxTest =
         
         ()
 
+type Test(ctx: MySqlContext) =
+    
+    member _.Foo() =
+        let c = ctx
+        
+        ()
 
 [<EntryPoint>]
 let main argv =
+    
+    let test _ =
+        
+        use conn = MySqlContext.Connect("Server=localhost;Database=fpype;Uid=fiket;Pwd=@9j2.q:EgHI[LwWC")
+        
+        //use conn3 = new MySqlConnection("Server=localhost;Database=fpype;Uid=fiket;Pwd=@9j2.q:EgHI[LwWC")
 
+        let b = Test(MySqlContext.Connect("Server=localhost;Database=fpype;Uid=fiket;Pwd=@9j2.q:EgHI[LwWC"));
+        
+        b.Foo()
+        use conn2 = SqliteContext.Connect("Data Source=:memory:")
+        conn.GetConnection().Open()
+    
+    test ()
+    
     XlsxTest.run ()
+    
     
     //let r = CsvParser.parseFile true "C:\\ProjectData\\DataSets\\SuperStore\\Sample - Superstore.csv" 
     
