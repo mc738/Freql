@@ -179,26 +179,32 @@ module Attributes =
     [<AttributeUsage(AttributeTargets.Property)>]
     type SensitiveDataAttribute(?mask: string, ?excludeFromMonitoring) =
         
-        inherit Attribute() 
-
-/// Mapping functionality.
-module Mapping =
-
+        inherit Attribute()
+        
     
+    /// <summary>
     /// Attribute for declaring a specific column name for a field to be read from.
+    /// </summary> 
     [<AttributeUsage(AttributeTargets.Property)>]
     type MappedFieldAttribute(name: string) =
 
         inherit Attribute()
 
         member att.Name = name
-
+    
     /// Mapped record attribute. Not used.
+    [<Obsolete "This attribute isn't currently used and will likely be removed in the future">]
     type MappedRecordAttribute(name: string) =
 
         inherit Attribute()
 
         member att.Name = name
+
+/// Mapping functionality.
+module Mapping =
+    
+    open Attributes
+
 
     /// A indexed field value.
     type FieldValue = { Index: int; Value: obj }

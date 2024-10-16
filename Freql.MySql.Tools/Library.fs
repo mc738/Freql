@@ -1,18 +1,11 @@
 ﻿namespace Freql.MySql.Tools
 
-open System
-open System
-open System.Configuration
-open System.Configuration
-open System.IO
-open System.Text.Json
-open System.Text.Json.Serialization
-open Freql.Core.Common.Mapping
-open Freql.MySql
-open Freql.Tools.CodeGeneration
-open Freql.Tools.CodeGeneration
-
 module MySqlMetaData =
+    
+    open System
+    open System.Text.Json.Serialization
+    open Freql.Core.Common.Attributes
+    open Freql.MySql
 
     module Internal =
 
@@ -447,8 +440,8 @@ open MySqlMetaData
 [<RequireQualifiedAccess>]
 module MySqlCodeGeneration =
 
+    open System
     open Freql.Tools.CodeGeneration
-    open MySqlMetaData
 
     let getType (typeReplacements: TypeReplacement list) (cd: MySqlColumnDefinition) =
         match cd.DataType with
