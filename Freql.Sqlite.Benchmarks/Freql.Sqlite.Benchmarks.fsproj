@@ -7,6 +7,8 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <Folder Include="InMemoryBenchmarks\" />
+        <Compile Include="InMemorySQLiteBenchmark.fs" />
         <Compile Include="Program.fs"/>
     </ItemGroup>
 
@@ -15,6 +17,14 @@
         <Link>.dockerignore</Link>
       </Content>
       <Content Include="Dockerfile" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\Freql.Sqlite\Freql.Sqlite.fsproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="BenchmarkDotNet" Version="0.14.0" />
     </ItemGroup>
 
 </Project>
