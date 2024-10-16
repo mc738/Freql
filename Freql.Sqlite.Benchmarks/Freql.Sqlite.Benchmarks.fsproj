@@ -7,8 +7,8 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <Folder Include="InMemoryBenchmarks\" />
-        <Compile Include="InMemorySQLiteBenchmark.fs" />
+        <Compile Include="Mapping\BasicMappingBenchmarks.fs" />
+        <Compile Include="InMemory\InMemorySelectBenchmarks.fs" />
         <Compile Include="Program.fs"/>
     </ItemGroup>
 
