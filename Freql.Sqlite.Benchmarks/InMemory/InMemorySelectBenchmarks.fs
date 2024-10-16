@@ -3,7 +3,7 @@ namespace Freql.Sqlite.Benchmarks.InMemory
 open BenchmarkDotNet.Attributes
 open Freql.Sqlite
 
-type Foo = { Id: int; Value: string }
+type Foo = { Id: int; Name: string }
 
 type InMemorySelectBenchmarks() =
     
@@ -15,9 +15,10 @@ type InMemorySelectBenchmarks() =
 
         this.Ctx <- SqliteContext.Open(":memory:")
         
-        this.Ctx.CreateTable("foo") |> ignore
+        this.Ctx.CreateTable<Foo>("foo") |> ignore
 
-    member _.InsertTest() =
+    [<Benchmark>]
+    member this.InsertTest() =
         
+        this.Ctx.Insert("foo", { Id = 1; Name = "Hello, World!" }) //|> ignore
         
-        ()
