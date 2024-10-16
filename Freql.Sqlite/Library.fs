@@ -2,6 +2,7 @@
 
 open System
 open System.Data
+open System.Diagnostics
 open System.IO
 open Freql.Core.Common
 open Freql.Core.Common.Mapping
@@ -590,12 +591,20 @@ module private QueryHelpers =
 
         Insert.handleBlobCallbacks connection tableName callbacks rowId
 
+[<RequireQualifiedAccess>]
+type SQLiteFailure =
+    | SQLiteException of SqliteException
+    | GeneralException of Exception
+
 /// <summary>The Sqlite context wraps up the internals of connecting to the database.</summary>
 type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction option) =
+
+    static let activitySource = new ActivitySource("Freql.SqliteContext.Telemetrics")
 
     interface IDisposable with
 
         member ctx.Dispose() = ctx.Close()
+
 
     static member Create
         (
@@ -634,8 +643,11 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
         new SqliteContext(conn, None)
 
     member _.Close() =
+        use activity = activitySource.StartActivity("CloseDatabase", ActivityKind.Internal)
         connection.Close()
         connection.Dispose()
+
+    member _.Test() = connection
 
     member _.GetConnection() = connection
 
@@ -657,6 +669,19 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
     /// <returns>A list of type 'T</returns>
     member handler.Select<'T> tableName =
         QueryHelpers.selectAll<'T> tableName connection transaction
+
+
+    /// <summary>
+    /// Try and select all items from a table and map them to type 'T.
+    /// </summary>
+    /// <param name="tableName">The name of the table.</param>
+    /// <returns>A result consisting of a list of type 'T or a SQLiteFailure.</returns>
+    member handler.TrySelect<'T> tableName =
+        try
+            QueryHelpers.selectAll<'T> tableName connection transaction |> Ok
+        with
+        | :? SqliteException as ex -> SQLiteFailure.SQLiteException ex |> Error
+        | ex -> SQLiteFailure.GeneralException ex |> Error
 
     /// <summary>
     /// Select all items from a table and map to type 'T.
@@ -712,7 +737,7 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
         QueryHelpers.deferredSelectAnon<'T> sql connection parameters transaction
 
     /// <summary>
-    /// Select a single 'T based on an sql string and a list of obj for parameters.
+    /// Select a single 'T based on a sql string and a list of obj for parameters.
     /// This will return an optional value.
     /// Parameters will be assigned values @0,@1,@2 etc. based on their position in the list
     /// when the are parameterized.
@@ -854,6 +879,8 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
     /// <param name="tableName">The name of the table to insert the record into.</param>
     /// <param name="value">The record of type 'T to be inserted.</param>
     member handler.Insert<'T>(tableName: string, value: 'T) =
+        //use activity = activitySource.StartActivity("Insert record", ActivityKind.Client)
+        
         QueryHelpers.insert<'T> tableName connection value transaction
 
     /// <summary>
@@ -884,7 +911,10 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
             Ok r
         with exn ->
             transaction.Rollback()
-            Error { Message = $"Could not complete transaction. Exception: {exn.Message}"; Exception = Some exn }
+
+            Error
+                { Message = $"Could not complete transaction. Exception: {exn.Message}"
+                  Exception = Some exn }
 
     /// <summary>
     /// Try and execute a collection of commands in a transaction.
@@ -913,7 +943,10 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
                 Error { Message = e; Exception = None }
         with exn ->
             transaction.Rollback()
-            Error { Message = $"Could not complete transaction. Exception: {exn.Message}"; Exception = Some exn }
+
+            Error
+                { Message = $"Could not complete transaction. Exception: {exn.Message}"
+                  Exception = Some exn }
 
 
     /// Execute sql that produces a scalar result.
@@ -955,65 +988,47 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
         | None -> connection.CreateFunction(name, fn)
 
     member _.CreateFunction<'T1, 'T2, 'T3, 'TResult>
-        (
-            name: string,
-            fn: 'T1 -> 'T2 -> 'T3 -> 'TResult,
-            ?isDeterministic: bool
-        ) =
+        (name: string, fn: 'T1 -> 'T2 -> 'T3 -> 'TResult, ?isDeterministic: bool)
+        =
         match isDeterministic with
         | Some v -> connection.CreateFunction(name, fn, v)
         | None -> connection.CreateFunction(name, fn)
 
     member _.CreateFunction<'T1, 'T2, 'T3, 'T4, 'TResult>
-        (
-            name: string,
-            fn: 'T1 -> 'T2 -> 'T3 -> 'T4 -> 'TResult,
-            ?isDeterministic: bool
-        ) =
+        (name: string, fn: 'T1 -> 'T2 -> 'T3 -> 'T4 -> 'TResult, ?isDeterministic: bool)
+        =
         match isDeterministic with
         | Some v -> connection.CreateFunction(name, fn, v)
         | None -> connection.CreateFunction(name, fn)
 
     member _.CreateFunction<'T1, 'T2, 'T3, 'T4, 'T5, 'TResult>
-        (
-            name: string,
-            fn: 'T1 -> 'T2 -> 'T3 -> 'T4 -> 'T5 -> 'TResult,
-            ?isDeterministic: bool
-        ) =
+        (name: string, fn: 'T1 -> 'T2 -> 'T3 -> 'T4 -> 'T5 -> 'TResult, ?isDeterministic: bool)
+        =
         match isDeterministic with
         | Some v -> connection.CreateFunction(name, fn, v)
         | None -> connection.CreateFunction(name, fn)
 
     member _.CreateFunction<'T1, 'T2, 'T3, 'T4, 'T5, 'T6, 'TResult>
-        (
-            name: string,
-            fn: 'T1 -> 'T2 -> 'T3 -> 'T4 -> 'T5 -> 'T6 -> 'TResult,
-            ?isDeterministic: bool
-        ) =
+        (name: string, fn: 'T1 -> 'T2 -> 'T3 -> 'T4 -> 'T5 -> 'T6 -> 'TResult, ?isDeterministic: bool)
+        =
         match isDeterministic with
         | Some v -> connection.CreateFunction(name, fn, v)
         | None -> connection.CreateFunction(name, fn)
 
     member _.CreateFunction<'T1, 'T2, 'T3, 'T4, 'T5, 'T6, 'T7, 'TResult>
-        (
-            name: string,
-            fn: 'T1 -> 'T2 -> 'T3 -> 'T4 -> 'T5 -> 'T6 -> 'T7 -> 'TResult,
-            ?isDeterministic: bool
-        ) =
+        (name: string, fn: 'T1 -> 'T2 -> 'T3 -> 'T4 -> 'T5 -> 'T6 -> 'T7 -> 'TResult, ?isDeterministic: bool)
+        =
         match isDeterministic with
         | Some v -> connection.CreateFunction(name, fn, v)
         | None -> connection.CreateFunction(name, fn)
 
     member _.CreateFunction<'T1, 'T2, 'T3, 'T4, 'T5, 'T6, 'T7, 'T8, 'TResult>
-        (
-            name: string,
-            fn: 'T1 -> 'T2 -> 'T3 -> 'T4 -> 'T5 -> 'T6 -> 'T7 -> 'T8 -> 'TResult,
-            ?isDeterministic: bool
-        ) =
+        (name: string, fn: 'T1 -> 'T2 -> 'T3 -> 'T4 -> 'T5 -> 'T6 -> 'T7 -> 'T8 -> 'TResult, ?isDeterministic: bool)
+        =
         match isDeterministic with
         | Some v -> connection.CreateFunction(name, fn, v)
         | None -> connection.CreateFunction(name, fn)
-        
+
     member _.CreateFunction<'T1, 'T2, 'T3, 'T4, 'T5, 'T6, 'T7, 'T8, 'T9, 'TResult>
         (
             name: string,
@@ -1023,7 +1038,7 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
         match isDeterministic with
         | Some v -> connection.CreateFunction(name, fn, v)
         | None -> connection.CreateFunction(name, fn)
-        
+
     member _.CreateFunction<'T1, 'T2, 'T3, 'T4, 'T5, 'T6, 'T7, 'T8, 'T9, 'T10, 'TResult>
         (
             name: string,
@@ -1033,7 +1048,7 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
         match isDeterministic with
         | Some v -> connection.CreateFunction(name, fn, v)
         | None -> connection.CreateFunction(name, fn)
-        
+
     member _.CreateFunction<'T1, 'T2, 'T3, 'T4, 'T5, 'T6, 'T7, 'T8, 'T9, 'T10, 'T11, 'TResult>
         (
             name: string,
@@ -1054,7 +1069,7 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
         | Some v -> connection.CreateFunction(name, fn, v)
         | None -> connection.CreateFunction(name, fn)
 
-    
+
     member ctx.RegisterRegexFunction() =
         ctx.CreateFunction(
             "regexp",
