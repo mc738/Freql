@@ -153,10 +153,40 @@ module Types =
         static member FromType(typeInfo: Type) =
             SupportedType.FromName(typeInfo.FullName)
 
+module Attributes =
+    
+    /// <summary>
+    /// An attribute for declaring a specific field is sensitive and should be masked.
+    /// For example for Monitoring purposes
+    /// </summary>
+    /// <example>
+    /// <code>
+    /// {
+    ///     [&lt;SensitiveData&gt;] Foo: string
+    /// }
+    /// </code>
+    /// <code>
+    /// {
+    ///     [&lt;SensitiveData(mask = "***")&gt;] Foo: string
+    /// }
+    /// </code>
+    /// <code>
+    /// {
+    ///     [&lt;SensitiveData(excludeFromMonitoring = true)&gt;] Foo: string
+    /// }
+    /// </code>
+    /// </example>
+    [<AttributeUsage(AttributeTargets.Property)>]
+    type SensitiveDataAttribute(?mask: string, ?excludeFromMonitoring) =
+        
+        inherit Attribute() 
+
 /// Mapping functionality.
 module Mapping =
 
+    
     /// Attribute for declaring a specific column name for a field to be read from.
+    [<AttributeUsage(AttributeTargets.Property)>]
     type MappedFieldAttribute(name: string) =
 
         inherit Attribute()
