@@ -11,7 +11,9 @@
 
     <ItemGroup>
         <Compile Include="Utils.fs" />
-        <Compile Include="Common.fs" />
+        <Compile Include="Types.fs" />
+        <Compile Include="Attributes.fs" />
+        <Compile Include="Mapping.fs" />
     </ItemGroup>
 
 </Project>

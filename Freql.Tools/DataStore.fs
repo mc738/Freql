@@ -2,7 +2,7 @@ namespace Freq.MySql.Tools.DataStore
 
 open System
 open System.Text.Json.Serialization
-open Freql.Core.Common
+open Freql.Core
 open Freql.Sqlite
 
 /// Module generated on 11/12/2021 14:22:26 (utc) via Freql.Sqlite.Tools.
@@ -47,7 +47,7 @@ module Records =
           [<JsonPropertyName("createdOn")>] CreatedOn: DateTime
           [<JsonPropertyName("metadataBlob")>] MetadataBlob: BlobField
           [<JsonPropertyName("metadataHash")>] MetadataHash: string
-          [<JsonPropertyName("verison")>] Verison: int64 }
+          [<JsonPropertyName("version")>] Version: int64 }
     
         static member Blank() =
             { Reference = Guid.NewGuid()
@@ -55,7 +55,7 @@ module Records =
               CreatedOn = DateTime.UtcNow
               MetadataBlob = BlobField.Empty()
               MetadataHash = String.Empty
-              Verison = 0L }
+              Version = 0L }
     
         static member CreateTableSql() = """
         CREATE TABLE metadata (
@@ -64,7 +64,7 @@ module Records =
 	created_on TEXT NOT NULL,
 	metadata_blob BLOB NOT NULL,
 	metadata_hash TEXT NOT NULL,
-	verison INTEGER NOT NULL,
+	version INTEGER NOT NULL,
 	CONSTRAINT metadata_PK PRIMARY KEY (reference),
 	CONSTRAINT metadata_UN UNIQUE ("database",verison),
 	CONSTRAINT metadata_FK FOREIGN KEY ("database") REFERENCES database_definitions(reference)
@@ -78,7 +78,7 @@ module Records =
               created_on,
               metadata_blob,
               metadata_hash,
-              verison
+              version
         FROM metadata
         """
     

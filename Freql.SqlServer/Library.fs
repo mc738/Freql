@@ -5,8 +5,8 @@ open System.Data
 open System.Data.SqlClient
 open System.IO
 open System.Text.Json
-open Freql.Core.Common
-open Freql.Core.Common.Mapping
+open Freql.Core
+open Freql.Core.Mapping
 open Freql.Core.Utils
 module private QueryHelpers =
 

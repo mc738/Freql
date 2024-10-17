@@ -5,8 +5,7 @@ open System.Globalization
 open System.IO
 open System.Reflection
 open System.Text
-open Freql.Core.Common
-open Freql.Core.Common.Types
+open Freql.Core
 open Microsoft.FSharp.Collections
 open Microsoft.FSharp.Reflection
 
@@ -53,8 +52,6 @@ module CsvParser =
             read start sb
 
     module Records =
-
-        open Freql.Core.Common.Types
 
         let tryGetAtIndex (values: string array) (i: int) =
             match i >= 0 && i < values.Length with

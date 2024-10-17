@@ -4,7 +4,7 @@ module MySqlMetaData =
     
     open System
     open System.Text.Json.Serialization
-    open Freql.Core.Common.Attributes
+    open Freql.Core.Attributes
     open Freql.MySql
 
     module Internal =

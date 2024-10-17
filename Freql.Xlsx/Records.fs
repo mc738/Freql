@@ -8,7 +8,7 @@ module Records =
     open System.Reflection
     open DocumentFormat.OpenXml.Spreadsheet
     open Microsoft.FSharp.Reflection
-    open Freql.Core.Common.Types
+    open Freql.Core.Types
 
     type RecordProperty =
         { PropertyInfo: PropertyInfo

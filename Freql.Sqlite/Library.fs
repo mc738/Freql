@@ -4,8 +4,8 @@ open System
 open System.Data
 open System.Diagnostics
 open System.IO
-open Freql.Core.Common
-open Freql.Core.Common.Mapping
+open Freql.Core
+open Freql.Core.Mapping
 open Microsoft.Data.Sqlite
 open Freql.Core.Utils
 
