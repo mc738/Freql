@@ -25,7 +25,7 @@ Add any other context or screenshots about the feature request here.
 * [ ] App
 
 **Platforms**
-* [ ] SQLite (the initial/reference implementation)
+* [ ] SQLite
 * [ ] MySQL
 * [ ] SQL Server
 * [ ] PostgreSQL
