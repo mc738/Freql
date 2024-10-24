@@ -13,6 +13,7 @@
         <Compile Include="Utils.fs" />
         <Compile Include="Types.fs" />
         <Compile Include="Attributes.fs" />
+        <Compile Include="Diagnostics.fs" />
         <Compile Include="Mapping.fs" />
     </ItemGroup>
 
