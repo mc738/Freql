@@ -12,7 +12,7 @@ open Freql.Core
 /// <summary>The Sqlite context wraps up the internals of connecting to the database.</summary>
 type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction option) =
 
-    static let activitySource = new ActivitySource("Freql.SqliteContext.Telemetrics")
+    static let activitySource = new ActivitySource("Freql.Sqlite.SqliteContextTelemetry", "1.0.0")
 
     interface IDisposable with
 
@@ -57,6 +57,7 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
 
     member _.Close() =
         use activity = activitySource.StartActivity("CloseDatabase", ActivityKind.Client)
+        
         connection.Close()
         connection.Dispose()
 
