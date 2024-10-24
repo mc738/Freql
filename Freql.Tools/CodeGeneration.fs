@@ -397,7 +397,10 @@ module CodeGeneration =
             |> fun n -> n.ToPascalCase()
 
         [ $"let insert{name} (context: {settings.ContextTypeName}) (parameters: Parameters.New{name}) ="
-          $"    context.Insert(\"{table.OriginalName}\", parameters)" ]
+          $"    context.Insert(\"{table.OriginalName}\", parameters)"
+          ""
+          $"let tryInsert{name} (context: {settings.ContextTypeName}) (parameters: Parameters.New{name}) ="
+          $"    context.TryInsert(\"{table.OriginalName}\", parameters)"  ]
 
     let generateSelectOperation<'TTable, 'TColumn>
         (profile: Configuration.GeneratorProfile)
@@ -447,7 +450,46 @@ module CodeGeneration =
           "/// </example>"
           $"let select{name}Records (context: {settings.ContextTypeName}) (query: string list) (parameters: obj list) ="
           $"    let sql = [ Records.{name}.SelectSql() ] @ query |> buildSql"
-          $"    context.SelectAnon<Records.{name}>(sql, parameters)" ]
+          $"    context.SelectAnon<Records.{name}>(sql, parameters)"
+          
+          "/// <summary>"
+          $"/// Select a `Records.{name}` from the table `{table.OriginalName}`."
+          $"/// Internally this calls `context.TrySelectSingleAnon&lt;Records.{name}&gt;` and uses Records.{name}.SelectSql()."
+          $"/// The caller can provide extra string lines to create a query and boxed parameters."
+          $"/// It is up to the caller to verify the sql and parameters are correct,"
+          "/// this should be considered an internal function (not exposed in public APIs)."
+          "/// Parameters are assigned names based on their order in 0 indexed array. For example: @0,@1,@2..."
+          "/// </summary>"
+          "/// <remarks>"
+          $"/// This function was generated via Freql.Tools on {DateTime.UtcNow}"
+          "/// </remarks>"
+          "/// <example>"
+          "/// <code>"
+          $"/// let result = trySelect{name}Record ctx \"WHERE `field` = @0\" [ box `value` ]"
+          "/// </code>"
+          "/// </example>"
+          $"let trySelect{name}Record (context: {settings.ContextTypeName}) (query: string list) (parameters: obj list) ="
+          $"    let sql = [ Records.{name}.SelectSql() ] @ query |> buildSql"
+          $"    context.TrySelectSingleAnon<Records.{name}>(sql, parameters)"
+          ""
+          "/// <summary>"
+          $"/// Internally this calls `context.TrySelectAnon&lt;Records.{name}&gt;` and uses Records.{name}.SelectSql()."
+          $"/// The caller can provide extra string lines to create a query and boxed parameters."
+          $"/// It is up to the caller to verify the sql and parameters are correct,"
+          "/// this should be considered an internal function (not exposed in public APIs)."
+          "/// Parameters are assigned names based on their order in 0 indexed array. For example: @0,@1,@2..."
+          "/// </summary>"
+          "/// <remarks>"
+          $"/// This function was generated via Freql.Tools on {DateTime.UtcNow}"
+          "/// </remarks>"
+          "/// <example>"
+          "/// <code>"
+          $"/// let result = trySelect{name}Records ctx \"WHERE `field` = @0\" [ box `value` ]"
+          "/// </code>"
+          "/// </example>"
+          $"let trySelect{name}Records (context: {settings.ContextTypeName}) (query: string list) (parameters: obj list) ="
+          $"    let sql = [ Records.{name}.SelectSql() ] @ query |> buildSql"
+          $"    context.TrySelectAnon<Records.{name}>(sql, parameters)" ]
 
     let createParameters<'TTable, 'TColumn>
         (profile: Configuration.GeneratorProfile)
