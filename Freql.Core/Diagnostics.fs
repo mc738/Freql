@@ -5,6 +5,56 @@ open System.Diagnostics
 
 module Diagnostics =
 
+    type SqlOperation =
+        | Select
+        | Update
+        | Delete
+        | InsertInto
+        | CreateDatabase
+        | AlterDatabase
+        | CreateTable
+        | AlterTable
+        | DropTable
+        | CreateIndex
+        | DropIndex
+        | Other of string
+
+        member op.Serialize() =
+            match op with
+            | Select -> "SELECT"
+            | Update -> "UPDATE"
+            | Delete -> "DELETE"
+            | InsertInto -> "INSERT"
+            | CreateDatabase -> "CREATE DATABASE"
+            | AlterDatabase -> "ALTER DATABASE"
+            | CreateTable -> "CREATE"
+            | AlterTable -> "ALTER TABLE"
+            | DropTable -> "DROP TABLE"
+            | CreateIndex -> "CREATE INDEX"
+            | DropIndex -> "DROP INDEX"
+            | Other s -> s
+
+    /// <summary>
+    /// From https://github.com/open-telemetry/semantic-conventions/blob/main/docs/database/database-spans.md#target-placeholder:
+    /// The {target} SHOULD describe the entity that the operation is performed against and SHOULD adhere to one of the following values, provided they are accessible:
+    /// <br />
+    /// db.collection.name SHOULD be used for data manipulation operations or operations on a database collection.
+    /// <br />
+    /// db.namespace SHOULD be used for operations on a specific database namespace.
+    /// <br />
+    /// server.address:server.port SHOULD be used for other operations not targeting any specific database(s) or collection(s)
+    /// </summary>
+    type TargetPlaceholder =
+        | CollectionName of CollectionName: string
+        | Namespace of Namespace: string
+        | ServerAddress of Address: string * Port: int
+
+        member tp.Serialize() =
+            match tp with
+            | CollectionName collectionName -> collectionName
+            | Namespace ns -> failwith ns
+            | ServerAddress(address, port) -> $"{address}:{port}"
+
     type DiagnosticsSettings =
         { Enabled: bool
           IncludeQueries: bool
@@ -22,6 +72,11 @@ module Diagnostics =
 
     [<RequireQualifiedAccess>]
     module Activities =
+
+        type DiagnosticOverrides =
+            { Name: string option
+              QuerySummary: string option }
+
 
         // TODO move some of this to FOpTel
 
@@ -203,7 +258,7 @@ module Diagnostics =
             /// </summary>
             let ``try add db.operation.name tag`` (activity: Activity) (value: string) =
                 addTag activity Keys.``db.operation.name`` value
-                
+
             /// <summary>
             /// Database response status code.
             /// https://github.com/open-telemetry/semantic-conventions/blob/main/docs/attributes-registry/db.md#db-response-status-code
@@ -217,7 +272,7 @@ module Diagnostics =
             /// </summary>
             let ``try add db.response.status_code tag`` (activity: Activity) (value: string) =
                 addTag activity Keys.``db.response.status_code`` value
-            
+
             /// <summary>
             /// Describes a class of error the operation ended with.
             /// https://github.com/open-telemetry/semantic-conventions/blob/main/docs/attributes-registry/error.md
@@ -231,7 +286,7 @@ module Diagnostics =
             /// </summary>
             let ``try add error.type tag`` (activity: Activity) (value: string) =
                 addTag activity Keys.``error.type`` value
-            
+
             /// <summary>
             /// Server port number.
             /// https://github.com/open-telemetry/semantic-conventions/blob/main/docs/attributes-registry/server.md#server-port
@@ -337,7 +392,7 @@ module Diagnostics =
             /// </summary>
             let ``try add db.client.connection.pool.name tag`` (activity: Activity) (value: string) =
                 addTag activity Keys.``db.client.connection.pool.name`` value
-            
+
             /// <summary>
             /// The state of a connection in the pool
             /// https://github.com/open-telemetry/semantic-conventions/blob/main/docs/database/sql.md#db-client-connection-state
@@ -351,25 +406,53 @@ module Diagnostics =
             /// </summary>
             let ``try add db.client.connection.state tag`` (activity: Activity) (value: string) =
                 addTag activity Keys.``db.client.connection.state`` value
-            
 
-            
-        
-            
-            
-
-
-
-
-        let ``add db.query.text tag`` (activity: Activity) (query: string) = addTag activity "db.query.text" query
+        let ifExists (fn: Activity -> unit) (activity: Activity) =
+            activity |> Option.ofObj |> Option.iter fn
 
         /// <summary>
-        /// From https://github.com/open-telemetry/semantic-conventions/blob/main/docs/database/database-spans.md:
-        /// The name of a collection (table, container) within the database. [2]
+        /// Get the name for a activitiy.
+        /// From https://github.com/open-telemetry/semantic-conventions/blob/main/docs/database/database-spans.md#name:
+        /// Database spans MUST follow the overall guidelines for span names.
+        /// <br />
+        /// The span name SHOULD be {db.query.summary} if a summary is available.
+        /// <br />
+        /// If no summary is available, the span name SHOULD be {db.operation.name} {target} provided that a (low-cardinality) db.operation.name is available (see below for the exact definition of the {target} placeholder).
+        /// <br />
+        /// If a (low-cardinality) db.operation.name is not available, database span names SHOULD default to the {target}.
+        /// <br />
+        /// If neither {db.operation.name} nor {target} are available, span name SHOULD be {db.system}.
+        /// <br />
+        /// Semantic conventions for individual database systems MAY specify different span name format.
+        /// <br />
+        /// The {target} SHOULD describe the entity that the operation is performed against and SHOULD adhere to one of the following values, provided they are accessible:
+        /// <br />
+        ///     * db.collection.name SHOULD be used for data manipulation operations or operations on a database collection.
+        ///  <br />
+        ///     * db.namespace SHOULD be used for operations on a specific database namespace.
+        ///  <br />
+        ///     * server.address:server.port SHOULD be used for other operations not targeting any specific database(s) or collection(s)
+        /// <br />
+        /// If a corresponding {target} value is not available for a specific operation, the instrumentation SHOULD omit the {target}. For example, for an operation describing SQL query on an anonymous table like SELECT * FROM (SELECT * FROM table) t, span name should be SELECT.
         /// </summary>
-        /// <param name="activity"></param>
-        /// <param name="query"></param>
-        let ``add db.collection.name tag`` (activity: Activity) (query: string) = addTag activity "db.query.text" query
-
-        let ``add db.query.summary tag`` (activity: Activity) (summary: string) =
-            addTag activity "db.query.summary" summary
+        /// <param name="dbSystem"></param>
+        /// <param name="operation"></param>
+        /// <param name="target"></param>
+        /// <param name="diagnosticOverrides"></param>
+        let getName
+            (dbSystem: string)
+            (operation: SqlOperation option)
+            (target: TargetPlaceholder option)
+            (diagnosticOverrides: DiagnosticOverrides option)
+            =
+            diagnosticOverrides
+            |> Option.bind (fun diagnosticOverrides ->
+                diagnosticOverrides.Name
+                |> Option.orElseWith (fun _ -> diagnosticOverrides.QuerySummary)
+                |> Option.orElseWith (fun _ ->
+                    match operation, target with
+                    | Some op, Some t -> Some $"{op.Serialize()} {t.Serialize()}"
+                    | Some op, None -> op.Serialize() |> Some
+                    | None, Some t -> t.Serialize() |> Some
+                    | None, None -> None))
+            |> Option.defaultValue dbSystem
