@@ -2,6 +2,7 @@ namespace Freql.Core
 
 open System
 open System.Diagnostics
+open Microsoft.FSharp.Core
 
 module Diagnostics =
 
@@ -175,33 +176,61 @@ module Diagnostics =
             [<RequireQualifiedAccess>]
             module Keys =
 
+                [<Literal>]
                 let ``db.system`` = "db.system"
 
+                [<Literal>]
                 let ``db.collection.name`` = "db.collection.name"
 
+                [<Literal>]
                 let ``db.namespace`` = "db.namespace"
 
+                [<Literal>]
                 let ``db.operation.name`` = "db.operation.name"
 
+                [<Literal>]
                 let ``db.response.status_code`` = "db.response.status_code"
 
+                [<Literal>]
                 let ``error.type`` = "error.type"
 
+                [<Literal>]
                 let ``server.port`` = "server.port"
 
+                [<Literal>]
                 let ``db.operation.batch.size`` = "db.operation.batch.size"
 
+                [<Literal>]
                 let ``db.query.summary`` = "db.query.summary"
 
+                [<Literal>]
                 let ``db.query.text`` = "db.query.text"
 
+                [<Literal>]
                 let ``server.address`` = "server.address"
 
                 let ``db.query.parameter.<key>`` (key: string) = $"db.query.parameter.{key}"
 
+                [<Literal>]
                 let ``db.client.connection.pool.name`` = "db.client.connection.pool.name"
 
+                [<Literal>]
                 let ``db.client.connection.state`` = "db.client.connection.state"
+
+                [<Literal>]
+                let ``error`` = "error"
+
+                [<Literal>]
+                let ``exception.escaped`` = "exception.escaped"
+
+                [<Literal>]
+                let ``exception.message`` = "exception.message"
+
+                [<Literal>]
+                let ``exception.stacktrace`` = "exception.stacktrace"
+
+                [<Literal>]
+                let ``exception.type`` = "exception.type"
 
             /// <summary>
             /// The database management system (DBMS) product as identified by the client instrumentation.
@@ -456,3 +485,34 @@ module Diagnostics =
                     | None, Some t -> t.Serialize() |> Some
                     | None, None -> None))
             |> Option.defaultValue dbSystem
+
+        [<AutoOpen>]
+        module Extensions =
+
+            type Activity with
+
+                /// <summary>
+                /// Add an exception to the activity.
+                /// <br />
+                /// Reference: https://opentelemetry.io/docs/specs/otel/trace/exceptions/
+                /// </summary>
+                /// <param name="ex"></param>
+                member activity.AddException(ex: exn) =
+                    activity
+                    |> Option.ofObj
+                    |> Option.map (fun activity ->
+                        // FUTURE: This can be replaced in .net 9 with built in handling.
+                        // https://github.com/dotnet/runtime/issues/53641
+                        // https://github.com/dotnet/runtime/pull/102905
+                        let tags = ActivityTagsCollection()
+
+                        tags.Add(CommonTags.Keys.``exception.message``, ex.Message)
+                        tags.Add(CommonTags.Keys.``exception.message``, ex.Message)
+                        // Recommend here: https://opentelemetry.io/docs/specs/semconv/exceptions/exceptions-spans/
+                        tags.Add(CommonTags.Keys.``exception.stacktrace``, ex.ToString())
+                        tags.Add(CommonTags.Keys.``exception.type``, ex.GetType().Name)
+
+                        activity
+                            .AddEvent(ActivityEvent("exception", tags = tags))
+                            .SetStatus(ActivityStatusCode.Error, ex.ToString()))
+                    |> Option.defaultValue activity
