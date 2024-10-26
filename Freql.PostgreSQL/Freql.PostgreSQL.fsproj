@@ -9,7 +9,9 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <Compile Include="Library.fs" />
+        <Compile Include="Common.fs" />
+        <Compile Include="QueryHelpers.fs" />
+        <Compile Include="Impl.fs" />
     </ItemGroup>
 
     <ItemGroup>
