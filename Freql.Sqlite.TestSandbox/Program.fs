@@ -34,7 +34,40 @@ module ``deferred results development test 30-11-23`` =
 
         nonDeferred |> List.iter (fun r -> printfn $"Non deferred - {r.Id}")
         deferred |> Seq.iter (fun r -> printfn $"Deferred - {r.Id}")
+
+module ``Diagnostics test 26-10-24`` =
+    
+    open OpenTelemetry
+    open OpenTelemetry.Trace
+    
+    type Foo =
+        {
+            Id: int
+            Value: string
+        }
+    
+    let run (path: string) =
         
+        let traceProvider =
+            Sdk
+                .CreateTracerProviderBuilder()
+                .AddSource("Freql.Sqlite.SqliteContextTelemetry")
+                .AddConsoleExporter()
+                .Build()
+        
+        
+        use ctx = SqliteContext.Create(path)
+        
+        ctx.CreateTable<Foo>("foo") |> ignore
+        
+        ctx.Insert("foo", { Id = 1; Value = "Hello, World!" })
+        
+        let _ = ctx.TrySelect<Foo>("foo", true)
+        traceProvider.ForceFlush() |> ignore
+       
+        traceProvider.Dispose()  
+    
+    ()
 
-``deferred results development test 30-11-23``.run "C:\\ProjectData\\Freql\\deferred_query_test.db"
-
+//``deferred results development test 30-11-23``.run "C:\\ProjectData\\Freql\\deferred_query_test.db"
+``Diagnostics test 26-10-24``.run "/run/media/max/Shared/ProjectData/Freql/test.db"

@@ -11,6 +11,7 @@
 
     <ItemGroup>
         <Compile Include="Common.fs" />
+        <Compile Include="Diagnostics.fs" />
         <Compile Include="Functions.fs" />
         <Compile Include="QueryHelpers.fs" />
         <Compile Include="Impl.fs" />

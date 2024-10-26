@@ -1,6 +1,7 @@
 namespace Freql.Core
 
 open System
+open System.Collections.Generic
 open System.Diagnostics
 open Microsoft.FSharp.Core
 
@@ -76,7 +77,17 @@ module Diagnostics =
 
         type DiagnosticOverrides =
             { Name: string option
-              QuerySummary: string option }
+              QuerySummary: string option
+              OperationName: string option
+              CollectionName: TargetPlaceholder option
+              Operation: SqlOperation option }
+
+            static member Default =
+                { Name = None
+                  QuerySummary = None
+                  OperationName = None
+                  CollectionName = None
+                  Operation = None }
 
 
         // TODO move some of this to FOpTel
@@ -436,6 +447,44 @@ module Diagnostics =
             let ``try add db.client.connection.state tag`` (activity: Activity) (value: string) =
                 addTag activity Keys.``db.client.connection.state`` value
 
+        /// <summary>
+        /// Add an exception to the activity.
+        /// This will not check if the activity is null.
+        /// <br />
+        /// Reference: https://opentelemetry.io/docs/specs/otel/trace/exceptions/
+        /// </summary>
+        /// <param name="ex"></param>
+
+        let addException (ex: exn) (activity: Activity) =
+            // FUTURE: This can be replaced in .net 9 with built in handling.
+            // https://github.com/dotnet/runtime/issues/53641
+            // https://github.com/dotnet/runtime/pull/102905
+            let tags = ActivityTagsCollection()
+
+            tags.Add(CommonTags.Keys.``exception.message``, ex.Message)
+            tags.Add(CommonTags.Keys.``exception.message``, ex.Message)
+            // Recommend here: https://opentelemetry.io/docs/specs/semconv/exceptions/exceptions-spans/
+            tags.Add(CommonTags.Keys.``exception.stacktrace``, ex.ToString())
+            tags.Add(CommonTags.Keys.``exception.type``, ex.GetType().Name)
+
+            activity
+                .AddEvent(ActivityEvent("exception", tags = tags))
+                .SetStatus(ActivityStatusCode.Error, ex.ToString())
+
+        /// <summary>
+        /// Try and add an exception to the activity.
+        /// This will check if the activity is null first.
+        /// If that as has already been checked call activity.AddException() directly.
+        /// <br />
+        /// Reference: https://opentelemetry.io/docs/specs/otel/trace/exceptions/
+        /// </summary>
+        /// <param name="ex"></param>
+        let tryAddException (ex: exn) (activity: Activity) =
+            activity
+            |> Option.ofObj
+            |> Option.map (addException ex)
+            |> Option.defaultValue activity
+
         let ifExists (fn: Activity -> unit) (activity: Activity) =
             activity |> Option.ofObj |> Option.iter fn
 
@@ -486,33 +535,8 @@ module Diagnostics =
                     | None, None -> None))
             |> Option.defaultValue dbSystem
 
-        [<AutoOpen>]
-        module Extensions =
 
-            type Activity with
-
-                /// <summary>
-                /// Add an exception to the activity.
-                /// <br />
-                /// Reference: https://opentelemetry.io/docs/specs/otel/trace/exceptions/
-                /// </summary>
-                /// <param name="ex"></param>
-                member activity.AddException(ex: exn) =
-                    activity
-                    |> Option.ofObj
-                    |> Option.map (fun activity ->
-                        // FUTURE: This can be replaced in .net 9 with built in handling.
-                        // https://github.com/dotnet/runtime/issues/53641
-                        // https://github.com/dotnet/runtime/pull/102905
-                        let tags = ActivityTagsCollection()
-
-                        tags.Add(CommonTags.Keys.``exception.message``, ex.Message)
-                        tags.Add(CommonTags.Keys.``exception.message``, ex.Message)
-                        // Recommend here: https://opentelemetry.io/docs/specs/semconv/exceptions/exceptions-spans/
-                        tags.Add(CommonTags.Keys.``exception.stacktrace``, ex.ToString())
-                        tags.Add(CommonTags.Keys.``exception.type``, ex.GetType().Name)
-
-                        activity
-                            .AddEvent(ActivityEvent("exception", tags = tags))
-                            .SetStatus(ActivityStatusCode.Error, ex.ToString()))
-                    |> Option.defaultValue activity
+        let createTagCollection (keyValues: (string * obj) seq) =
+            let tags = ActivityTagsCollection()
+            keyValues |> Seq.iter tags.Add
+            tags

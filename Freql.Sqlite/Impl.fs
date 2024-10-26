@@ -8,11 +8,14 @@ open System.Diagnostics
 open System.IO
 open Microsoft.Data.Sqlite
 open Freql.Core
+open Freql.Core.Diagnostics
+open Freql.Sqlite.Diagnostics
 
 /// <summary>The Sqlite context wraps up the internals of connecting to the database.</summary>
 type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction option) =
 
-    static let activitySource = new ActivitySource("Freql.Sqlite.SqliteContextTelemetry", "1.0.0")
+    static let activitySource =
+        new ActivitySource("Freql.Sqlite.SqliteContextTelemetry", "1.0.0")
 
     interface IDisposable with
 
@@ -57,7 +60,7 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
 
     member _.Close() =
         use activity = activitySource.StartActivity("CloseDatabase", ActivityKind.Client)
-        
+
         connection.Close()
         connection.Dispose()
 
@@ -80,17 +83,59 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
     /// </summary>
     /// <param name="tableName">The name of the table.</param>
     /// <returns>A list of type 'T</returns>
-    member ctx.Select<'T> tableName =
-        QueryHelpers.selectAll<'T> tableName connection transaction
+    member ctx.Select<'T>(tableName, ?withDiagnostics: bool, ?diagnosticsOverrides: Activities.DiagnosticOverrides) =
 
+        match defaultArg withDiagnostics true with
+        | true ->
+
+            let op = Some SqlOperation.Select
+            let target = Some <| TargetPlaceholder.CollectionName tableName
+
+            use activity =
+                activitySource.StartActivity(getName op target diagnosticsOverrides, ActivityKind.Client)
+
+            let parameters =
+                ({ OperationName = "select-all"
+                   ConnectionState = connection.State
+                   QuerySummary = Some $"SELECT {tableName}"
+                   QueryText = None
+                   SqlOperation = op
+                   CollectName = target
+                   Overrides = diagnosticsOverrides }
+                : ActivityParameters)
+
+            (parameters, activity)
+            ||> wrapInActivity (fun _ -> QueryHelpers.selectAll<'T> tableName connection transaction)
+        | false -> QueryHelpers.selectAll<'T> tableName connection transaction
 
     /// <summary>
     /// Try and select all items from a table and map them to type 'T.
     /// </summary>
     /// <param name="tableName">The name of the table.</param>
     /// <returns>A result consisting of a list of type 'T or a SQLiteFailure.</returns>
-    member ctx.TrySelect<'T> tableName =
-        QueryHelpers.attempt (fun _ -> ctx.Select<'T> tableName)
+    member ctx.TrySelect<'T>(tableName, ?withDiagnostics: bool, ?diagnosticsOverrides: Activities.DiagnosticOverrides) =
+        match defaultArg withDiagnostics true with
+        | true ->
+            let op = Some SqlOperation.Select
+            let target = Some <| TargetPlaceholder.CollectionName tableName
+
+            use activity =
+                activitySource.StartActivity(getName op target diagnosticsOverrides, ActivityKind.Client)
+
+            let parameters =
+                ({ OperationName = "try-select-all"
+                   ConnectionState = connection.State
+                   QuerySummary = Some $"SELECT {tableName}"
+                   QueryText = None
+                   SqlOperation = op
+                   CollectName = target
+                   Overrides = diagnosticsOverrides }
+                : ActivityParameters)
+
+            (parameters, activity)
+            //|> wrapTryInActivity parameters (fun _ -> QueryHelpers.selectAll<'T> tableName connection transaction)
+            ||> wrapTryInActivity (fun _ -> ctx.Select<'T>(tableName, withDiagnostics = false))
+        | false -> QueryHelpers.attempt (fun _ -> ctx.Select<'T>(tableName, withDiagnostics = false))
 
 
     /// <summary>
@@ -99,11 +144,55 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
     /// </summary>
     /// <param name="tableName">The name of the table.</param>
     /// <returns>A seq of type 'T</returns>
-    member ctx.DeferredSelect<'T> tableName =
-        QueryHelpers.deferredSelectAll<'T> tableName connection transaction
+    member ctx.DeferredSelect<'T>
+        (tableName, ?withDiagnostics: bool, ?diagnosticsOverrides: Activities.DiagnosticOverrides)
+        =
+        match defaultArg withDiagnostics true with
+        | true ->
+            let op = Some SqlOperation.Select
+            let target = Some <| TargetPlaceholder.CollectionName tableName
 
-    member ctx.TryDeferredSelect<'T> tableName =
-        QueryHelpers.attempt (fun _ -> ctx.DeferredSelect<'T> tableName)
+            use activity =
+                activitySource.StartActivity(getName op target diagnosticsOverrides, ActivityKind.Client)
+
+            let parameters =
+                ({ OperationName = "deferred-select-all"
+                   ConnectionState = connection.State
+                   QuerySummary = Some $"SELECT {tableName}"
+                   QueryText = None
+                   SqlOperation = op
+                   CollectName = target
+                   Overrides = diagnosticsOverrides }
+                : ActivityParameters)
+
+            (parameters, activity)
+            ||> wrapInActivity (fun _ -> QueryHelpers.deferredSelectAll<'T> tableName connection transaction)
+        | false -> QueryHelpers.deferredSelectAll<'T> tableName connection transaction
+
+    member ctx.TryDeferredSelect<'T>
+        (tableName, ?withDiagnostics: bool, ?diagnosticsOverrides: Activities.DiagnosticOverrides)
+        =
+        match defaultArg withDiagnostics true with
+        | true ->
+            let op = Some SqlOperation.Select
+            let target = Some <| TargetPlaceholder.CollectionName tableName
+
+            use activity =
+                activitySource.StartActivity(getName op target diagnosticsOverrides, ActivityKind.Client)
+
+            let parameters =
+                ({ OperationName = "try-deferred-select-all"
+                   ConnectionState = connection.State
+                   QuerySummary = Some $"SELECT {tableName}"
+                   QueryText = None
+                   SqlOperation = op
+                   CollectName = target
+                   Overrides = diagnosticsOverrides }
+                : ActivityParameters)
+
+            (parameters, activity)
+            ||> wrapTryInActivity (fun _ -> ctx.DeferredSelect<'T>(tableName, withDiagnostics = false))
+        | false -> QueryHelpers.attempt (fun _ -> ctx.DeferredSelect<'T>(tableName, withDiagnostics = false))
 
     /// <summary>
     /// Select data based on a verbatim sql and parameters of type 'P.
@@ -112,11 +201,56 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
     /// <param name="sql">The sql query to be run</param>
     /// <param name="parameters">A record of type 'P representing query parameters.</param>
     /// <returns>A list of type 'T</returns>
-    member ctx.SelectVerbatim<'T, 'P>(sql, parameters) =
-        QueryHelpers.select<'T, 'P> sql connection parameters transaction
+    member ctx.SelectVerbatim<'T, 'P>
+        (sql, parameters, ?withDiagnostics: bool, ?diagnosticsOverrides: Activities.DiagnosticOverrides)
+        =
+        match defaultArg withDiagnostics true with
+        | true ->
+            let op = Some SqlOperation.Select
+            let target = None
 
-    member ctx.TrySelectVerbatim<'T, 'P>(sql, parameters) =
-        QueryHelpers.attempt (fun _ -> ctx.SelectVerbatim<'T, 'P>(sql, parameters))
+            use activity =
+                activitySource.StartActivity(getName op target diagnosticsOverrides, ActivityKind.Client)
+
+            let activityParameters =
+                ({ OperationName = "select-verbatim"
+                   ConnectionState = connection.State
+                   QuerySummary = None
+                   QueryText = Some sql
+                   SqlOperation = op
+                   CollectName = target
+                   Overrides = diagnosticsOverrides }
+                : ActivityParameters)
+
+            // BENCHMARK: Check is this has needless overhead compared to other option.
+            (activityParameters, activity)
+            ||> wrapInActivity (fun _ -> QueryHelpers.select<'T, 'P> sql connection parameters transaction)
+        | false -> QueryHelpers.select<'T, 'P> sql connection parameters transaction
+
+    member ctx.TrySelectVerbatim<'T, 'P>
+        (sql, parameters, ?withDiagnostics: bool, ?diagnosticsOverrides: Activities.DiagnosticOverrides)
+        =
+        match defaultArg withDiagnostics true with
+        | true ->
+            let op = Some SqlOperation.Select
+            let target = None
+
+            use activity =
+                activitySource.StartActivity(getName op target diagnosticsOverrides, ActivityKind.Client)
+
+            let activityParameters =
+                ({ OperationName = "try-select-verbatim"
+                   ConnectionState = connection.State
+                   QuerySummary = None
+                   QueryText = Some sql
+                   SqlOperation = op
+                   CollectName = target
+                   Overrides = diagnosticsOverrides }
+                : ActivityParameters)
+
+            (activityParameters, activity)
+            ||> wrapTryInActivity (fun _ -> ctx.SelectVerbatim<'T, 'P>(sql, parameters, withDiagnostics = false))
+        | false -> QueryHelpers.attempt (fun _ -> ctx.SelectVerbatim<'T, 'P>(sql, parameters, withDiagnostics = false))
 
     /// <summary>
     /// Select data based on a verbatim sql and parameters of type 'P.
@@ -126,11 +260,58 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
     /// <param name="sql">The sql query to be run</param>
     /// <param name="parameters">A record of type 'P representing query parameters.</param>
     /// <returns>A seq of type 'T</returns>
-    member ctx.DeferredSelectVerbatim<'T, 'P>(sql, parameters) =
-        QueryHelpers.deferredSelect<'T, 'P> sql connection parameters transaction
+    member ctx.DeferredSelectVerbatim<'T, 'P>
+        (sql, parameters, ?withDiagnostics: bool, ?diagnosticsOverrides: Activities.DiagnosticOverrides)
+        =
+        match defaultArg withDiagnostics true with
+        | true ->
+            let op = Some SqlOperation.Select
+            let target = None
 
-    member ctx.TryDeferredSelectVerbatim<'T, 'P>(sql, parameters) =
-        QueryHelpers.attempt (fun _ -> ctx.DeferredSelectVerbatim<'T, 'P>(sql, parameters))
+            use activity =
+                activitySource.StartActivity(getName op target diagnosticsOverrides, ActivityKind.Client)
+
+            let activityParameters =
+                ({ OperationName = "deferred-select-verbatim"
+                   ConnectionState = connection.State
+                   QuerySummary = None
+                   QueryText = Some sql
+                   SqlOperation = op
+                   CollectName = target
+                   Overrides = diagnosticsOverrides }
+                : ActivityParameters)
+
+            (activityParameters, activity)
+            ||> wrapInActivity (fun _ -> QueryHelpers.deferredSelect<'T, 'P> sql connection parameters transaction)
+
+        | false -> QueryHelpers.deferredSelect<'T, 'P> sql connection parameters transaction
+
+    member ctx.TryDeferredSelectVerbatim<'T, 'P>
+        (sql, parameters, ?withDiagnostics: bool, ?diagnosticsOverrides: Activities.DiagnosticOverrides)
+        =
+        match defaultArg withDiagnostics true with
+        | true ->
+            let op = Some SqlOperation.Select
+            let target = None
+
+            use activity =
+                activitySource.StartActivity(getName op target diagnosticsOverrides, ActivityKind.Client)
+
+            let activityParameters =
+                ({ OperationName = "try-deferred-select-verbatim"
+                   ConnectionState = connection.State
+                   QuerySummary = None
+                   QueryText = Some sql
+                   SqlOperation = op
+                   CollectName = target
+                   Overrides = diagnosticsOverrides }
+                : ActivityParameters)
+
+            (activityParameters, activity)
+            ||> wrapTryInActivity (fun _ ->
+                ctx.DeferredSelectVerbatim<'T, 'P>(sql, parameters, withDiagnostics = false))
+        | false ->
+            QueryHelpers.attempt (fun _ -> ctx.DeferredSelectVerbatim<'T, 'P>(sql, parameters, withDiagnostics = false))
 
     /// <summary>
     /// Select a list of 'T based on an sql string and a list of obj for parameters.
@@ -140,11 +321,55 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
     /// <param name="sql">The sql query to be run</param>
     /// <param name="parameters">A list of objects to be used are query parameters</param>
     /// <returns>A list of type 'T</returns>
-    member ctx.SelectAnon<'T>(sql, parameters) =
-        QueryHelpers.selectAnon<'T> sql connection parameters transaction
+    member ctx.SelectAnon<'T>
+        (sql, parameters, ?withDiagnostics: bool, ?diagnosticsOverrides: Activities.DiagnosticOverrides)
+        =
+        match defaultArg withDiagnostics true with
+        | true ->
+            let op = Some SqlOperation.Select
+            let target = None
 
-    member ctx.TrySelectAnon<'T>(sql, parameters) =
-        QueryHelpers.attempt (fun _ -> ctx.SelectAnon<'T>(sql, parameters))
+            use activity =
+                activitySource.StartActivity(getName op target diagnosticsOverrides, ActivityKind.Client)
+
+            let activityParameters =
+                ({ OperationName = "select-anon"
+                   ConnectionState = connection.State
+                   QuerySummary = None
+                   QueryText = Some sql
+                   SqlOperation = op
+                   CollectName = target
+                   Overrides = diagnosticsOverrides }
+                : ActivityParameters)
+
+            (activityParameters, activity)
+            ||> wrapInActivity (fun _ -> QueryHelpers.selectAnon<'T> sql connection parameters transaction)
+        | false -> QueryHelpers.selectAnon<'T> sql connection parameters transaction
+
+    member ctx.TrySelectAnon<'T>
+        (sql, parameters, ?withDiagnostics: bool, ?diagnosticsOverrides: Activities.DiagnosticOverrides)
+        =
+        match defaultArg withDiagnostics true with
+        | true ->
+            let op = Some SqlOperation.Select
+            let target = None
+
+            use activity =
+                activitySource.StartActivity(getName op target diagnosticsOverrides, ActivityKind.Client)
+
+            let activityParameters =
+                ({ OperationName = "try-select-anon"
+                   ConnectionState = connection.State
+                   QuerySummary = None
+                   QueryText = Some sql
+                   SqlOperation = op
+                   CollectName = target
+                   Overrides = diagnosticsOverrides }
+                : ActivityParameters)
+
+            (activityParameters, activity)
+            ||> wrapTryInActivity (fun _ -> ctx.SelectAnon<'T>(sql, parameters, withDiagnostics = false))
+        | false -> QueryHelpers.attempt (fun _ -> ctx.SelectAnon<'T>(sql, parameters, withDiagnostics = false))
 
     /// <summary>
     /// Select a list of 'T based on an sql string and a list of obj for parameters.
@@ -155,11 +380,55 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
     /// <param name="sql">The sql query to be run</param>
     /// <param name="parameters">A list of objects to be used are query parameters</param>
     /// <returns>A seq of type 'T</returns>
-    member ctx.DeferredSelectAnon<'T>(sql, parameters) =
-        QueryHelpers.deferredSelectAnon<'T> sql connection parameters transaction
+    member ctx.DeferredSelectAnon<'T>
+        (sql, parameters, ?withDiagnostics: bool, ?diagnosticsOverrides: Activities.DiagnosticOverrides)
+        =
+        match defaultArg withDiagnostics true with
+        | true ->
+            let op = Some SqlOperation.Select
+            let target = None
 
-    member ctx.TryDeferredSelectAnon<'T>(sql, parameters) =
-        QueryHelpers.attempt (fun _ -> ctx.DeferredSelectAnon<'T>(sql, parameters))
+            use activity =
+                activitySource.StartActivity(getName op target diagnosticsOverrides, ActivityKind.Client)
+
+            let activityParameters =
+                ({ OperationName = "deferred-select-anon"
+                   ConnectionState = connection.State
+                   QuerySummary = None
+                   QueryText = Some sql
+                   SqlOperation = op
+                   CollectName = target
+                   Overrides = diagnosticsOverrides }
+                : ActivityParameters)
+
+            (activityParameters, activity)
+            ||> wrapInActivity (fun _ -> QueryHelpers.deferredSelectAnon<'T> sql connection parameters transaction)
+        | false -> QueryHelpers.deferredSelectAnon<'T> sql connection parameters transaction
+
+    member ctx.TryDeferredSelectAnon<'T>
+        (sql, parameters, ?withDiagnostics: bool, ?diagnosticsOverrides: Activities.DiagnosticOverrides)
+        =
+        match defaultArg withDiagnostics true with
+        | true ->
+            let op = Some SqlOperation.Select
+            let target = None
+
+            use activity =
+                activitySource.StartActivity(getName op target diagnosticsOverrides, ActivityKind.Client)
+
+            let activityParameters =
+                ({ OperationName = "try-deferred-select-anon"
+                   ConnectionState = connection.State
+                   QuerySummary = None
+                   QueryText = Some sql
+                   SqlOperation = op
+                   CollectName = target
+                   Overrides = diagnosticsOverrides }
+                : ActivityParameters)
+
+            (activityParameters, activity)
+            ||> wrapTryInActivity (fun _ -> ctx.DeferredSelectAnon<'T>(sql, parameters, withDiagnostics = false))
+        | false -> QueryHelpers.attempt (fun _ -> ctx.DeferredSelectAnon<'T>(sql, parameters, withDiagnostics = false))
 
     /// <summary>
     /// Select a single 'T based on a sql string and a list of obj for parameters.
@@ -173,16 +442,59 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
     /// <param name="sql">The sql query to be run</param>
     /// <param name="parameters">A list of objects to be used are query parameters</param>
     /// <returns>An optional 'T</returns>
-    member ctx.SelectSingleAnon<'T>(sql, parameters) =
-        // Optimization - this could be optimized to only map the first item.
+    member ctx.SelectSingleAnon<'T>
+        (sql, parameters, ?withDiagnostics: bool, ?diagnosticsOverrides: Activities.DiagnosticOverrides)
+        =
+        match defaultArg withDiagnostics true with
+        | true ->
+            let op = Some SqlOperation.Select
+            let target = None
 
-        // FUTURE: Switch to this:
-        // QueryHelpers.selectAnonSingle<'T> sql connection parameters transaction
+            use activity =
+                activitySource.StartActivity(getName op target diagnosticsOverrides, ActivityKind.Client)
 
-        ctx.SelectAnon<'T>(sql, parameters) |> List.tryHead
+            let activityParameters =
+                ({ OperationName = "select-single-anon"
+                   ConnectionState = connection.State
+                   QuerySummary = None
+                   QueryText = Some sql
+                   SqlOperation = op
+                   CollectName = target
+                   Overrides = diagnosticsOverrides }
+                : ActivityParameters)
 
-    member ctx.TrySelectSingleAnon<'T>(sql, parameters) =
-        QueryHelpers.attempt (fun _ -> ctx.SelectSingleAnon<'T>(sql, parameters))
+            (activityParameters, activity)
+            ||> wrapInActivity (fun _ -> QueryHelpers.selectAnonSingle<'T> sql connection parameters transaction)
+        | false ->
+            // Optimization - this could be optimized to only map the first item.
+
+            // Old - ctx.SelectAnon<'T>(sql, parameters) |> List.tryHead
+            // FUTURE: Switch to this:
+            QueryHelpers.selectAnonSingle<'T> sql connection parameters transaction
+
+
+    member ctx.TrySelectSingleAnon<'T>(sql, parameters, ?withDiagnostics: bool, ?diagnosticsOverrides: Activities.DiagnosticOverrides) =
+        match defaultArg withDiagnostics true with
+        | true ->
+            let op = Some SqlOperation.Select
+            let target = None
+
+            use activity =
+                activitySource.StartActivity(getName op target diagnosticsOverrides, ActivityKind.Client)
+
+            let activityParameters =
+                ({ OperationName = "try-select-single-anon"
+                   ConnectionState = connection.State
+                   QuerySummary = None
+                   QueryText = Some sql
+                   SqlOperation = op
+                   CollectName = target
+                   Overrides = diagnosticsOverrides }
+                : ActivityParameters)
+
+            (activityParameters, activity)
+            ||> wrapTryInActivity (fun _ ->  ctx.SelectSingleAnon<'T>(sql, parameters))
+        | false -> QueryHelpers.attempt (fun _ -> ctx.SelectSingleAnon<'T>(sql, parameters))
 
     /// <summary>
     /// Select a single 'T based on an sql string and a list of obj for parameters.
@@ -329,7 +641,7 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
     /// <returns>An int value representing the result.</returns>
     member ctx.ExecuteVerbatimNonQuery<'P>(sql: string, parameters: 'P) =
         QueryHelpers.verbatimNonQuery connection sql parameters transaction
-        
+
     member ctx.TryExecuteVerbatimNonQuery<'P>(sql: string, parameters: 'P) =
         QueryHelpers.attempt (fun _ -> ctx.ExecuteVerbatimNonQuery<'P>(sql, parameters))
 
@@ -340,7 +652,7 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
     /// <param name="parameters">A list of objects to be used are query parameters</param>
     member ctx.ExecuteVerbatimNonQueryAnon(sql: string, parameters: obj list) =
         QueryHelpers.verbatimNonQueryAnon connection sql parameters transaction
-        
+
     member ctx.TryExecuteVerbatimNonQueryAnon(sql: string, parameters: obj list) =
         QueryHelpers.attempt (fun _ -> ctx.ExecuteVerbatimNonQueryAnon(sql, parameters))
 
@@ -353,9 +665,9 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
         //use activity = activitySource.StartActivity("Insert record", ActivityKind.Client)
 
         QueryHelpers.insert<'T> tableName connection value transaction
-        
+
     member ctx.TryInsert<'T>(tableName: string, value: 'T) =
-         QueryHelpers.attempt (fun _ ->  ctx.Insert<'T>(tableName, value))
+        QueryHelpers.attempt (fun _ -> ctx.Insert<'T>(tableName, value))
 
     /// <summary>
     /// Execute a collection of insert queries.
@@ -365,7 +677,7 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
     member ctx.InsertList<'T>(tableName: string, values: 'T list) =
         // TODO change this to List.iter
         values |> List.map (fun v -> ctx.Insert<'T>(tableName, v)) |> ignore
-        
+
     member ctx.TryInsertList<'T>(tableName: string, values: 'T list) =
         QueryHelpers.attempt (fun _ -> ctx.InsertList<'T>(tableName, values))
 
@@ -429,7 +741,7 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
     /// Execute sql that produces a scalar result.
     member ctx.ExecuteScalar<'T>(sql) =
         QueryHelpers.executeScalar<'T> sql connection transaction
-        
+
     member ctx.TryExecuteScalar<'T>(sql) =
         QueryHelpers.attempt (fun _ -> ctx.ExecuteScalar<'T>(sql))
 
@@ -444,7 +756,7 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
         QueryHelpers.bespoke connection sql parameters mapper transaction
 
     member ctx.TryBespoke<'T>(sql, parameters, mapper: SqliteDataReader -> 'T list) =
-        QueryHelpers.attempt(fun _ -> ctx.Bespoke<'T>(sql, parameters, mapper))
+        QueryHelpers.attempt (fun _ -> ctx.Bespoke<'T>(sql, parameters, mapper))
 
     /// <summary>
     /// Test the database connection.
@@ -452,10 +764,10 @@ type SqliteContext(connection: SqliteConnection, transaction: SqliteTransaction 
     /// </summary>
     member ctx.TestConnection() =
         QueryHelpers.executeScalar<int64> "SELECT 1" connection transaction
-        
+
     member ctx.TryTestConnection() =
         QueryHelpers.attempt (fun _ -> ctx.TestConnection())
-        
+
     member handler.Rollback(message: string) =
         match transaction with
         | Some t ->
