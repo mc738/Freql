@@ -1,4 +1,4 @@
-namespace Freql.Tools
+namespace Freql.Tools.Core
 
 open System
 open Freql.Core.Attributes
@@ -48,7 +48,18 @@ module InformationSchema =
           CreateOptions: string option
           [<MappedField("TABLE_COMMENT")>]
           TableComment: string option }
-
+        
+        /// <summary>
+        /// Sql for use in an anonymous query.
+        /// The sql expects one parameter for the schema name.
+        /// </summary>
+        static member AnonSql() =
+                """
+            SELECT *
+            FROM `information_schema`.`TABLES`
+            WHERE TABLE_SCHEMA = @0 AND TABLE_TYPE = 'BASE TABLE';
+            """
+            
     type RoutineRecord =
         { [<MappedField("SPECIFIC_NAME")>]
           SpecificName: string
