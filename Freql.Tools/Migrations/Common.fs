@@ -1,6 +1,7 @@
-﻿namespace Freql.Tools
+﻿namespace Freql.Tools.Migrations
 
-module Migrations =
+[<AutoOpen>]
+module Common =
 
     type Migrations =
         { Name: string
