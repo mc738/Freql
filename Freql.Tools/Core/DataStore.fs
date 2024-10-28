@@ -1,4 +1,4 @@
-namespace Freq.MySql.Tools.DataStore
+namespace Freq.MySql.Tools.Core.DataStore
 
 open System
 open System.Text.Json.Serialization
