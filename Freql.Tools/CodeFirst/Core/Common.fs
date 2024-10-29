@@ -1,13 +1,13 @@
-namespace Freql.Tools.CodeFirst
+namespace Freql.Tools.CodeFirst.Core
 
 open Freql.Core
 
 [<AutoOpen>]
 module Common =
 
-    type RecordInformation = { Name: string; Fields: Field list }
+    type RecordInformation = { Name: string; Fields: FieldInformation list }
 
-    and Field =
+    and FieldInformation =
         { Name: string
           Type: FieldType
           PrimaryKey: PrimaryKeyDefinitionType option

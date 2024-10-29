@@ -1,4 +1,4 @@
-namespace Freql.Tools.CodeGeneration
+namespace Freql.Tools.DatabaseBindings
 
 open System.IO
 open System.Text.Json

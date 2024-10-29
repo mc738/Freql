@@ -1,10 +1,11 @@
-namespace Freql.Tools.CodeGeneration
+namespace Freql.Tools.DatabaseBindings
 
 [<AutoOpen>]
 module Impl =
 
     open System
     open Freql.Core.Utils.Extensions
+    open Freql.Tools.CodeGeneration.Boilerplate
         
     let createRecord<'TTable, 'TColumn>
         (profile: Configuration.GeneratorProfile)
@@ -67,9 +68,7 @@ module Impl =
              [ "/// <summary>"
                $"/// A record representing a row in the table `{table.OriginalName}`."
                "/// </summary>"
-               "/// <remarks>"
-               $"/// This record was generated via Freql.Tools on {DateTime.UtcNow}"
-               "/// </remarks>" ] }
+               yield! Comments.freqlRemark DateTime.UtcNow ] }
         : Records.Record)
         |> Records.create profile
 
@@ -119,9 +118,7 @@ module Impl =
         [ "/// <summary>"
           $"/// Records representing database bindings for `{profile.Name}`."
           "/// </summary>"
-          "/// <remarks>"
-          $"/// Module generated on {DateTime.UtcNow} (utc) via Freql.Tools."
-          "/// </remarks>"
+          yield! Comments.freqlRemark DateTime.UtcNow
           $"[<RequireQualifiedAccess>]"
           $"module Records =" ]
         @ records
@@ -171,9 +168,7 @@ module Impl =
                  [ "/// <summary>"
                    $"/// A record representing a new row in the table `{table.OriginalName}`."
                    "/// </summary>"
-                   "/// <remarks>"
-                   $"/// This record was generated via Freql.Tools on {DateTime.UtcNow}"
-                   "/// </remarks>" ] }
+                   yield! Comments.freqlRemark DateTime.UtcNow ] }
             : Records.Record)
         |> Records.create profile
 
@@ -214,9 +209,7 @@ module Impl =
           "/// this should be considered an internal function (not exposed in public APIs)."
           "/// Parameters are assigned names based on their order in 0 indexed array. For example: @0,@1,@2..."
           "/// </summary>"
-          "/// <remarks>"
-          $"/// This function was generated via Freql.Tools on {DateTime.UtcNow}"
-          "/// </remarks>"
+          yield! Comments.freqlRemark DateTime.UtcNow
           "/// <example>"
           "/// <code>"
           $"/// let result = select{name}Record ctx \"WHERE `field` = @0\" [ box `value` ]"
@@ -233,9 +226,7 @@ module Impl =
           "/// this should be considered an internal function (not exposed in public APIs)."
           "/// Parameters are assigned names based on their order in 0 indexed array. For example: @0,@1,@2..."
           "/// </summary>"
-          "/// <remarks>"
-          $"/// This function was generated via Freql.Tools on {DateTime.UtcNow}"
-          "/// </remarks>"
+          yield! Comments.freqlRemark DateTime.UtcNow
           "/// <example>"
           "/// <code>"
           $"/// let result = select{name}Records ctx \"WHERE `field` = @0\" [ box `value` ]"
@@ -253,9 +244,7 @@ module Impl =
           "/// this should be considered an internal function (not exposed in public APIs)."
           "/// Parameters are assigned names based on their order in 0 indexed array. For example: @0,@1,@2..."
           "/// </summary>"
-          "/// <remarks>"
-          $"/// This function was generated via Freql.Tools on {DateTime.UtcNow}"
-          "/// </remarks>"
+          yield! Comments.freqlRemark DateTime.UtcNow
           "/// <example>"
           "/// <code>"
           $"/// let result = trySelect{name}Record ctx \"WHERE `field` = @0\" [ box `value` ]"
@@ -272,9 +261,7 @@ module Impl =
           "/// this should be considered an internal function (not exposed in public APIs)."
           "/// Parameters are assigned names based on their order in 0 indexed array. For example: @0,@1,@2..."
           "/// </summary>"
-          "/// <remarks>"
-          $"/// This function was generated via Freql.Tools on {DateTime.UtcNow}"
-          "/// </remarks>"
+          yield! Comments.freqlRemark DateTime.UtcNow
           "/// <example>"
           "/// <code>"
           $"/// let result = trySelect{name}Records ctx \"WHERE `field` = @0\" [ box `value` ]"
@@ -297,7 +284,7 @@ module Impl =
             |> List.concat
             |> List.map indent1
 
-        [ $"/// Module generated on {DateTime.UtcNow} (utc) via Freql.Tools."
+        [ yield! Comments.freqlRemark DateTime.UtcNow
           "[<RequireQualifiedAccess>]"
           "module Parameters =" ]
         @ records
@@ -323,7 +310,7 @@ module Impl =
             |> List.concat
             |> List.map indent1
 
-        [ $"/// Module generated on {DateTime.UtcNow} (utc) via Freql.Tools."
+        [ yield! Comments.freqlRemark DateTime.UtcNow
           "[<RequireQualifiedAccess>]"
           $"module Operations ="
           ""

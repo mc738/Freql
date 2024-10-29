@@ -1,4 +1,4 @@
-namespace Freql.Tools.CodeGeneration
+namespace Freql.Tools.DatabaseBindings
 
 module Functions =
 
