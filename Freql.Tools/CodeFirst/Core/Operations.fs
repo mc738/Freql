@@ -1,4 +1,4 @@
-namespace Freql.Tools.CodeFirst
+namespace Freql.Tools.CodeFirst.Core
 
 module Operations =
     
