@@ -1,11 +1,11 @@
-namespace Freql.Tools.CodeFirst
-
-open System
-open System.Reflection
-open Freql.Core.Utils.Attributes
+namespace Freql.Tools.CodeFirst.Core
 
 module Attributes =
 
+    open System
+    open System.Reflection
+    open Freql.Core.Utils.Attributes
+    
     [<AttributeUsage(AttributeTargets.Property)>]
     type PrimaryKeyAttribute() =
 
