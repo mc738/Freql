@@ -78,3 +78,35 @@ An example showing how to call then code generation (`gen`) command:
 ```shell
 $ [app path] gen -c "[configuration path]" -d [database name] -p [profile name]
 ```
+
+
+## Compiler messages/warnings
+
+`Freql` uses various warnings and compiler messages, often to mark what is for internal use.
+
+The messages all have the following format:
+
+* `614` - prefix
+* `0-9` - the specific part/project 
+* `000-999` - the specific number
+
+For projects the following is used:
+
+* `0` - General
+* `1` - `Freql.Core`
+* `2` - `Freql.Tools`
+
+### General messages
+
+General messages are used throughout `Freql`. 
+They can appear in any project.
+
+#### Internal use (6140001)
+
+```fsharp
+[<CompilerMessage("This module is intended for internal use. To remove this warning add #nowarn \"6140001\"", 6140001)>]
+```
+This message signifies a module is intended for internal use and should not be seen as part of the public API.
+It can also mean the module might not have documentation generated for it.
+
+A module might be marked with this if it is used in automated tests but would otherwise be private.
