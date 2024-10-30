@@ -55,6 +55,8 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Freql.Sqlite.Benchmarks", "
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Freql.Sqlite.UnitTests", "Freql.Sqlite.UnitTests\Freql.Sqlite.UnitTests.fsproj", "{84929413-B82F-4A39-8CB3-94916616F2B4}"
 EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Freql.CodeFirstSandbox", "Freql.CodeFirstSandbox\Freql.CodeFirstSandbox.fsproj", "{C1F9CF12-E4CF-47E7-B449-B576CCDC1781}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -133,6 +135,10 @@ Global
 		{84929413-B82F-4A39-8CB3-94916616F2B4}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{84929413-B82F-4A39-8CB3-94916616F2B4}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{84929413-B82F-4A39-8CB3-94916616F2B4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C1F9CF12-E4CF-47E7-B449-B576CCDC1781}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C1F9CF12-E4CF-47E7-B449-B576CCDC1781}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C1F9CF12-E4CF-47E7-B449-B576CCDC1781}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C1F9CF12-E4CF-47E7-B449-B576CCDC1781}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{CECDC3C5-8DDC-485B-8DA8-C83F509A4273} = {7BDCD585-F6A9-462E-BB89-E703415C1340}
