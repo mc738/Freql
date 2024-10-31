@@ -15,3 +15,4 @@ module Boilerplate =
            "open Freql.Tools.CodeFirst.Core.Operations"
            yield! openFiles |> List.map (fun openFile -> $"open {openFile}") ]
 
+
