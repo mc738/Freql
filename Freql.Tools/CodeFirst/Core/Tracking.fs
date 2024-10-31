@@ -1,14 +1,14 @@
-namespace Freql.Tools.CodeFirst
-
-open System.Reflection
-open Freql.Core
-open Freql.Tools.CodeGeneration
-open Microsoft.FSharp.Reflection
+namespace Freql.Tools.CodeFirst.Core
 
 module Tracking =
 
     open System
-    open Freql.Tools.CodeFirst.Attributes
+    open System.Reflection
+    open Microsoft.FSharp.Reflection
+    open Freql.Core
+    open Freql.Tools.CodeGeneration
+    open Freql.Tools.CodeGeneration.Boilerplate
+    open Freql.Tools.CodeFirst.Core.Attributes
 
     type RecordTrackingSettings =
         { DefaultStringComparison: StringComparison }
@@ -48,7 +48,7 @@ module Tracking =
               $"    {{ TableName = \"{tableName}\""
               $"      FieldName = \"{propertyInfo.Name}\""
               $"      NewValue = box b.{propertyInfo.Name} }}"
-              "   |> RecordTrackingOperation.UpdateField"
+              "    |> RecordTrackingOperation.UpdateField"
           | None -> () ]
 
     let generateComparisonCode (indent: string) (recordType: Type) =
@@ -77,11 +77,13 @@ module Tracking =
 
                   yield!
                       fields
-                      |> List.mapi (fun i line ->
-                          match i with
-                          | 0 -> $"{indent}    [ {line}"
-                          | _ when i = fields.Length - 1 -> $"{indent}    {line} ]"
-                          | _ -> $"{indent}      {line}")
+                      |> Utils.wrapInArray 2
+                      
+                      //|> List.mapi (fun i line ->
+                      //    match i with
+                      //    | 0 -> $"{indent}    [ {line}"
+                      //    | _ when i = fields.Length - 1 -> $"{indent}    {line} ]"
+                      //    | _ -> $"{indent}      {line}")
 
                   "" ]
         //|> Ok
