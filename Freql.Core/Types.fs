@@ -156,5 +156,9 @@ module Types =
         | true -> t.GetElementType() |> Some
         | false -> None
         
-    //let tryGetListType (t: Type) =
-    //    match t.
+    let tryGetListType (t: Type) =
+        match t.Name.Equals("FSharpList`1", StringComparison.Ordinal) with
+        | true -> t.GenericTypeArguments |> Array.tryHead |> Option.orElse (Some typeof<obj>)
+        | false -> None
+        
+    
