@@ -117,6 +117,33 @@ module Mapping =
     /// </summary>
     /// <param name="types"></param>
     let dedupeTypes (types: Type List) =
+        let rec searchForType (iteration: int) (searchType: Type) (currentType: Type) =
+            match iteration > 10 with
+            | true -> failwith "Maximum recursion depth reached"
+            | false ->
+                match FSharpType.IsRecord currentType with
+                | false -> false
+                | true ->
+                    FSharpType.GetRecordFields currentType
+                    |> Array.exists (fun field ->
+                        
+                        
+                        ())
+                
+        
+        
+        types
+        |> List.choose (fun t ->
+            match FSharpType.IsRecord t with
+            | false -> None
+            | true ->
+                
+                
+                
+                
+                ()
+            
+            )
         
         ()
     
