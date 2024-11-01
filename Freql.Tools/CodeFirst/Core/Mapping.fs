@@ -43,6 +43,60 @@ module Mapping =
     let getIgnoreAttribute (propertyInfo: PropertyInfo) =
         getAttributeFromProperty<IgnoreFieldAttribute> propertyInfo
 
+    let mapRecord (recordType: Type) =
+        match FSharpType.IsRecord recordType with
+        | false -> MappingFailure.InvalidType "" |> Error
+        | true ->
+            FSharpType.GetRecordFields(recordType)
+            |> Array.filter (fun field -> getIgnoreAttribute field |> Option.isNone)
+            |> Array.map (fun field ->
+                match
+                    SupportedType.TryFromType field.PropertyType,
+                    FSharpType.IsRecord field.PropertyType,
+                    FSharpCollectionType.TryFromType field.PropertyType
+                with
+                | Ok st, _, _ -> FieldType.SupportedType st |> Ok
+                | _, true, _ -> FieldType.Record field.PropertyType |> Ok
+                | _, _, Some ct -> FieldType.Collection ct |> Ok
+                | Error _, false, None -> FieldMappingError.InvalidType(field.Name, "") |> Error
+                |> Result.map (fun ft ->
+                    ({ Name = field.Name
+                       Type = ft
+                       PrimaryKey =
+                         getPrimaryKeyAttribute field
+                         |> Option.map (fun _ -> PrimaryKeyDefinitionType.Attribute)
+                         |> Option.orElseWith (fun _ ->
+                             match
+                                 // TODO move conventions to config
+                                 field.Name.Equals("Id", StringComparison.Ordinal)
+                                 || field.Name.Equals($"{recordType.Name}Id", StringComparison.Ordinal)
+                             with
+                             | true -> Some PrimaryKeyDefinitionType.Convention
+                             | false -> None)
+                       ForeignKey =
+                         getForeignKeyAttribute field
+                         |> Option.map (fun fk ->
+                             { TypeName = fk.OtherType.Name
+                               FieldName = None })
+                       PropertyInformation = field
+                       Index =
+                         // TODO
+                         None }
+                    : FieldInformation)))
+            |> partitionResults
+            |> fun (successes, errors) ->
+                match errors.IsEmpty with
+                | true ->
+                    ({ Name = recordType.Name
+                       Type = recordType
+                       Fields = successes }
+                    : RecordInformation)
+                    |> Ok
+                | false -> errors |> MappingFailure.FieldErrors |> Error
+
+
+
+    (*
     let rec mapRecord (virtualField: FieldInformation option) (recordType: Type) =
         match FSharpType.IsRecord recordType with
         | false -> MappingFailure.InvalidType "" |> Error
@@ -110,43 +164,46 @@ module Mapping =
                     : RecordInformation)
                     |> Ok
                 | false -> errors |> MappingFailure.FieldErrors |> Error
+    *)
 
     /// <summary>
     /// Dedupe a list of types.
-    /// This will filter out types that are either not FSharp records or as exist as 
+    /// This will filter out types that are either not FSharp records or as exist as
     /// </summary>
     /// <param name="types"></param>
-    let dedupeTypes (types: Type List) =
-        let rec searchForType (iteration: int) (searchType: Type) (currentType: Type) =
-            match iteration > 10 with
-            | true -> failwith "Maximum recursion depth reached"
-            | false ->
-                match FSharpType.IsRecord currentType with
-                | false -> false
-                | true ->
-                    FSharpType.GetRecordFields currentType
-                    |> Array.exists (fun field ->
-                        
-                        
-                        ())
-                
-        
-        
-        types
-        |> List.choose (fun t ->
-            match FSharpType.IsRecord t with
-            | false -> None
-            | true ->
-                
-                
-                
-                
-                ()
-            
-            )
-        
-        ()
-    
+    //let dedupeTypes (types: Type List) =
+    //    let rec searchForType (iteration: int) (searchType: Type) (currentType: Type) =
+    //        match iteration > 10 with
+    //        | true -> failwith "Maximum recursion depth reached"
+    //        | false ->
+    //            match FSharpType.IsRecord currentType with
+    //            | false -> false
+    //            | true ->
+    //                FSharpType.GetRecordFields currentType
+    //                |> Array.exists (fun field ->
+    //
+    //
+    //
+    //                    ())
+    //
+    //
+    //
+    //
+    //    types
+    //    |> List.choose (fun t ->
+    //        match FSharpType.IsRecord t with
+    //        | false -> None
+    //        | true ->
+    //
+    //
+    //
+    //
+    //            ()
+
+    //        )
+
+    //    ()
+
     let mapRecords (types: Type list) =
         types
         |> List.map (mapRecord None)
