@@ -2,7 +2,7 @@ namespace Freql.Tools.CodeFirst.Core
 
 open System.Reflection
 open Freql.Tools.CodeFirst
-open Freql.Tools.CodeFirst.Attributes
+open Freql.Tools.CodeFirst.Core.Attributes
 open Microsoft.FSharp.Core
 open Microsoft.FSharp.Reflection
 open Freql.Core.Utils.Attributes
@@ -53,6 +53,7 @@ module Mapping =
                 match SupportedType.TryFromType field.PropertyType, FSharpType.IsRecord field.PropertyType with
                 | Ok supportedType, _ -> FieldType.SupportedType supportedType |> Ok
                 | Error _, true ->
+                    
                     let virtualField =
                         ({ Name = $"{recordType.Name}Id"
                            Type = failwith "todo"
@@ -61,6 +62,7 @@ module Mapping =
                              { TypeName = recordType.Name
                                FieldName = None }
                              |> Some
+                           PropertyInformation = None
                            Index = failwith "todo"
                            VirtualField = true }
                         : FieldInformation)
@@ -72,7 +74,7 @@ module Mapping =
                 | Error _, false -> FieldMappingError.InvalidType("", "") |> Error
                 |> Result.map (fun ft ->
                     ({ Name = field.Name
-                       Type = failwith "todo"
+                       Type = ft
                        PrimaryKey =
                          getPrimaryKeyAttribute field
                          |> Option.map (fun _ -> PrimaryKeyDefinitionType.Attribute)
@@ -86,15 +88,21 @@ module Mapping =
                              | false -> None)
                        ForeignKey =
                          getForeignKeyAttribute field
-                         |> Option.map (fun fk -> { TypeName = fk.OtherType.Name; FieldName = None })
-                       Index = failwith "todo"
-                       VirtualField = failwith "" }
+                         |> Option.map (fun fk ->
+                             { TypeName = fk.OtherType.Name
+                               FieldName = None })
+                       PropertyInformation = Some field
+                       Index =
+                         // TODO
+                         None
+                       VirtualField = false }
                     : FieldInformation)))
             |> partitionResults
             |> fun (successes, errors) ->
                 match errors.IsEmpty with
                 | true ->
                     ({ Name = recordType.Name
+                       Type = recordType
                        Fields =
                          match virtualField with
                          | Some vf -> vf :: successes
@@ -103,12 +111,20 @@ module Mapping =
                     |> Ok
                 | false -> errors |> MappingFailure.FieldErrors |> Error
 
-
-
-
-
-    let mapRecords =
-
+    /// <summary>
+    /// Dedupe a list of types.
+    /// This will filter out types that are either not FSharp records or as exist as 
+    /// </summary>
+    /// <param name="types"></param>
+    let dedupeTypes (types: Type List) =
+        
         ()
-
-    ()
+    
+    let mapRecords (types: Type list) =
+        types
+        |> List.map (mapRecord None)
+        |> partitionResults
+        |> fun (successes, errors) ->
+            match errors.IsEmpty with
+            | true -> Ok successes
+            | false -> Error errors
