@@ -150,3 +150,11 @@ module Types =
         static member FromType(typeInfo: Type) =
             SupportedType.FromName(typeInfo.FullName)
 
+
+    let tryGetArrayType (t: Type) =
+        match t.IsArray with
+        | true -> t.GetElementType() |> Some
+        | false -> None
+        
+    //let tryGetListType (t: Type) =
+    //    match t.
