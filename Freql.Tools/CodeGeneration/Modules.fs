@@ -1,4 +1,4 @@
-module Freql.Tools.CodeGeneration
+namespace Freql.Tools.CodeGeneration
 
 open System
 open Freql.Tools.CodeGeneration
