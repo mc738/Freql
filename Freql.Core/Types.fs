@@ -2,7 +2,7 @@ namespace Freql.Core
 
 [<AutoOpen>]
 module Types =
-    
+
     open System
     open System.IO
     open System.Text.RegularExpressions
@@ -155,10 +155,32 @@ module Types =
         match t.IsArray with
         | true -> t.GetElementType() |> Some
         | false -> None
-        
+
     let tryGetListType (t: Type) =
         match t.Name.Equals("FSharpList`1", StringComparison.Ordinal) with
         | true -> t.GenericTypeArguments |> Array.tryHead |> Option.orElse (Some typeof<obj>)
         | false -> None
-        
-    
+
+    let tryGetSeqType (t: Type) =
+        match t.Name.Equals("IEnumerable`1", StringComparison.Ordinal) with
+        | true -> t.GenericTypeArguments |> Array.tryHead |> Option.orElse (Some typeof<obj>)
+        | false -> None
+
+    [<RequireQualifiedAccess>]
+    type FSharpCollectionType =
+        | Array of Type
+        | List of Type
+        | Seq of Type
+
+        static member TryFromType(t: Type) =
+            match tryGetArrayType t, tryGetListType t, tryGetSeqType t with
+            | Some a, _, _ -> FSharpCollectionType.Array a |> Some
+            | _, Some l, _ -> FSharpCollectionType.List l |> Some
+            | _, _, Some s -> FSharpCollectionType.Seq s |> Some
+            | None, None, None -> None
+
+        member ct.GetInnerType() =
+            match ct with
+            | Array ``type``
+            | List ``type``
+            | Seq ``type`` -> ``type``
