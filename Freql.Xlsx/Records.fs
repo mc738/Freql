@@ -95,7 +95,7 @@ module Records =
         | Success of 'T
         | ValueErrors of ValueError list
         | UnhandledException of exn
-    
+
     let tryCreateRecord<'T> (properties: RecordProperty array) (row: Row) =
 
         let tryGetValue
@@ -115,6 +115,10 @@ module Records =
                 match cellToInt cell |> Option.map byte with
                 | Some v -> box v |> Ok
                 | None -> Error "Value could not be extracted as type byte"
+            | SupportedType.SByte ->
+                match cellToInt cell |> Option.map sbyte with
+                | Some v -> box v |> Ok
+                | None -> Error "Value could not be extracted as type sbyte"
             | SupportedType.Char ->
                 match cellToString cell |> Seq.tryItem 0 with
                 | Some v -> box v |> Ok
@@ -127,7 +131,7 @@ module Records =
                 match cellToDouble cell with
                 | Some v -> box v |> Ok
                 | None -> Error "Value could not be extracted as type double"
-            | SupportedType.Float ->
+            | SupportedType.Single ->
                 match cellToDouble cell |> Option.map float32 with
                 | Some v -> box v |> Ok
                 | None -> Error "Value could not be extracted as type float"
@@ -135,14 +139,26 @@ module Records =
                 match cellToInt cell with
                 | Some v -> box v |> Ok
                 | None -> Error "Value could not be extracted as type int"
+            | SupportedType.UInt ->
+                match cellToInt cell |> Option.map uint32 with
+                | Some v -> box v |> Ok
+                | None -> Error "Value could not be extracted as type uint"
             | SupportedType.Short ->
                 match cellToInt cell |> Option.map int16 with
                 | Some v -> box v |> Ok
                 | None -> Error "Value could not be extracted as type short"
+            | SupportedType.UShort ->
+                match cellToInt cell |> Option.map uint16 with
+                | Some v -> box v |> Ok
+                | None -> Error "Value could not be extracted as type ushort"
             | SupportedType.Long ->
                 match cellToInt cell |> Option.map int64 with
                 | Some v -> box v |> Ok
                 | None -> Error "Value could not be extracted as type long"
+            | SupportedType.ULong ->
+                match cellToInt cell |> Option.map uint64 with
+                | Some v -> box v |> Ok
+                | None -> Error "Value could not be extracted as type ulong"
             | SupportedType.String -> cellToString cell |> box |> Ok
             | SupportedType.DateTime ->
                 match oaDate with
@@ -154,6 +170,16 @@ module Records =
                     match cellToDateTime cell with
                     | Some v -> box v |> Ok
                     | None -> Error "Value could not be extracted as type datetime"
+            | SupportedType.TimeSpan ->
+                match
+                    cellToString cell
+                    |> fun v ->
+                        match TimeSpan.TryParse v with
+                        | true, r -> Some r
+                        | false, _ -> None
+                with
+                | Some v -> box v |> Ok
+                | None -> Error "Value could not be extracted as type timespan"
             | SupportedType.Guid ->
                 match format with
                 | Some f ->
@@ -181,6 +207,13 @@ module Records =
                         match optionalErrorToNone with
                         | true -> None |> box |> Ok
                         | false -> Error "Value could not be extracted as type byte"
+                | SupportedType.SByte ->
+                    match cellToInt cell |> Option.map sbyte with
+                    | Some v -> Some v |> box |> Ok
+                    | None ->
+                        match optionalErrorToNone with
+                        | true -> None |> box |> Ok
+                        | false -> Error "Value could not be extracted as type sbyte"
                 | SupportedType.Char ->
                     match cellToString cell |> Seq.tryItem 0 with
                     | Some v -> Some v |> box |> Ok
@@ -202,7 +235,7 @@ module Records =
                         match optionalErrorToNone with
                         | true -> None |> box |> Ok
                         | false -> Error "Value could not be extracted as type double"
-                | SupportedType.Float ->
+                | SupportedType.Single ->
                     match cellToDouble cell |> Option.map float32 with
                     | Some v -> Some v |> box |> Ok
                     | None ->
@@ -216,6 +249,13 @@ module Records =
                         match optionalErrorToNone with
                         | true -> None |> box |> Ok
                         | false -> Error "Value could not be extracted as type int"
+                | SupportedType.UInt ->
+                    match cellToInt cell |> Option.map uint32 with
+                    | Some v -> Some v |> box |> Ok
+                    | None ->
+                        match optionalErrorToNone with
+                        | true -> None |> box |> Ok
+                        | false -> Error "Value could not be extracted as type uint"
                 | SupportedType.Short ->
                     match cellToInt cell |> Option.map int16 with
                     | Some v -> Some v |> box |> Ok
@@ -223,6 +263,13 @@ module Records =
                         match optionalErrorToNone with
                         | true -> None |> box |> Ok
                         | false -> Error "Value could not be extracted as type short"
+                | SupportedType.UShort ->
+                    match cellToInt cell |> Option.map uint16 with
+                    | Some v -> Some v |> box |> Ok
+                    | None ->
+                        match optionalErrorToNone with
+                        | true -> None |> box |> Ok
+                        | false -> Error "Value could not be extracted as type ushort"
                 | SupportedType.Long ->
                     match cellToInt cell |> Option.map int64 with
                     | Some v -> Some v |> box |> Ok
@@ -230,6 +277,13 @@ module Records =
                         match optionalErrorToNone with
                         | true -> None |> box |> Ok
                         | false -> Error "Value could not be extracted as type long"
+                | SupportedType.ULong ->
+                    match cellToInt cell |> Option.map uint64 with
+                    | Some v -> Some v |> box |> Ok
+                    | None ->
+                        match optionalErrorToNone with
+                        | true -> None |> box |> Ok
+                        | false -> Error "Value could not be extracted as type ulong"
                 | SupportedType.String -> cellToString cell |> Some |> box |> Ok
                 | SupportedType.DateTime ->
                     match oaDate with
@@ -247,6 +301,19 @@ module Records =
                             match optionalErrorToNone with
                             | true -> None |> box |> Ok
                             | false -> Error "Value could not be extracted as type datetime"
+                | SupportedType.TimeSpan ->
+                    match
+                        cellToString cell
+                        |> fun v ->
+                            match TimeSpan.TryParse v with
+                            | true, r -> Some r
+                            | false, _ -> None
+                    with
+                    | Some v -> Some v |> box |> Ok
+                    | None ->
+                        match optionalErrorToNone with
+                        | true -> None |> box |> Ok
+                        | false -> Error "Value could not be extracted as type timespan"
                 | SupportedType.Guid ->
                     match format with
                     | Some f ->
@@ -315,6 +382,10 @@ module Records =
                 match cellToInt cell |> Option.map byte with
                 | Some v -> box v |> Ok
                 | None -> Error "Value could not be extracted as type byte"
+            | SupportedType.SByte ->
+                match cellToInt cell |> Option.map sbyte with
+                | Some v -> box v |> Ok
+                | None -> Error "Value could not be extracted as type sbyte"
             | SupportedType.Char ->
                 match cellToString cell |> Seq.tryItem 0 with
                 | Some v -> box v |> Ok
@@ -327,7 +398,7 @@ module Records =
                 match cellToDouble cell with
                 | Some v -> box v |> Ok
                 | None -> Error "Value could not be extracted as type double"
-            | SupportedType.Float ->
+            | SupportedType.Single ->
                 match cellToDouble cell |> Option.map float32 with
                 | Some v -> box v |> Ok
                 | None -> Error "Value could not be extracted as type float"
@@ -335,14 +406,26 @@ module Records =
                 match cellToInt cell with
                 | Some v -> box v |> Ok
                 | None -> Error "Value could not be extracted as type int"
+            | SupportedType.UInt ->
+                match cellToInt cell with
+                | Some v -> box v |> Ok
+                | None -> Error "Value could not be extracted as type uint"
             | SupportedType.Short ->
                 match cellToInt cell |> Option.map int16 with
                 | Some v -> box v |> Ok
                 | None -> Error "Value could not be extracted as type short"
+            | SupportedType.UShort ->
+                match cellToInt cell |> Option.map uint16 with
+                | Some v -> box v |> Ok
+                | None -> Error "Value could not be extracted as type ushort"
             | SupportedType.Long ->
                 match cellToInt cell |> Option.map int64 with
                 | Some v -> box v |> Ok
                 | None -> Error "Value could not be extracted as type long"
+            | SupportedType.ULong ->
+                match cellToInt cell |> Option.map uint64 with
+                | Some v -> box v |> Ok
+                | None -> Error "Value could not be extracted as type ulong"
             | SupportedType.String -> cellToString cell |> box |> Ok
             | SupportedType.DateTime ->
                 match oaDate with
@@ -354,6 +437,16 @@ module Records =
                     match cellToDateTime cell with
                     | Some v -> box v |> Ok
                     | None -> Error "Value could not be extracted as type datetime"
+            | SupportedType.TimeSpan ->
+                match
+                    cellToString cell
+                    |> fun v ->
+                        match TimeSpan.TryParse v with
+                        | true, r -> Some r
+                        | false, _ -> None
+                with
+                | Some v -> box v |> Ok
+                | None -> Error "Value could not be extracted as type timespan"
             | SupportedType.Guid ->
                 match format with
                 | Some f ->
@@ -381,6 +474,13 @@ module Records =
                         match optionalErrorToNone with
                         | true -> None |> box |> Ok
                         | false -> Error "Value could not be extracted as type byte"
+                | SupportedType.SByte ->
+                    match cellToInt cell |> Option.map sbyte with
+                    | Some v -> Some v |> box |> Ok
+                    | None ->
+                        match optionalErrorToNone with
+                        | true -> None |> box |> Ok
+                        | false -> Error "Value could not be extracted as type sbyte"
                 | SupportedType.Char ->
                     match cellToString cell |> Seq.tryItem 0 with
                     | Some v -> Some v |> box |> Ok
@@ -402,7 +502,7 @@ module Records =
                         match optionalErrorToNone with
                         | true -> None |> box |> Ok
                         | false -> Error "Value could not be extracted as type double"
-                | SupportedType.Float ->
+                | SupportedType.Single ->
                     match cellToDouble cell |> Option.map float32 with
                     | Some v -> Some v |> box |> Ok
                     | None ->
@@ -416,6 +516,13 @@ module Records =
                         match optionalErrorToNone with
                         | true -> None |> box |> Ok
                         | false -> Error "Value could not be extracted as type int"
+                | SupportedType.UInt ->
+                    match cellToInt cell |> Option.map uint32 with
+                    | Some v -> Some v |> box |> Ok
+                    | None ->
+                        match optionalErrorToNone with
+                        | true -> None |> box |> Ok
+                        | false -> Error "Value could not be extracted as type int"
                 | SupportedType.Short ->
                     match cellToInt cell |> Option.map int16 with
                     | Some v -> Some v |> box |> Ok
@@ -423,6 +530,13 @@ module Records =
                         match optionalErrorToNone with
                         | true -> None |> box |> Ok
                         | false -> Error "Value could not be extracted as type short"
+                | SupportedType.UShort ->
+                    match cellToInt cell |> Option.map uint16 with
+                    | Some v -> Some v |> box |> Ok
+                    | None ->
+                        match optionalErrorToNone with
+                        | true -> None |> box |> Ok
+                        | false -> Error "Value could not be extracted as type ushort"
                 | SupportedType.Long ->
                     match cellToInt cell |> Option.map int64 with
                     | Some v -> Some v |> box |> Ok
@@ -430,6 +544,13 @@ module Records =
                         match optionalErrorToNone with
                         | true -> None |> box |> Ok
                         | false -> Error "Value could not be extracted as type long"
+                | SupportedType.ULong ->
+                    match cellToInt cell |> Option.map uint64 with
+                    | Some v -> Some v |> box |> Ok
+                    | None ->
+                        match optionalErrorToNone with
+                        | true -> None |> box |> Ok
+                        | false -> Error "Value could not be extracted as type ulong"
                 | SupportedType.String -> cellToString cell |> Some |> box |> Ok
                 | SupportedType.DateTime ->
                     match oaDate with
@@ -447,6 +568,19 @@ module Records =
                             match optionalErrorToNone with
                             | true -> None |> box |> Ok
                             | false -> Error "Value could not be extracted as type datetime"
+                | SupportedType.TimeSpan ->
+                    match
+                        cellToString cell
+                        |> fun v ->
+                            match TimeSpan.TryParse v with
+                            | true, r -> Some r
+                            | false, _ -> None
+                    with
+                    | Some v -> Some v |> box |> Ok
+                    | None ->
+                        match optionalErrorToNone with
+                        | true -> None |> box |> Ok
+                        | false -> Error "Value could not be extracted as type timespan"
                 | SupportedType.Guid ->
                     match format with
                     | Some f ->
@@ -482,10 +616,15 @@ module Records =
 
         o :?> 'T
 
-    let createRecordsFromWorksheet<'T> (lowerBound: int option) (upperBound: int option) (worksheetPart: WorksheetPart) =
-        
-        let rps = typeof<'T>.GetProperties() |> Array.mapi (fun i pi -> RecordProperty.Create(pi, i, 0))
-        
+    let createRecordsFromWorksheet<'T>
+        (lowerBound: int option)
+        (upperBound: int option)
+        (worksheetPart: WorksheetPart)
+        =
+
+        let rps =
+            typeof<'T>.GetProperties()
+            |> Array.mapi (fun i pi -> RecordProperty.Create(pi, i, 0))
+
         getRows worksheetPart (lowerBound |> Option.map uint32) (upperBound |> Option.map uint32)
         |> Seq.map (createRecord<'T> rps)
-        
