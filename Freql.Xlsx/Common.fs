@@ -73,7 +73,7 @@ module Common =
         match cell.CellValue.TryGetDecimal() with
         | true, v -> Some v
         | false, _ -> None
-
+    
     let cellToDouble (cell: Cell) =
         match cell.CellValue.TryGetDouble() with
         | true, v -> Some v
@@ -88,7 +88,7 @@ module Common =
         match cell.CellValue.TryGetDateTime() with
         | true, v -> Some v
         | false, _ -> None
-
+        
     let cellToOADateTime (cell: Cell) =
         cellToDouble cell |> Option.map DateTime.FromOADate
 
@@ -121,8 +121,6 @@ module Common =
     let getCellFromRow (row: Row) (columnName: string) =
         row.Descendants<Cell>()
         |> Seq.tryFind (fun c -> c.CellReference = StringValue $"{columnName}{row.RowIndex}")
-
-
 
     let getCellsFromRow (row: Row) = row.Descendants<Cell>() :> seq<_>
 

@@ -167,6 +167,7 @@ module CsvParser =
                     | Some v, SupportedType.Blob -> failwith "Blob types not supported in CSV."
                     | Some v, SupportedType.Boolean -> bool.Parse v :> obj
                     | Some v, SupportedType.Byte -> Byte.Parse v :> obj
+                    | Some v, SupportedType.SByte -> SByte.Parse v :> obj
                     | Some v, SupportedType.Char -> v.[0] :> obj
                     | Some v, SupportedType.Decimal -> Decimal.Parse(v, floatNumberStyle) :> obj
                     | Some v, SupportedType.Double -> Double.Parse(v, floatNumberStyle) :> obj
@@ -175,15 +176,23 @@ module CsvParser =
                         | Some f -> DateTime.ParseExact(v, f, CultureInfo.InvariantCulture)
                         | None -> DateTime.Parse(v)
                         :> obj
-                    | Some v, SupportedType.Float -> Single.Parse(v, floatNumberStyle) // Double.TryParse v :> obj
+                    | Some v, SupportedType.Single -> Single.Parse(v, floatNumberStyle) // Double.TryParse v :> obj
                     | Some v, SupportedType.Guid ->
                         match format with
                         | Some f -> Guid.ParseExact(v, f)
                         | None -> Guid.Parse(v)
                         :> obj
+                    | Some v, SupportedType.TimeSpan ->
+                        match format with
+                        | Some f -> TimeSpan.ParseExact(v, f, CultureInfo.InvariantCulture)
+                        | None -> TimeSpan.Parse(v)
+                        :> obj
                     | Some v, SupportedType.Int -> Int32.Parse(v, intNumberStyle) :> obj
+                    | Some v, SupportedType.UInt -> UInt32.Parse(v, intNumberStyle) :> obj
                     | Some v, SupportedType.Long -> Int64.Parse(v, intNumberStyle) :> obj
+                    | Some v, SupportedType.ULong -> UInt64.Parse(v, intNumberStyle) :> obj
                     | Some v, SupportedType.Short -> Int16.Parse(v, intNumberStyle) :> obj
+                    | Some v, SupportedType.UShort -> UInt16.Parse(v, intNumberStyle) :> obj
                     | Some v, SupportedType.String -> v :> obj
                     | Some v, SupportedType.Option st ->
                         // TODO this could be tidied up/ cleaned up
@@ -193,6 +202,7 @@ module CsvParser =
                             | true, SupportedType.Blob -> failwith "Blob types not supported in CSV."
                             | true, SupportedType.Boolean -> bool.Parse v |> Some :> obj
                             | true, SupportedType.Byte -> Byte.Parse(v, intNumberStyle) |> Some :> obj
+                            | true, SupportedType.SByte -> SByte.Parse(v, intNumberStyle) |> Some :> obj
                             | true, SupportedType.Char -> v.[0] |> Some :> obj
                             | true, SupportedType.Decimal -> Decimal.Parse(v, floatNumberStyle) |> Some :> obj
                             | true, SupportedType.Double -> Double.Parse(v, floatNumberStyle) |> Some :> obj
@@ -202,16 +212,24 @@ module CsvParser =
                                 | None -> DateTime.Parse(v)
                                 |> Some
                                 :> obj
-                            | true, SupportedType.Float -> Single.Parse(v, floatNumberStyle) |> Some :> obj // Double.TryParse v :> obj
+                            | true, SupportedType.Single -> Single.Parse(v, floatNumberStyle) |> Some :> obj // Double.TryParse v :> obj
                             | true, SupportedType.Guid ->
                                 match format with
                                 | Some f -> Guid.ParseExact(v, f)
                                 | None -> Guid.Parse(v)
                                 |> Some
                                 :> obj
+                            | true, SupportedType.TimeSpan ->
+                                match format with
+                                | Some f -> TimeSpan.ParseExact(v, f, CultureInfo.InvariantCulture)
+                                | None -> TimeSpan.Parse(v)
+                                :> obj
                             | true, SupportedType.Int -> Int32.Parse(v, intNumberStyle) |> Some :> obj
+                            | true, SupportedType.UInt -> UInt32.Parse(v, intNumberStyle) |> Some :> obj
                             | true, SupportedType.Long -> Int64.Parse(v, intNumberStyle) |> Some :> obj
+                            | true, SupportedType.ULong -> UInt64.Parse(v, intNumberStyle) |> Some :> obj
                             | true, SupportedType.Short -> Int16.Parse(v, intNumberStyle) |> Some :> obj
+                            | true, SupportedType.UShort -> UInt16.Parse(v, intNumberStyle) |> Some :> obj
                             | true, SupportedType.String -> v |> Some :> obj
                             | _, SupportedType.Option _ -> failwith "Nested option types not supported in CSV."
                             | false, _ -> None :> obj
@@ -236,6 +254,7 @@ module CsvParser =
                     | Some v, SupportedType.Blob -> failwith "Blob types not supported in CSV."
                     | Some v, SupportedType.Boolean -> bool.Parse v :> obj
                     | Some v, SupportedType.Byte -> Byte.Parse v :> obj
+                    | Some v, SupportedType.SByte -> SByte.Parse v :> obj
                     | Some v, SupportedType.Char -> v.[0] :> obj
                     | Some v, SupportedType.Decimal -> Decimal.Parse(v, rp.FloatNumberStyle()) :> obj
                     | Some v, SupportedType.Double -> Double.Parse(v, rp.FloatNumberStyle()) :> obj
@@ -244,15 +263,23 @@ module CsvParser =
                         | Some f -> DateTime.ParseExact(v, f, CultureInfo.InvariantCulture)
                         | None -> DateTime.Parse(v)
                         :> obj
-                    | Some v, SupportedType.Float -> Single.Parse(v, rp.FloatNumberStyle()) // Double.TryParse v :> obj
+                    | Some v, SupportedType.Single -> Single.Parse(v, rp.FloatNumberStyle()) // Double.TryParse v :> obj
                     | Some v, SupportedType.Guid ->
                         match rp.Format with
                         | Some f -> Guid.ParseExact(v, f)
                         | None -> Guid.Parse(v)
                         :> obj
+                    | Some v, SupportedType.TimeSpan ->
+                        match rp.Format with
+                        | Some f -> TimeSpan.ParseExact(v, f, CultureInfo.InvariantCulture)
+                        | None -> TimeSpan.Parse(v)
+                        :> obj
                     | Some v, SupportedType.Int -> Int32.Parse(v, rp.IntNumberStyle()) :> obj
+                    | Some v, SupportedType.UInt -> UInt32.Parse(v, rp.IntNumberStyle()) :> obj
                     | Some v, SupportedType.Long -> Int64.Parse(v, rp.IntNumberStyle()) :> obj
+                    | Some v, SupportedType.ULong -> UInt64.Parse(v, rp.IntNumberStyle()) :> obj
                     | Some v, SupportedType.Short -> Int16.Parse(v, rp.IntNumberStyle()) :> obj
+                    | Some v, SupportedType.UShort -> UInt16.Parse(v, rp.IntNumberStyle()) :> obj
                     | Some v, SupportedType.String -> v :> obj
                     | Some v, SupportedType.Option st ->
                         // TODO this could be tidied up/ cleaned up
@@ -262,6 +289,7 @@ module CsvParser =
                             | true, SupportedType.Blob -> failwith "Blob types not supported in CSV."
                             | true, SupportedType.Boolean -> bool.Parse v |> Some :> obj
                             | true, SupportedType.Byte -> Byte.Parse(v, rp.IntNumberStyle()) |> Some :> obj
+                            | true, SupportedType.SByte -> SByte.Parse(v, rp.IntNumberStyle()) |> Some :> obj
                             | true, SupportedType.Char -> v.[0] |> Some :> obj
                             | true, SupportedType.Decimal -> Decimal.Parse(v, rp.FloatNumberStyle()) |> Some :> obj
                             | true, SupportedType.Double -> Double.Parse(v, rp.FloatNumberStyle()) |> Some :> obj
@@ -271,16 +299,24 @@ module CsvParser =
                                 | None -> DateTime.Parse(v)
                                 |> Some
                                 :> obj
-                            | true, SupportedType.Float -> Single.Parse(v, rp.FloatNumberStyle()) |> Some :> obj // Double.TryParse v :> obj
+                            | true, SupportedType.Single -> Single.Parse(v, rp.FloatNumberStyle()) |> Some :> obj // Double.TryParse v :> obj
                             | true, SupportedType.Guid ->
                                 match rp.Format with
                                 | Some f -> Guid.ParseExact(v, f)
                                 | None -> Guid.Parse(v)
                                 |> Some
                                 :> obj
+                            | true, SupportedType.TimeSpan ->
+                                match rp.Format with
+                                | Some f -> TimeSpan.ParseExact(v, f, CultureInfo.InvariantCulture)
+                                | None -> TimeSpan.Parse(v)
+                                :> obj
                             | true, SupportedType.Int -> Int32.Parse(v, rp.IntNumberStyle()) |> Some :> obj
+                            | true, SupportedType.UInt -> UInt32.Parse(v, rp.IntNumberStyle()) |> Some :> obj
                             | true, SupportedType.Long -> Int64.Parse(v, rp.IntNumberStyle()) |> Some :> obj
+                            | true, SupportedType.ULong -> UInt64.Parse(v, rp.IntNumberStyle()) |> Some :> obj
                             | true, SupportedType.Short -> Int16.Parse(v, rp.IntNumberStyle()) |> Some :> obj
+                            | true, SupportedType.UShort -> UInt16.Parse(v, rp.IntNumberStyle()) |> Some :> obj
                             | true, SupportedType.String -> v |> Some :> obj
                             | _, SupportedType.Option _ -> failwith "Nested option types not supported in CSV."
                             | false, _ -> None :> obj
