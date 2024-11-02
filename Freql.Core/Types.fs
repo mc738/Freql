@@ -54,7 +54,7 @@ module Types =
 
         let boolName = getName<bool>
 
-        let uByteName = getName<uint8>
+        let sByteName = getName<sbyte>
 
         let uShortName = getName<uint16>
 
@@ -70,7 +70,7 @@ module Types =
 
         let longName = getName<int64>
 
-        let floatName = getName<float>
+        let singleName = getName<single>
 
         let doubleName = getName<double>
 
@@ -78,9 +78,11 @@ module Types =
 
         let charName = getName<char>
 
-        let timestampName = getName<DateTime>
+        let datetimeName = getName<DateTime>
+        
+        let timeSpanName = getName<TimeSpan>
 
-        let uuidName = getName<Guid>
+        let guidName = getName<Guid>
 
         let stringName = getName<string>
 
@@ -102,15 +104,20 @@ module Types =
     type SupportedType =
         | Boolean
         | Byte
+        | SByte
         | Char
         | Decimal
         | Double
-        | Float
+        | Single
+        | UInt
         | Int
+        | UShort
         | Short
+        | ULong
         | Long
         | String
         | DateTime
+        | TimeSpan
         | Guid
         | Blob
         | Option of SupportedType
@@ -120,16 +127,21 @@ module Types =
             match name with
             | t when t = TypeHelpers.boolName -> Ok SupportedType.Boolean
             | t when t = TypeHelpers.byteName -> Ok SupportedType.Byte
+            | t when t = TypeHelpers.sByteName -> Ok SupportedType.SByte
             | t when t = TypeHelpers.charName -> Ok SupportedType.Char
             | t when t = TypeHelpers.decimalName -> Ok SupportedType.Decimal
             | t when t = TypeHelpers.doubleName -> Ok SupportedType.Double
-            | t when t = TypeHelpers.floatName -> Ok SupportedType.Float
+            | t when t = TypeHelpers.singleName -> Ok SupportedType.Single
             | t when t = TypeHelpers.intName -> Ok SupportedType.Int
+            | t when t = TypeHelpers.uIntName -> Ok SupportedType.UInt
             | t when t = TypeHelpers.shortName -> Ok SupportedType.Short
+            | t when t = TypeHelpers.uShortName -> Ok SupportedType.UShort
             | t when t = TypeHelpers.longName -> Ok SupportedType.Long
+            | t when t = TypeHelpers.uLongName -> Ok SupportedType.ULong
             | t when t = TypeHelpers.stringName -> Ok SupportedType.String
-            | t when t = TypeHelpers.timestampName -> Ok SupportedType.DateTime
-            | t when t = TypeHelpers.uuidName -> Ok SupportedType.Guid
+            | t when t = TypeHelpers.datetimeName -> Ok SupportedType.DateTime
+            | t when t = TypeHelpers.timeSpanName -> Ok SupportedType.TimeSpan
+            | t when t = TypeHelpers.guidName -> Ok SupportedType.Guid
             | t when t = TypeHelpers.blobName -> Ok SupportedType.Blob
             | t when TypeHelpers.isOption t = true ->
                 let ot = TypeHelpers.getOptionType t
@@ -165,6 +177,8 @@ module Types =
         match t.Name.Equals("IEnumerable`1", StringComparison.Ordinal) with
         | true -> t.GenericTypeArguments |> Array.tryHead |> Option.orElse (Some typeof<obj>)
         | false -> None
+
+    let typeIsOption (typeInfo: Type) = TypeHelpers.isOption typeInfo.FullName
 
     [<RequireQualifiedAccess>]
     type FSharpCollectionType =

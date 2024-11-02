@@ -29,15 +29,20 @@ module private QueryHelpers =
             match supportType with
             | SupportedType.Boolean -> reader.GetBoolean(o) :> obj
             | SupportedType.Byte -> reader.GetByte(o) :> obj
+            | SupportedType.SByte -> reader.GetByte(o) |> sbyte :> obj // TODO not supported in SQLServer - document this
             | SupportedType.Char -> reader.GetChar(o) :> obj
             | SupportedType.Decimal -> reader.GetDecimal(o) :> obj
             | SupportedType.Double -> reader.GetDouble(o) :> obj
-            | SupportedType.Float -> reader.GetFloat(o) :> obj
+            | SupportedType.Single -> reader.GetFloat(o) :> obj
             | SupportedType.Int -> reader.GetInt32(o) :> obj
+            | SupportedType.UInt -> reader.GetInt32(o) |> uint32 :> obj // TODO not supported in SQLServer - document this
             | SupportedType.Short -> reader.GetInt16(o) :> obj
+            | SupportedType.UShort -> reader.GetInt16(o) |> uint16 :> obj
             | SupportedType.Long -> reader.GetInt64(o) :> obj
+            | SupportedType.ULong -> reader.GetInt64(o) |> uint64 :> obj
             | SupportedType.String -> reader.GetString(o) :> obj
             | SupportedType.DateTime -> reader.GetDateTime(o) :> obj
+            | SupportedType.TimeSpan -> reader.GetTimeSpan(o) :> obj
             | SupportedType.Guid -> reader.GetGuid(o) :> obj
             | SupportedType.Blob -> BlobField.FromStream(reader.GetStream(o)) :> obj
             | SupportedType.Option st ->
@@ -47,15 +52,20 @@ module private QueryHelpers =
                     match st with
                     | SupportedType.Boolean -> Some (reader.GetBoolean(o)) :> obj
                     | SupportedType.Byte -> Some (reader.GetByte(o)) :> obj
+                    | SupportedType.SByte -> Some (reader.GetByte(o) |> sbyte) :> obj
                     | SupportedType.Char -> Some (reader.GetChar(o)) :> obj
                     | SupportedType.Decimal -> Some (reader.GetDecimal(o)) :> obj
                     | SupportedType.Double -> Some (reader.GetDouble(o)) :> obj
-                    | SupportedType.Float -> Some (reader.GetFloat(o)) :> obj
+                    | SupportedType.Single -> Some (reader.GetFloat(o)) :> obj
                     | SupportedType.Int -> Some (reader.GetInt32(o)) :> obj
+                    | SupportedType.UInt -> Some (reader.GetInt32(o) |> uint32) :> obj
                     | SupportedType.Short -> Some (reader.GetInt16(o)) :> obj
+                    | SupportedType.UShort -> Some (reader.GetInt16(o) |> uint16) :> obj
                     | SupportedType.Long -> Some (reader.GetInt64(o)) :> obj
+                    | SupportedType.ULong -> Some (reader.GetInt64(o) |> uint64) :> obj
                     | SupportedType.String -> Some (reader.GetString(o)) :> obj
                     | SupportedType.DateTime -> Some (reader.GetDateTime(o)) :> obj
+                    | SupportedType.TimeSpan -> Some (reader.GetTimeSpan(o)) :> obj
                     | SupportedType.Guid -> Some (reader.GetGuid(o)) :> obj
                     | SupportedType.Blob -> Some (BlobField.FromStream(reader.GetStream(o))) :> obj
                     | SupportedType.Option _ -> None :> obj // Nested options not allowed.        

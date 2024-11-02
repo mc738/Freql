@@ -24,15 +24,20 @@ module private QueryHelpers =
             match supportType with
             | SupportedType.Boolean -> reader.GetBoolean(o) :> obj
             | SupportedType.Byte -> reader.GetByte(o) :> obj
+            | SupportedType.SByte -> reader.GetSByte(o) :> obj
             | SupportedType.Char -> reader.GetChar(o) :> obj
             | SupportedType.Decimal -> reader.GetDecimal(o) :> obj
             | SupportedType.Double -> reader.GetDouble(o) :> obj
-            | SupportedType.Float -> reader.GetFloat(o) :> obj
+            | SupportedType.Single -> reader.GetFloat(o) :> obj
             | SupportedType.Int -> reader.GetInt32(o) :> obj
+            | SupportedType.UInt -> reader.GetUInt32(o) :> obj
             | SupportedType.Short -> reader.GetInt16(o) :> obj
+            | SupportedType.UShort -> reader.GetUInt16(o) :> obj
             | SupportedType.Long -> reader.GetInt64(o) :> obj
+            | SupportedType.ULong -> reader.GetUInt64(o) :> obj
             | SupportedType.String -> reader.GetString(o) :> obj
             | SupportedType.DateTime -> reader.GetDateTime(o) :> obj
+            | SupportedType.TimeSpan -> reader.GetTimeSpan(o) :> obj
             | SupportedType.Guid -> reader.GetGuid(o) :> obj
             | SupportedType.Blob -> BlobField.FromStream(reader.GetStream(o)) :> obj
             | SupportedType.Option st ->
@@ -42,15 +47,20 @@ module private QueryHelpers =
                     match st with
                     | SupportedType.Boolean -> Some(reader.GetBoolean(o)) :> obj
                     | SupportedType.Byte -> Some(reader.GetByte(o)) :> obj
+                    | SupportedType.SByte -> Some(reader.GetSByte(o)) :> obj
                     | SupportedType.Char -> Some(reader.GetChar(o)) :> obj
                     | SupportedType.Decimal -> Some(reader.GetDecimal(o)) :> obj
                     | SupportedType.Double -> Some(reader.GetDouble(o)) :> obj
-                    | SupportedType.Float -> Some(reader.GetFloat(o)) :> obj
+                    | SupportedType.Single -> Some(reader.GetFloat(o)) :> obj
                     | SupportedType.Int -> Some(reader.GetInt32(o)) :> obj
+                    | SupportedType.UInt -> Some(reader.GetUInt32(o)) :> obj
                     | SupportedType.Short -> Some(reader.GetInt16(o)) :> obj
+                    | SupportedType.UShort -> Some(reader.GetUInt16(o)) :> obj
                     | SupportedType.Long -> Some(reader.GetInt64(o)) :> obj
+                    | SupportedType.ULong -> Some(reader.GetUInt64(o)) :> obj
                     | SupportedType.String -> Some(reader.GetString(o)) :> obj
                     | SupportedType.DateTime -> Some(reader.GetDateTime(o)) :> obj
+                    | SupportedType.TimeSpan -> Some(reader.GetTimeSpan(o)) :> obj
                     | SupportedType.Guid -> Some(reader.GetGuid(o)) :> obj
                     | SupportedType.Blob -> Some(BlobField.FromStream(reader.GetStream(o))) :> obj
                     | SupportedType.Option _ -> None :> obj // Nested options not allowed.
@@ -64,19 +74,25 @@ module private QueryHelpers =
               |> (fun v -> RecordBuilder.Create<'T> v) ]
 
     let deferredMapResults<'T> (mappedObj: MappedObject) (comm: MySqlCommand) =
+        // TODO remove code duplication
         let getValue (reader: MySqlDataReader) (o: int) supportType =
             match supportType with
             | SupportedType.Boolean -> reader.GetBoolean(o) :> obj
             | SupportedType.Byte -> reader.GetByte(o) :> obj
+            | SupportedType.SByte -> reader.GetSByte(o) :> obj
             | SupportedType.Char -> reader.GetChar(o) :> obj
             | SupportedType.Decimal -> reader.GetDecimal(o) :> obj
             | SupportedType.Double -> reader.GetDouble(o) :> obj
-            | SupportedType.Float -> reader.GetFloat(o) :> obj
+            | SupportedType.Single -> reader.GetFloat(o) :> obj
             | SupportedType.Int -> reader.GetInt32(o) :> obj
+            | SupportedType.UInt -> reader.GetUInt32(o) :> obj
             | SupportedType.Short -> reader.GetInt16(o) :> obj
+            | SupportedType.UShort -> reader.GetUInt16(o) :> obj
             | SupportedType.Long -> reader.GetInt64(o) :> obj
+            | SupportedType.ULong -> reader.GetUInt64(o) :> obj
             | SupportedType.String -> reader.GetString(o) :> obj
             | SupportedType.DateTime -> reader.GetDateTime(o) :> obj
+            | SupportedType.TimeSpan -> reader.GetTimeSpan(o) :> obj
             | SupportedType.Guid -> reader.GetGuid(o) :> obj
             | SupportedType.Blob -> BlobField.FromStream(reader.GetStream(o)) :> obj
             | SupportedType.Option st ->
@@ -86,15 +102,20 @@ module private QueryHelpers =
                     match st with
                     | SupportedType.Boolean -> Some(reader.GetBoolean(o)) :> obj
                     | SupportedType.Byte -> Some(reader.GetByte(o)) :> obj
+                    | SupportedType.SByte -> reader.GetSByte(o) :> obj
                     | SupportedType.Char -> Some(reader.GetChar(o)) :> obj
                     | SupportedType.Decimal -> Some(reader.GetDecimal(o)) :> obj
                     | SupportedType.Double -> Some(reader.GetDouble(o)) :> obj
-                    | SupportedType.Float -> Some(reader.GetFloat(o)) :> obj
+                    | SupportedType.Single -> Some(reader.GetFloat(o)) :> obj
                     | SupportedType.Int -> Some(reader.GetInt32(o)) :> obj
+                    | SupportedType.UInt -> Some(reader.GetInt32(o)) :> obj
                     | SupportedType.Short -> Some(reader.GetInt16(o)) :> obj
+                    | SupportedType.UShort -> Some(reader.GetUInt16(o)) :> obj
                     | SupportedType.Long -> Some(reader.GetInt64(o)) :> obj
+                    | SupportedType.ULong -> Some(reader.GetUInt64(o)) :> obj
                     | SupportedType.String -> Some(reader.GetString(o)) :> obj
                     | SupportedType.DateTime -> Some(reader.GetDateTime(o)) :> obj
+                    | SupportedType.TimeSpan -> Some(reader.GetTimeSpan(o)) :> obj
                     | SupportedType.Guid -> Some(reader.GetGuid(o)) :> obj
                     | SupportedType.Blob -> Some(BlobField.FromStream(reader.GetStream(o))) :> obj
                     | SupportedType.Option _ -> None :> obj // Nested options not allowed.
@@ -230,25 +251,25 @@ module private QueryHelpers =
         mapResults<'T> mappedObj reader
 
     let deferredSelectAll<'T> (tableName: string) connection transaction =
-            let mappedObj = MappedObject.Create<'T>()
+        let mappedObj = MappedObject.Create<'T>()
 
-            let fields =
-                mappedObj.Fields
-                |> List.sortBy (fun p -> p.Index)
-                |> List.map (fun f -> f.MappingName)
+        let fields =
+            mappedObj.Fields
+            |> List.sortBy (fun p -> p.Index)
+            |> List.map (fun f -> f.MappingName)
 
-            let fieldsString = String.Join(',', fields)
+        let fieldsString = String.Join(',', fields)
 
-            let sql =
-                $"""
+        let sql =
+            $"""
             SELECT {fieldsString}
             FROM {tableName}
             """
 
-            let comm = noParam connection sql transaction
+        let comm = noParam connection sql transaction
 
-            deferredMapResults<'T> mappedObj comm
-    
+        deferredMapResults<'T> mappedObj comm
+
     let select<'T, 'P> (sql: string) connection (parameters: 'P) transaction =
         let tMappedObj = MappedObject.Create<'T>()
         let pMappedObj = MappedObject.Create<'P>()
@@ -269,7 +290,7 @@ module private QueryHelpers =
 
         // TODO test this actually works - the data reader is slightly different from MySql than Sqlite.
         deferredMapResults<'T> tMappedObj comm
-    
+
     let selectAnon<'T> (sql: string) connection (parameters: obj list) transaction =
         let tMappedObj = MappedObject.Create<'T>()
         let comm = prepareAnon connection sql parameters transaction
@@ -277,8 +298,8 @@ module private QueryHelpers =
         use reader = comm.ExecuteReader()
 
         mapResults<'T> tMappedObj reader
-        
-    
+
+
     let deferredSelectAnon<'T> (sql: string) connection (parameters: obj list) transaction =
         let tMappedObj = MappedObject.Create<'T>()
         let comm = prepareAnon connection sql parameters transaction
@@ -296,7 +317,7 @@ module private QueryHelpers =
         use reader = comm.ExecuteReader()
 
         mapResults<'T> tMappedObj reader
-        
+
     let deferredSelectSingle<'T, 'P> (sql: string) connection (parameters: 'P) transaction =
         let tMappedObj = MappedObject.Create<'T>()
         let pMappedObj = MappedObject.Create<'P>()
@@ -306,7 +327,7 @@ module private QueryHelpers =
         let r = comm.ExecuteScalar()
 
         deferredMapResults<'T> tMappedObj comm
-        
+
     let executeScalar<'T> (sql: string) connection transaction =
         let comm = noParam connection sql transaction
         comm.ExecuteScalar() :?> 'T
@@ -454,8 +475,7 @@ type MySqlContext(connection, transaction) =
 
     interface IDisposable with
 
-        member ctx.Dispose() =
-            ctx.Close()
+        member ctx.Dispose() = ctx.Close()
 
     static member Connect(connectionString: string) =
 
@@ -467,9 +487,9 @@ type MySqlContext(connection, transaction) =
         // This should also sort the issue.
         // See https://github.com/mc738/Freql/issues/20
         let conn = new MySqlConnection(connectionString)
-        
+
         new MySqlContext(conn, None)
-        
+
 
     member _.Close() =
         connection.Close()
@@ -577,7 +597,10 @@ type MySqlContext(connection, transaction) =
                 connection.Open()
 
             transaction.Rollback()
-            Error { Message = $"Could not complete transaction. Exception: {exn.Message}"; Exception = Some exn }
+
+            Error
+                { Message = $"Could not complete transaction. Exception: {exn.Message}"
+                  Exception = Some exn }
 
     /// <summary>
     /// Try and execute a collection of commands in a transaction.
@@ -606,7 +629,10 @@ type MySqlContext(connection, transaction) =
                 Error { Message = e; Exception = None }
         with exn ->
             transaction.Rollback()
-            Error { Message = $"Could not complete transaction. Exception: {exn.Message}"; Exception = Some exn }
+
+            Error
+                { Message = $"Could not complete transaction. Exception: {exn.Message}"
+                  Exception = Some exn }
 
     /// Execute sql that produces a scalar result.
     member handler.ExecuteScalar<'T>(sql) =

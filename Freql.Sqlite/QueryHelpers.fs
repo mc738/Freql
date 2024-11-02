@@ -1,5 +1,7 @@
 namespace Freql.Sqlite
 
+open Microsoft.FSharp.Core
+
 [<CompilerMessage("This module is intended for internal use. To remove this warning add #nowarn \"6140001\"", 6140001)>]
 module QueryHelpers =
 
@@ -56,56 +58,71 @@ module QueryHelpers =
     // TODO test this to see if there as a performance hit.
     // FUTURE: Use this for mapping a single. value.
     // BENCHMARK: Test this versus current implementation
-    [<CompilerMessage("This is a new implementation and requires testing/benchmarking. To remove this warning add #nowarn \"6140003\"", 6140003)>]
-    let inline mapResult<'T>  (reader: SqliteDataReader) ordinal supportType =
+    [<CompilerMessage("This is a new implementation and requires testing/benchmarking. To remove this warning add #nowarn \"6140003\"",
+                      6140003)>]
+    let inline mapResult<'T> (reader: SqliteDataReader) ordinal supportType =
         match supportType with
-            | SupportedType.Boolean -> reader.GetBoolean(ordinal) :> obj
-            | SupportedType.Byte -> reader.GetByte(ordinal) :> obj
-            | SupportedType.Char -> reader.GetChar(ordinal) :> obj
-            | SupportedType.Decimal -> reader.GetDecimal(ordinal) :> obj
-            | SupportedType.Double -> reader.GetDouble(ordinal) :> obj
-            | SupportedType.Float -> reader.GetFloat(ordinal) :> obj
-            | SupportedType.Int -> reader.GetInt32(ordinal) :> obj
-            | SupportedType.Short -> reader.GetInt16(ordinal) :> obj
-            | SupportedType.Long -> reader.GetInt64(ordinal) :> obj
-            | SupportedType.String -> reader.GetString(ordinal) :> obj
-            | SupportedType.DateTime -> reader.GetDateTime(ordinal) :> obj
-            | SupportedType.Guid -> reader.GetGuid(ordinal) :> obj
-            | SupportedType.Blob -> BlobField.FromStream(reader.GetStream(ordinal)) :> obj
-            | SupportedType.Option st ->
-                match reader.IsDBNull(ordinal) with
-                | true -> None :> obj
-                | false ->
-                    match st with
-                    | SupportedType.Boolean -> Some(reader.GetBoolean(ordinal)) :> obj
-                    | SupportedType.Byte -> Some(reader.GetByte(ordinal)) :> obj
-                    | SupportedType.Char -> Some(reader.GetChar(ordinal)) :> obj
-                    | SupportedType.Decimal -> Some(reader.GetDecimal(ordinal)) :> obj
-                    | SupportedType.Double -> Some(reader.GetDouble(ordinal)) :> obj
-                    | SupportedType.Float -> Some(reader.GetFloat(ordinal)) :> obj
-                    | SupportedType.Int -> Some(reader.GetInt32(ordinal)) :> obj
-                    | SupportedType.Short -> Some(reader.GetInt16(ordinal)) :> obj
-                    | SupportedType.Long -> Some(reader.GetInt64(ordinal)) :> obj
-                    | SupportedType.String -> Some(reader.GetString(ordinal)) :> obj
-                    | SupportedType.DateTime -> Some(reader.GetDateTime(ordinal)) :> obj
-                    | SupportedType.Guid -> Some(reader.GetGuid(ordinal)) :> obj
-                    | SupportedType.Blob -> Some(BlobField.FromStream(reader.GetStream(ordinal))) :> obj
-                    | SupportedType.Option _ -> None :> obj // Nested options not allowed.
+        | SupportedType.Boolean -> reader.GetBoolean(ordinal) :> obj
+        | SupportedType.Byte -> reader.GetByte(ordinal) :> obj
+        | SupportedType.SByte -> reader.GetByte(ordinal) |> sbyte :> obj
+        | SupportedType.Char -> reader.GetChar(ordinal) :> obj
+        | SupportedType.Decimal -> reader.GetDecimal(ordinal) :> obj
+        | SupportedType.Double -> reader.GetDouble(ordinal) :> obj
+        | SupportedType.Single -> reader.GetFloat(ordinal) :> obj
+        | SupportedType.Int -> reader.GetInt32(ordinal) :> obj
+        | SupportedType.UInt -> reader.GetInt32(ordinal) |> uint32 :> obj
+        | SupportedType.Short -> reader.GetInt16(ordinal) :> obj
+        | SupportedType.UShort -> reader.GetInt16(ordinal) |> uint16 :> obj
+        | SupportedType.Long -> reader.GetInt64(ordinal) :> obj
+        | SupportedType.ULong -> reader.GetInt64(ordinal) |> uint64 :> obj
+        | SupportedType.String -> reader.GetString(ordinal) :> obj
+        | SupportedType.DateTime -> reader.GetDateTime(ordinal) :> obj
+        | SupportedType.TimeSpan -> reader.GetTimeSpan(ordinal) :> obj
+        | SupportedType.Guid -> reader.GetGuid(ordinal) :> obj
+        | SupportedType.Blob -> BlobField.FromStream(reader.GetStream(ordinal)) :> obj
+        | SupportedType.Option st ->
+            match reader.IsDBNull(ordinal) with
+            | true -> None :> obj
+            | false ->
+                match st with
+                | SupportedType.Boolean -> Some(reader.GetBoolean(ordinal)) :> obj
+                | SupportedType.Byte -> Some(reader.GetByte(ordinal)) :> obj
+                | SupportedType.SByte -> Some(reader.GetByte(ordinal) |> sbyte) :> obj
+                | SupportedType.Char -> Some(reader.GetChar(ordinal)) :> obj
+                | SupportedType.Decimal -> Some(reader.GetDecimal(ordinal)) :> obj
+                | SupportedType.Double -> Some(reader.GetDouble(ordinal)) :> obj
+                | SupportedType.Single -> Some(reader.GetFloat(ordinal)) :> obj
+                | SupportedType.Int -> Some(reader.GetInt32(ordinal)) :> obj
+                | SupportedType.UInt -> Some(reader.GetInt32(ordinal) |> uint32) :> obj
+                | SupportedType.Short -> Some(reader.GetInt16(ordinal)) :> obj
+                | SupportedType.UShort -> Some(reader.GetInt16(ordinal) |> uint16) :> obj
+                | SupportedType.Long -> Some(reader.GetInt64(ordinal)) :> obj
+                | SupportedType.ULong -> Some(reader.GetInt64(ordinal) |> uint64) :> obj
+                | SupportedType.String -> Some(reader.GetString(ordinal)) :> obj
+                | SupportedType.DateTime -> Some(reader.GetDateTime(ordinal)) :> obj
+                | SupportedType.Guid -> Some(reader.GetGuid(ordinal)) :> obj
+                | SupportedType.Blob -> Some(BlobField.FromStream(reader.GetStream(ordinal))) :> obj
+                | SupportedType.Option _ -> None :> obj // Nested options not allowed.
 
     let mapResults<'T> (mappedObj: MappedObject) (reader: SqliteDataReader) =
         let getValue (reader: SqliteDataReader) o supportType =
             match supportType with
             | SupportedType.Boolean -> reader.GetBoolean(o) :> obj
             | SupportedType.Byte -> reader.GetByte(o) :> obj
+            | SupportedType.SByte -> reader.GetByte(o) |> sbyte :> obj
             | SupportedType.Char -> reader.GetChar(o) :> obj
             | SupportedType.Decimal -> reader.GetDecimal(o) :> obj
             | SupportedType.Double -> reader.GetDouble(o) :> obj
-            | SupportedType.Float -> reader.GetFloat(o) :> obj
+            | SupportedType.Single -> reader.GetFloat(o) :> obj
             | SupportedType.Int -> reader.GetInt32(o) :> obj
+            | SupportedType.UInt -> reader.GetInt32(o) |> uint32 :> obj
             | SupportedType.Short -> reader.GetInt16(o) :> obj
+            | SupportedType.UShort -> reader.GetInt16(o) |> uint16 :> obj
             | SupportedType.Long -> reader.GetInt64(o) :> obj
+            | SupportedType.ULong -> reader.GetInt64(o) |> uint64 :> obj
             | SupportedType.String -> reader.GetString(o) :> obj
             | SupportedType.DateTime -> reader.GetDateTime(o) :> obj
+            | SupportedType.TimeSpan -> reader.GetTimeSpan(o) :> obj
             | SupportedType.Guid -> reader.GetGuid(o) :> obj
             | SupportedType.Blob -> BlobField.FromStream(reader.GetStream(o)) :> obj
             | SupportedType.Option st ->
@@ -115,15 +132,20 @@ module QueryHelpers =
                     match st with
                     | SupportedType.Boolean -> Some(reader.GetBoolean(o)) :> obj
                     | SupportedType.Byte -> Some(reader.GetByte(o)) :> obj
+                    | SupportedType.SByte -> Some(reader.GetByte(o) |> sbyte) :> obj
                     | SupportedType.Char -> Some(reader.GetChar(o)) :> obj
                     | SupportedType.Decimal -> Some(reader.GetDecimal(o)) :> obj
                     | SupportedType.Double -> Some(reader.GetDouble(o)) :> obj
-                    | SupportedType.Float -> Some(reader.GetFloat(o)) :> obj
+                    | SupportedType.Single -> Some(reader.GetFloat(o)) :> obj
                     | SupportedType.Int -> Some(reader.GetInt32(o)) :> obj
+                    | SupportedType.UInt -> Some(reader.GetInt32(o) |> uint32) :> obj
                     | SupportedType.Short -> Some(reader.GetInt16(o)) :> obj
+                    | SupportedType.UShort -> Some(reader.GetInt16(o) |> uint16) :> obj
                     | SupportedType.Long -> Some(reader.GetInt64(o)) :> obj
+                    | SupportedType.ULong -> Some(reader.GetInt64(o) |> uint64) :> obj
                     | SupportedType.String -> Some(reader.GetString(o)) :> obj
                     | SupportedType.DateTime -> Some(reader.GetDateTime(o)) :> obj
+                    | SupportedType.TimeSpan -> Some(reader.GetTimeSpan(o)) :> obj
                     | SupportedType.Guid -> Some(reader.GetGuid(o)) :> obj
                     | SupportedType.Blob -> Some(BlobField.FromStream(reader.GetStream(o))) :> obj
                     | SupportedType.Option _ -> None :> obj // Nested options not allowed.
@@ -135,23 +157,29 @@ module QueryHelpers =
                   let value = getValue reader o f.Type
                   { Index = f.Index; Value = value })
               |> (fun v -> RecordBuilder.Create<'T> v) ]
-    
+
     // FUTURE: Use this for operations that return a single result
-    [<CompilerMessage("This is a new implementation and requires testing/benchmarking. To remove this warning add #nowarn \"6140003\"", 6140003)>]
+    [<CompilerMessage("This is a new implementation and requires testing/benchmarking. To remove this warning add #nowarn \"6140003\"",
+                      6140003)>]
     let mapSingleResult<'T> (mappedObj: MappedObject) (reader: SqliteDataReader) =
         let getValue (reader: SqliteDataReader) o supportType =
             match supportType with
             | SupportedType.Boolean -> reader.GetBoolean(o) :> obj
             | SupportedType.Byte -> reader.GetByte(o) :> obj
+            | SupportedType.SByte -> reader.GetByte(o) |> sbyte :> obj
             | SupportedType.Char -> reader.GetChar(o) :> obj
             | SupportedType.Decimal -> reader.GetDecimal(o) :> obj
             | SupportedType.Double -> reader.GetDouble(o) :> obj
-            | SupportedType.Float -> reader.GetFloat(o) :> obj
+            | SupportedType.Single -> reader.GetFloat(o) :> obj
             | SupportedType.Int -> reader.GetInt32(o) :> obj
+            | SupportedType.UInt -> reader.GetInt32(o) |> uint32 :> obj
             | SupportedType.Short -> reader.GetInt16(o) :> obj
+            | SupportedType.UShort -> reader.GetInt16(o) |> uint16 :> obj
             | SupportedType.Long -> reader.GetInt64(o) :> obj
+            | SupportedType.ULong -> reader.GetInt64(o) |> uint64 :> obj
             | SupportedType.String -> reader.GetString(o) :> obj
             | SupportedType.DateTime -> reader.GetDateTime(o) :> obj
+            | SupportedType.TimeSpan -> reader.GetTimeSpan(o) :> obj
             | SupportedType.Guid -> reader.GetGuid(o) :> obj
             | SupportedType.Blob -> BlobField.FromStream(reader.GetStream(o)) :> obj
             | SupportedType.Option st ->
@@ -161,15 +189,20 @@ module QueryHelpers =
                     match st with
                     | SupportedType.Boolean -> Some(reader.GetBoolean(o)) :> obj
                     | SupportedType.Byte -> Some(reader.GetByte(o)) :> obj
+                    | SupportedType.SByte -> Some(reader.GetByte(o) |> sbyte) :> obj
                     | SupportedType.Char -> Some(reader.GetChar(o)) :> obj
                     | SupportedType.Decimal -> Some(reader.GetDecimal(o)) :> obj
                     | SupportedType.Double -> Some(reader.GetDouble(o)) :> obj
-                    | SupportedType.Float -> Some(reader.GetFloat(o)) :> obj
+                    | SupportedType.Single -> Some(reader.GetFloat(o)) :> obj
                     | SupportedType.Int -> Some(reader.GetInt32(o)) :> obj
+                    | SupportedType.UInt -> Some(reader.GetInt32(o) |> uint32) :> obj
                     | SupportedType.Short -> Some(reader.GetInt16(o)) :> obj
+                    | SupportedType.UShort -> Some(reader.GetInt16(o) |> uint16) :> obj
                     | SupportedType.Long -> Some(reader.GetInt64(o)) :> obj
+                    | SupportedType.ULong -> Some(reader.GetInt64(o) |> uint64) :> obj
                     | SupportedType.String -> Some(reader.GetString(o)) :> obj
                     | SupportedType.DateTime -> Some(reader.GetDateTime(o)) :> obj
+                    | SupportedType.TimeSpan -> Some(reader.GetTimeSpan(o)) :> obj
                     | SupportedType.Guid -> Some(reader.GetGuid(o)) :> obj
                     | SupportedType.Blob -> Some(BlobField.FromStream(reader.GetStream(o))) :> obj
                     | SupportedType.Option _ -> None :> obj // Nested options not allowed.
@@ -177,14 +210,15 @@ module QueryHelpers =
         // TODO this needs testing
         if reader.Read() then
             mappedObj.Fields
-              |> List.map (fun f ->
-                  let o = reader.GetOrdinal(f.MappingName)
-                  let value = getValue reader o f.Type
-                  { Index = f.Index; Value = value })
-              |> (fun v -> RecordBuilder.Create<'T> v)
-              |> Some
-        else None
-            
+            |> List.map (fun f ->
+                let o = reader.GetOrdinal(f.MappingName)
+                let value = getValue reader o f.Type
+                { Index = f.Index; Value = value })
+            |> (fun v -> RecordBuilder.Create<'T> v)
+            |> Some
+        else
+            None
+
     /// <summary>
     /// Map the requests of a sql command in a deferred way.
     /// This takes a SqliteCommand rather than a SqliteDataReader because the reader needs to still be open when it
@@ -197,13 +231,17 @@ module QueryHelpers =
             match supportType with
             | SupportedType.Boolean -> reader.GetBoolean(o) :> obj
             | SupportedType.Byte -> reader.GetByte(o) :> obj
+            | SupportedType.SByte -> reader.GetByte(o) |> sbyte :> obj
             | SupportedType.Char -> reader.GetChar(o) :> obj
             | SupportedType.Decimal -> reader.GetDecimal(o) :> obj
             | SupportedType.Double -> reader.GetDouble(o) :> obj
-            | SupportedType.Float -> reader.GetFloat(o) :> obj
+            | SupportedType.Single -> reader.GetFloat(o) :> obj
             | SupportedType.Int -> reader.GetInt32(o) :> obj
+            | SupportedType.UInt -> reader.GetInt32(o) |> uint32 :> obj
             | SupportedType.Short -> reader.GetInt16(o) :> obj
+            | SupportedType.UShort -> reader.GetInt16(o) |> uint16 :> obj
             | SupportedType.Long -> reader.GetInt64(o) :> obj
+            | SupportedType.ULong -> reader.GetInt64(o) |> uint64 :> obj
             | SupportedType.String -> reader.GetString(o) :> obj
             | SupportedType.DateTime -> reader.GetDateTime(o) :> obj
             | SupportedType.Guid -> reader.GetGuid(o) :> obj
@@ -215,15 +253,20 @@ module QueryHelpers =
                     match st with
                     | SupportedType.Boolean -> Some(reader.GetBoolean(o)) :> obj
                     | SupportedType.Byte -> Some(reader.GetByte(o)) :> obj
+                    | SupportedType.SByte -> Some(reader.GetByte(o) |> sbyte) :> obj
                     | SupportedType.Char -> Some(reader.GetChar(o)) :> obj
                     | SupportedType.Decimal -> Some(reader.GetDecimal(o)) :> obj
                     | SupportedType.Double -> Some(reader.GetDouble(o)) :> obj
-                    | SupportedType.Float -> Some(reader.GetFloat(o)) :> obj
+                    | SupportedType.Single -> Some(reader.GetFloat(o)) :> obj
                     | SupportedType.Int -> Some(reader.GetInt32(o)) :> obj
+                    | SupportedType.UInt -> Some(reader.GetInt32(o) |> uint32) :> obj
                     | SupportedType.Short -> Some(reader.GetInt16(o)) :> obj
+                    | SupportedType.UShort -> Some(reader.GetInt16(o) |> uint16) :> obj
                     | SupportedType.Long -> Some(reader.GetInt64(o)) :> obj
+                    | SupportedType.ULong -> Some(reader.GetInt64(o) |> uint64) :> obj
                     | SupportedType.String -> Some(reader.GetString(o)) :> obj
                     | SupportedType.DateTime -> Some(reader.GetDateTime(o)) :> obj
+                    | SupportedType.TimeSpan -> Some(reader.GetTimeSpan(o)) :> obj
                     | SupportedType.Guid -> Some(reader.GetGuid(o)) :> obj
                     | SupportedType.Blob -> Some(BlobField.FromStream(reader.GetStream(o))) :> obj
                     | SupportedType.Option _ -> None :> obj // Nested options not allowed.
@@ -375,30 +418,40 @@ module QueryHelpers =
                 match f.Type with
                 | SupportedType.Boolean -> template "INTEGER NOT NULL"
                 | SupportedType.Byte -> template "INTEGER NOT NULL"
+                | SupportedType.SByte -> template "INTEGER NOT NULL"
                 | SupportedType.Int -> template "INTEGER NOT NULL"
+                | SupportedType.UInt -> template "INTEGER NOT NULL"
                 | SupportedType.Short -> template "INTEGER NOT NULL"
+                | SupportedType.UShort -> template "INTEGER NOT NULL"
                 | SupportedType.Long -> template "INTEGER NOT NULL"
+                | SupportedType.ULong -> template "INTEGER NOT NULL"
                 | SupportedType.Double -> template "REAL NOT NULL"
-                | SupportedType.Float -> template "REAL NOT NULL"
+                | SupportedType.Single -> template "REAL NOT NULL"
                 | SupportedType.Decimal -> template "REAL NOT NULL"
                 | SupportedType.Char -> template "TEXT NOT NULL"
                 | SupportedType.String -> template "TEXT NOT NULL"
                 | SupportedType.DateTime -> template "TEXT NOT NULL"
+                | SupportedType.TimeSpan -> template "TEXT NOT NULL"
                 | SupportedType.Guid -> template "TEXT NOT NULL"
                 | SupportedType.Blob -> template "BLOB NOT NULL"
                 | SupportedType.Option ost ->
                     match ost with
                     | SupportedType.Boolean -> template "INTEGER"
                     | SupportedType.Byte -> template "INTEGER"
+                    | SupportedType.SByte -> template "INTEGER"
                     | SupportedType.Int -> template "INTEGER"
+                    | SupportedType.UInt -> template "INTEGER"
                     | SupportedType.Short -> template "INTEGER"
+                    | SupportedType.UShort -> template "INTEGER"
                     | SupportedType.Long -> template "INTEGER"
+                    | SupportedType.ULong -> template "INTEGER"
                     | SupportedType.Double -> template "REAL"
-                    | SupportedType.Float -> template "REAL"
+                    | SupportedType.Single -> template "REAL"
                     | SupportedType.Decimal -> template "REAL"
                     | SupportedType.Char -> template "TEXT"
                     | SupportedType.String -> template "TEXT"
                     | SupportedType.DateTime -> template "TEXT"
+                    | SupportedType.TimeSpan -> template "TEXT"
                     | SupportedType.Guid -> template "TEXT"
                     | SupportedType.Blob -> template "BLOB"
                     | SupportedType.Option _ -> failwith "Nested options not supported.")
@@ -477,7 +530,7 @@ module QueryHelpers =
         use reader = comm.ExecuteReader()
 
         mapResults<'T> tMappedObj reader
-     
+
     // FUTURE: USe this for operations that return a single result.
     // TODO rename to selectSingle
     [<CompilerMessage("This is a new implementation and requires testing.", 6140003)>]
@@ -524,9 +577,10 @@ module QueryHelpers =
         use reader = comm.ExecuteReader()
 
         mapResults<'T> tMappedObj reader
-        
-     // FUTURE: Use this for operations that return a single result
-    [<CompilerMessage("This is a new implementation and requires testing/benchmarking. To remove this warning add #nowarn \"6140003\"", 6140003)>]
+
+    // FUTURE: Use this for operations that return a single result
+    [<CompilerMessage("This is a new implementation and requires testing/benchmarking. To remove this warning add #nowarn \"6140003\"",
+                      6140003)>]
     let selectAnonSingle<'T>
         (sql: string)
         (connection: SqliteConnection)
@@ -562,7 +616,7 @@ module QueryHelpers =
         (transaction: SqliteTransaction option)
         =
         // TODO fix this up, it appears not be selecting a single.
-        
+
         let tMappedObj = MappedObject.Create<'T>()
         let pMappedObj = MappedObject.Create<'P>()
 
