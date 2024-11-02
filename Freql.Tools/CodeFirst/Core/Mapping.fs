@@ -1,8 +1,10 @@
 namespace Freql.Tools.CodeFirst.Core
 
+open System
 open System.Reflection
 open Freql.Tools.CodeFirst
 open Freql.Tools.CodeFirst.Core.Attributes
+open Google.Protobuf.WellKnownTypes
 open Microsoft.FSharp.Core
 open Microsoft.FSharp.Reflection
 open Freql.Core.Utils.Attributes
@@ -77,11 +79,13 @@ module Mapping =
                          getForeignKeyAttribute field
                          |> Option.map (fun fk ->
                              { TypeName = fk.OtherType.Name
+                               Type = fk.OtherType
                                FieldName = None })
                        PropertyInformation = field
                        Index =
                          // TODO
-                         None }
+                         None
+                       Optional = Types.typeIsOption field.PropertyType }
                     : FieldInformation)))
             |> partitionResults
             |> fun (successes, errors) ->
@@ -89,7 +93,8 @@ module Mapping =
                 | true ->
                     ({ Name = recordType.Name
                        Type = recordType
-                       Fields = successes }
+                       Fields = successes
+                       VirtualFields = [] }
                     : RecordInformation)
                     |> Ok
                 | false -> errors |> MappingFailure.FieldErrors |> Error
@@ -206,9 +211,36 @@ module Mapping =
 
     let mapRecords (types: Type list) =
         types
-        |> List.map (mapRecord None)
+        |> List.map mapRecord
         |> partitionResults
         |> fun (successes, errors) ->
             match errors.IsEmpty with
-            | true -> Ok successes
+            | true ->
+                // After mapping the records add any virtual fields.
+                successes
+                |> List.map (fun record ->
+                    { record with
+                        VirtualFields =
+                            successes
+                            |> List.filter (fun otherRecord ->
+                                otherRecord.Fields
+                                |> List.exists (fun field ->
+                                    match field.Type with
+                                    | SupportedType supportedType -> false
+                                    | Record ``type`` ->
+                                        ``type``.FullName.Equals(
+                                            record.Type.FullName,
+                                            StringComparison.OrdinalIgnoreCase
+                                        )
+                                    | Collection collectionType ->
+                                        collectionType
+                                            .GetInnerType()
+                                            .FullName.Equals(
+                                                record.Type.FullName,
+                                                StringComparison.OrdinalIgnoreCase
+                                            ))
+                                )
+                            |> List.map (fun otherRecord -> { Type = otherRecord.Type }) })
+                |> Ok
+
             | false -> Error errors
