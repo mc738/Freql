@@ -1,6 +1,7 @@
 namespace Freql.Tools.CodeFirst.CodeGeneration
 
 open System
+open Freql.Tools.CodeFirst.Core
 open Microsoft.FSharp.Core
 
 [<RequireQualifiedAccess>]
@@ -55,42 +56,36 @@ module Tracking =
               "    |> RecordTrackingOperation.UpdateField"
           | None -> () ]
 
-    let generateComparisonCode (recordType: Type) =
+    let generateComparisonCode (record: RecordInformation) =
 
-        match FSharpType.IsRecord recordType with
-        | true ->
-            let fields =
-                FSharpType.GetRecordFields recordType
-                |> List.ofArray
-                |> List.filter (fun field ->
-                    getPrimaryKeyAttribute field |> Option.isNone
-                    && getIgnoreAttribute field |> Option.isNone)
-                |> List.collect (
-                    generateComparisonOperationCode
-                        { DefaultStringComparison = StringComparison.OrdinalIgnoreCase }
-                        recordType.Name
-                )
+        let fields =
+            record.Fields
+            |> List.filter (fun f -> f.PrimaryKey.IsNone)
+            |> List.collect (fun field ->
+                generateComparisonOperationCode
+                    { DefaultStringComparison = StringComparison.OrdinalIgnoreCase }
+                    record.Name
+                    field.PropertyInformation)
 
-            [ match fields.IsEmpty with
-              | true ->
-                  yield! Comments.freqlRemark DateTime.UtcNow
-                  $"let ``compare {recordType.Name} records`` (_: {recordType.Name}) (_: {recordType.Name}) = []"
-                  ""
-              | false ->
-                  yield! Comments.freqlRemark DateTime.UtcNow
-                  $"let ``compare {recordType.Name} records`` (a: {recordType.Name}) (b: {recordType.Name}) ="
+        [ match fields.IsEmpty with
+          | true ->
+              yield! Comments.freqlRemark DateTime.UtcNow
+              $"let ``compare {record.Name} records`` (_: {record.Name}) (_: {record.Name}) = []"
+              ""
+          | false ->
+              yield! Comments.freqlRemark DateTime.UtcNow
+              $"let ``compare {record.Name} records`` (a: {record.Name}) (b: {record.Name}) ="
 
-                  yield! fields |> Utils.wrapInArray 1
+              yield! fields |> Utils.wrapInArray 1
 
-                  //|> List.mapi (fun i line ->
-                  //    match i with
-                  //    | 0 -> $"{indent}    [ {line}"
-                  //    | _ when i = fields.Length - 1 -> $"{indent}    {line} ]"
-                  //    | _ -> $"{indent}      {line}")
+              //|> List.mapi (fun i line ->
+              //    match i with
+              //    | 0 -> $"{indent}    [ {line}"
+              //    | _ when i = fields.Length - 1 -> $"{indent}    {line} ]"
+              //    | _ -> $"{indent}      {line}")
 
-                  "" ]
-        //|> Ok
-        | false -> failwith "" // Error ""
+              "" ]
+
 
     (*
     let generateCode (types: Type list) =
@@ -127,6 +122,6 @@ module Tracking =
            BaseIndent = 0
            IndentContent = true
            OpenReferences = []
-           Content = ctx.Types |> List.collect generateComparisonCode }
+           Content = ctx.Records |> List.collect generateComparisonCode }
         : Modules.Parameters)
         |> Modules.generate
