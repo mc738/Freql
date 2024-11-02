@@ -70,11 +70,12 @@ module Mapping =
                          |> Option.orElseWith (fun _ ->
                              match
                                  // TODO move conventions to config
-                                 field.Name.Equals("Id", StringComparison.Ordinal)
-                                 || field.Name.Equals($"{recordType.Name}Id", StringComparison.Ordinal)
+                                 field.Name.Equals("Id", StringComparison.Ordinal),
+                                 field.Name.Equals($"{recordType.Name}Id", StringComparison.Ordinal)
                              with
-                             | true -> Some PrimaryKeyDefinitionType.Convention
-                             | false -> None)
+                             | true, _ -> Some <| PrimaryKeyDefinitionType.Convention 1
+                             | _, true -> Some <| PrimaryKeyDefinitionType.Convention 2
+                             | false, false -> None)
                        ForeignKey =
                          getForeignKeyAttribute field
                          |> Option.map (fun fk ->
@@ -238,9 +239,8 @@ module Mapping =
                                             .FullName.Equals(
                                                 record.Type.FullName,
                                                 StringComparison.OrdinalIgnoreCase
-                                            ))
-                                )
-                            |> List.map (fun otherRecord -> { Type = otherRecord.Type }) })
+                                            )))
+                            |> List.map (fun otherRecord -> VirtualField.ForeignKey { Type = otherRecord.Type }) })
                 |> Ok
 
             | false -> Error errors
