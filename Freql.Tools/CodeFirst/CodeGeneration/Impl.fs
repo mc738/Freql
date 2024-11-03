@@ -8,6 +8,7 @@ open System.IO
 module Impl =
 
     open System
+    open Freql.Tools.CodeFirst.Core.Mapping
 
     type CodeFirstGeneratorSettings =
         { ProjectFile: string
@@ -71,34 +72,34 @@ module Impl =
     module SingleFile =
 
         let fileReferences (ctx: CodeGeneratorContext) =
-            ctx.Types |> List.map (fun t -> t.ReflectedType.ToString()) |> List.distinct
+            ctx.Records
+            |> List.map (fun t -> t.Type.ReflectedType.ToString())
+            |> List.distinct
 
         let build
             (ctx: CodeGeneratorContext)
             (settings: CodeFirstGeneratorSettings)
             (singleFileSettings: SingleFileSettings)
-            (types: Type list)
             =
             [ yield! fileReferences ctx |> Boilerplate.fileHeader ctx settings.Namespace
               ""
+              yield! Extensions.generateModule ctx
               yield! Tracking.generateRecordComparisonCode ctx
+              yield! Operations.generateCreateModule ctx
+              yield! Operations.generateReadModule ctx
+              yield! Operations.generateUpdateModule ctx
+              yield! Operations.generateDeleteModule ctx
+              yield! Operations.generateDatabaseOperationsModule ctx
+              
+              yield! Context.generate ctx
 
               ]
             |> String.concat Environment.NewLine
             |> fun r -> File.WriteAllText(singleFileSettings.OutputFilePath, r)
 
-    let runCodeGeneration (settings: CodeFirstGeneratorSettings) (types: Type list) =
-        let ctx = { Types = types }
-
+    let runCodeGeneration (ctx: CodeGeneratorContext) (settings: CodeFirstGeneratorSettings) =
         match settings.OutputMode with
-        | OutputMode.SingleFile singleFileSettings -> SingleFile.build ctx settings singleFileSettings types
-        | OutputMode.MultiFile multiFileSettings ->
-            initializeMultiFileMode settings ""
-            failwith "todo"
-
-        //Tracking.generateCode types
-
-        ()
-
-
-    ()
+            | OutputMode.SingleFile singleFileSettings -> SingleFile.build ctx settings singleFileSettings
+            | OutputMode.MultiFile multiFileSettings ->
+                initializeMultiFileMode settings ""
+                failwith "todo"
