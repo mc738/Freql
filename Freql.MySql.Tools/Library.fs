@@ -1,5 +1,7 @@
 ﻿namespace Freql.MySql.Tools
 
+open Freql.Tools.DatabaseBindings
+
 module MySqlMetaData =
     
     open System
