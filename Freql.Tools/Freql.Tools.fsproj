@@ -6,19 +6,41 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <Compile Include="Library.fs" />
-        <Compile Include="CodeGeneration.fs" />
-        <Compile Include="DatabaseComparisons.fs" />
-        <Compile Include="Metadata.fs" />
-        <Compile Include="DataStore.fs" />
-        <Compile Include="Migrations.fs" />
-        <Compile Include="Json.fs" />
+        <Compile Include="Core\InformationSchema.fs" />
+        <Compile Include="Core\DataStore.fs" />
+        <Compile Include="CodeGeneration\Boilerplate.fs" />
+        <Compile Include="CodeGeneration\Utils.fs" />
+        <Compile Include="CodeGeneration\Modules.fs" />
+        <Compile Include="DatabaseBindings\Configuration.fs" />
+        <Compile Include="DatabaseBindings\Common.fs" />
+        <Compile Include="DatabaseBindings\Records.fs" />
+        <Compile Include="DatabaseBindings\Functions.fs" />
+        <Compile Include="DatabaseBindings\Impl.fs" />
+        <Compile Include="DatabaseComparisons\Common.fs" />
+        <Compile Include="DatabaseComparisons\Impl.fs" />
+        <Compile Include="Migrations\Common.fs" />
+        <Compile Include="CodeFirst\Core\Common.fs" />
+        <Compile Include="CodeFirst\Core\Attributes.fs" />
+        <Compile Include="CodeFirst\Core\Mapping.fs" />
+        <Compile Include="CodeFirst\Core\Operations.fs" />
+        <Compile Include="CodeFirst\Core\Tracking.fs" />
+        <Compile Include="CodeFirst\CodeGeneration\Common.fs" />
+        <Compile Include="CodeFirst\CodeGeneration\Boilerplate.fs" />
+        <Compile Include="CodeFirst\CodeGeneration\Extensions.fs" />
+        <Compile Include="CodeFirst\CodeGeneration\Operations.fs" />
+        <Compile Include="CodeFirst\CodeGeneration\Tracking.fs" />
+        <Compile Include="CodeFirst\CodeGeneration\Context.fs" />
+        <Compile Include="CodeFirst\CodeGeneration\Impl.fs" />
     </ItemGroup>
 
     <ItemGroup>
       <ProjectReference Include="..\Freql.Core\Freql.Core.fsproj" />
       <ProjectReference Include="..\Freql.MySql\Freql.MySql.fsproj" />
       <ProjectReference Include="..\Freql.Sqlite\Freql.Sqlite.fsproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="Microsoft.Build" Version="17.11.4" />
     </ItemGroup>
 
 </Project>
