@@ -7,6 +7,19 @@
 
     <ItemGroup>
         <Compile Include="Library.fs" />
+        <Compile Include="Core\Exceptions.fs" />
+        <Compile Include="Core\SqliteMetadata.fs" />
+        <Folder Include="CodeGeneration\" />
+        <Compile Include="DatabaseBindings\TopSection.fs" />
+        <Compile Include="DatabaseBindings\BottomSection.fs" />
+        <Compile Include="DatabaseBindings\Impl.fs" />
+        <Compile Include="DatabaseComparisons\Impl.fs" />
+        <Compile Include="CodeFirst\Core.fs" />
+        <Compile Include="CodeFirst\TopSection.fs" />
+        <Compile Include="CodeFirst\TypeExtensions.fs" />
+        <Compile Include="CodeFirst\Operations.fs" />
+        <Compile Include="CodeFirst\BottomSection.fs" />
+        <Compile Include="CodeFirst\Impl.fs" />
     </ItemGroup>
 
     <ItemGroup>
