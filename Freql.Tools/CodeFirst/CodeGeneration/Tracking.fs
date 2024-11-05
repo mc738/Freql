@@ -1,12 +1,11 @@
 namespace Freql.Tools.CodeFirst.CodeGeneration
 
-open System
-open Freql.Tools.CodeFirst.Core
-open Microsoft.FSharp.Core
-
 [<RequireQualifiedAccess>]
 module Tracking =
 
+    open System
+    open Freql.Tools.CodeFirst.Core
+    open Microsoft.FSharp.Core
     open System
     open System.Reflection
     open Microsoft.FSharp.Reflection
@@ -26,17 +25,22 @@ module Tracking =
             match supportedType with
             | SupportedType.Boolean -> Some $"a.{propertyInfo.Name} <> b.{propertyInfo.Name}"
             | SupportedType.Byte -> Some $"a.{propertyInfo.Name} <> b.{propertyInfo.Name}"
+            | SupportedType.SByte -> Some $"a.{propertyInfo.Name} <> b.{propertyInfo.Name}"
             | SupportedType.Char -> Some $"a.{propertyInfo.Name} <> b.{propertyInfo.Name}"
             | SupportedType.Decimal -> Some $"a.{propertyInfo.Name} <> b.{propertyInfo.Name}"
             | SupportedType.Double -> Some $"a.{propertyInfo.Name} <> b.{propertyInfo.Name}" // TODO improve
-            | SupportedType.Float -> Some $"a.{propertyInfo.Name} <> b.{propertyInfo.Name}" // TODO improve
+            | SupportedType.Single -> Some $"a.{propertyInfo.Name} <> b.{propertyInfo.Name}" // TODO improve
             | SupportedType.Int -> Some $"a.{propertyInfo.Name} <> b.{propertyInfo.Name}"
+            | SupportedType.UInt -> Some $"a.{propertyInfo.Name} <> b.{propertyInfo.Name}"
             | SupportedType.Short -> Some $"a.{propertyInfo.Name} <> b.{propertyInfo.Name}"
+            | SupportedType.UShort -> Some $"a.{propertyInfo.Name} <> b.{propertyInfo.Name}"
             | SupportedType.Long -> Some $"a.{propertyInfo.Name} <> b.{propertyInfo.Name}"
+            | SupportedType.ULong -> Some $"a.{propertyInfo.Name} <> b.{propertyInfo.Name}"
             | SupportedType.String ->
                 Some
                     $"a.{propertyInfo.Name}.Equals(b.{propertyInfo.Name}, StringComparison.{Enum.GetName settings.DefaultStringComparison})"
             | SupportedType.DateTime -> Some $"a.{propertyInfo.Name} <> b.{propertyInfo.Name}"
+            | SupportedType.TimeSpan -> Some $"a.{propertyInfo.Name} <> b.{propertyInfo.Name}"
             | SupportedType.Guid -> Some $"a.{propertyInfo.Name} <> b.{propertyInfo.Name}"
             | SupportedType.Blob -> failwith "todo" // TODO implement
             | SupportedType.Option supportedType -> failwith "todo"
