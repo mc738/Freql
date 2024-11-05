@@ -1,9 +1,8 @@
 namespace Freql.Tools.CodeFirst.Core
 
 module Operations =
-    
-    type RecordTrackingOperation = UpdateField of UpdateFieldOperation
 
+    type RecordTrackingOperation = UpdateField of UpdateFieldOperation
 
     and UpdateFieldOperation =
         { TableName: string
@@ -11,6 +10,4 @@ module Operations =
           NewValue: obj }
 
 
-
-    
-    
+    type UpdateField = { FieldName: string; NewValue: obj }
