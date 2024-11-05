@@ -118,3 +118,17 @@ module Sorting =
         sortedList
         |> Seq.map (fun id -> values |> List.find (fun v -> getName v = id))
         |> Seq.toList
+
+
+[<RequireQualifiedAccess>]
+module Results =
+
+    let partition (results: Result<'T, 'U> seq) =
+        results
+        |> Seq.fold
+            (fun (successes, errors) result ->
+                match result with
+                | Ok r -> r :: successes, errors
+                | Error e -> successes, e :: errors)
+            ([], [])
+        |> fun (successes, errors) -> successes |> List.rev, errors |> List.rev
