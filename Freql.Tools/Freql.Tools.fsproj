@@ -24,6 +24,7 @@
         <Compile Include="CodeFirst\Core\Mapping.fs" />
         <Compile Include="CodeFirst\Core\Operations.fs" />
         <Compile Include="CodeFirst\Core\Tracking.fs" />
+        <Compile Include="CodeFirst\Core\ModelsValidation.fs" />
         <Compile Include="CodeFirst\CodeGeneration\Common.fs" />
         <Compile Include="CodeFirst\CodeGeneration\Boilerplate.fs" />
         <Compile Include="CodeFirst\CodeGeneration\Extensions.fs" />
