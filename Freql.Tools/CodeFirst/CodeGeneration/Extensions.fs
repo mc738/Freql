@@ -68,12 +68,23 @@ module Extensions =
               record.GetScalarFields()
               |> List.map (fun sf -> $"box this.{sf.Field.Name}")
               |> wrapInArray 2 ]
+        
+        // GetPrimaryKeyScalarFields
 
+    let generateGetPrimaryKeyValues (record: RecordInformation) =
+        [ "member this.GetPrimaryKeyValues() =" |> indent1
+          yield!
+              record.GetPrimaryKeyScalarFields()
+              |> List.map (fun sf -> $"box this.{sf.Field.Name}")
+              |> wrapInArray 2 ]
+    
     let generateTypeExtensions (ctx: CodeGeneratorContext) (record: RecordInformation) =
         [ $"type {record.Name} with"
           yield! generateGetPrimaryKey record
           ""
           yield! generateGetValues record
+          ""
+          yield! generateGetPrimaryKeyValues record
           ""
           yield! ctx.DatabaseSpecificProfile.TypeExtension ctx record |> List.map indent1
           "" ]
