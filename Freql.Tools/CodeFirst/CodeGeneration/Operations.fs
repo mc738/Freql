@@ -17,23 +17,23 @@ module Operations =
 
         ()
 
-    let generateCreateFunction (contextType: string) (record: RecordInformation) =
+    let generateCreateFunction (ctx: CodeGeneratorContext) (record: RecordInformation) =
         [ yield! Comments.freqlRemark DateTime.UtcNow
-          $"let ``create {record.Name} Record`` (ctx: {contextType}) (newRecord: {record.Name}) : Result<{record.Name}, string> ="
+          $"let ``create {record.Name} Record`` (ctx: {ctx.DatabaseSpecificProfile.ContextType}) (newRecord: {record.Name}) : Result<{record.Name}, string> ="
           $"failwith \"TODO - Implement ``create {record.Name} Record`` function\""
           |> indent1
           "" ]
 
-    let generateReadFunction (contextType: string) (record: RecordInformation) =
+    let generateReadFunction (ctx: CodeGeneratorContext) (record: RecordInformation) =
         [ yield! Comments.freqlRemark DateTime.UtcNow
-          $"let ``read {record.Name} Record`` (ctx: {contextType}) (newRecord: {record.Name}) : {record.Name} option ="
+          $"let ``read {record.Name} Record`` (ctx: {ctx.DatabaseSpecificProfile.ContextType}) (newRecord: {record.Name}) : {record.Name} option ="
           $"failwith \"TODO - Implement ``read {record.Name} Record`` function\""
           |> indent1
           "" ]
 
-    let generateUpdateFunction (contextType: string) (record: RecordInformation) =
+    let generateUpdateFunction (ctx: CodeGeneratorContext) (record: RecordInformation) =
         [ yield! Comments.freqlRemark DateTime.UtcNow
-          $"let ``update {record.Name} Record`` (ctx: {contextType}) (newRecord: {record.Name}) : Result<{record.Name}, string> ="
+          $"let ``update {record.Name} Record`` (ctx: {ctx.DatabaseSpecificProfile.ContextType}) (newRecord: {record.Name}) : Result<{record.Name}, string> ="
           $"match Read.``read {record.Name} Record`` ctx newRecord with" |> indent1
           "| Some oldRecord ->" |> indent1
           "let updates = ()" |> indent 2
@@ -43,9 +43,9 @@ module Operations =
           //|> indent1
           "" ]
 
-    let generateDeleteFunction (contextType: string) (record: RecordInformation) =
+    let generateDeleteFunction (ctx: CodeGeneratorContext) (record: RecordInformation) =
         [ yield! Comments.freqlRemark DateTime.UtcNow
-          $"let ``delete {record.Name} Record`` (ctx: {contextType}) (newRecord: {record.Name}) : Result<unit, string> ="
+          $"let ``delete {record.Name} Record`` (ctx: {ctx.DatabaseSpecificProfile.ContextType}) (newRecord: {record.Name}) : Result<unit, string> ="
           $"failwith \"TODO - Implement ``delete {record.Name} Record`` function\""
           |> indent1
           "" ]
@@ -105,22 +105,22 @@ module Operations =
 
     let generateCreateModule (ctx: CodeGeneratorContext) =
         ctx.Records
-        |> List.collect (generateCreateFunction ctx.DatabaseSpecificProfile.ContextType)
+        |> List.collect (generateCreateFunction ctx)
         |> generateModule ctx "Create" []
 
     let generateReadModule (ctx: CodeGeneratorContext) =
         ctx.Records
-        |> List.collect (generateReadFunction ctx.DatabaseSpecificProfile.ContextType)
+        |> List.collect (generateReadFunction ctx)
         |> generateModule ctx "Read" []
 
     let generateUpdateModule (ctx: CodeGeneratorContext) =
         ctx.Records
-        |> List.collect (generateUpdateFunction ctx.DatabaseSpecificProfile.ContextType)
+        |> List.collect (generateUpdateFunction ctx)
         |> generateModule ctx "Update" []
 
     let generateDeleteModule (ctx: CodeGeneratorContext) =
         ctx.Records
-        |> List.collect (generateDeleteFunction ctx.DatabaseSpecificProfile.ContextType)
+        |> List.collect (generateDeleteFunction ctx)
         |> generateModule ctx "Delete" []
 
     let generateDatabaseOperationsModule (ctx: CodeGeneratorContext) =
