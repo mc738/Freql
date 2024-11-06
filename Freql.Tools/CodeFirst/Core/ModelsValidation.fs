@@ -1,5 +1,6 @@
 namespace Freql.Tools.CodeFirst.Core
 
+open Freql.Core
 open Freql.Core.Utils
 
 module ModelsValidation =
@@ -80,9 +81,81 @@ module ModelsValidation =
                             |> Result.Error
                   Supersedes = None }
 
+        module ``BlobField type not supported`` =
+
+            let id = "v1_0003"
+
+            let rule =
+                { Id = id
+                  Name = "BlobField type not supported"
+                  Information = [ "Version 1 of CodeFirst support does not support BlobField types." ]
+                  Handler =
+                    fun record allRecords ->
+
+                        record.Fields
+                        |> List.fold
+                            (fun result field ->
+                                match result, field.Type with
+                                | Error _, _ -> result
+                                | Ok _, SupportedType supportedType ->
+                                    let rec checkSupportedType (st: SupportedType) =
+                                        match st with
+                                        | SupportedType.Blob ->
+                                            { Id = id
+                                              Message = "BlobField type not supported"
+                                              Record = record }
+                                            |> ValidatorFailureResult.Error
+                                            |> Error
+                                        | SupportedType.Option ist -> checkSupportedType ist
+                                        | _ -> Ok()
+
+                                    checkSupportedType supportedType
+                                | Ok _, Record _ -> result
+                                | Ok _, Collection _ -> result)
+                            (Ok())
+                  Supersedes = None }
+
+        module ``Nested options not supported`` =
+
+            let id = "v1_0004"
+
+            let rule =
+                { Id = id
+                  Name = "Nested options not supported"
+                  Information = [ "Version 1 of CodeFirst support does not support nested options." ]
+                  Handler =
+                    fun record allRecords ->
+
+                        record.Fields
+                        |> List.fold
+                            (fun result field ->
+                                match result, field.Type with
+                                | Error _, _ -> result
+                                | Ok _, SupportedType supportedType ->
+                                    let rec checkSupportedType (nested: bool) (st: SupportedType) =
+                                        match st with
+                                        | SupportedType.Option ist ->
+                                            match nested with
+                                            | true ->
+                                                { Id = id
+                                                  Message = "Nested options not supported"
+                                                  Record = record }
+                                                |> ValidatorFailureResult.Error
+                                                |> Error
+                                            | false -> checkSupportedType true ist
+                                        | _ -> Ok()
+
+                                    checkSupportedType false supportedType
+                                | Ok _, Record _ -> result
+                                | Ok _, Collection _ -> result)
+                            (Ok())
+                  Supersedes = None }
+
         let allRules =
             [ ``Model must have a defined primary key``.rule
-              ``Foreign keys require explicit fields``.rule ]
+              ``Foreign keys require explicit fields``.rule
+              ``BlobField type not supported``.rule
+              ``Nested options not supported``.rule ]
 
     let validate (rules: ValidatorRule list) (records: RecordInformation list) =
         records
@@ -91,6 +164,5 @@ module ModelsValidation =
         |> fun (_, errors) ->
             // TODO check for supersedes
             match errors.IsEmpty with
-            | true -> Ok ()
+            | true -> Ok()
             | false -> Error errors
-            
