@@ -18,10 +18,16 @@ module Operations =
         ()
 
     let generateCreateFunction (ctx: CodeGeneratorContext) (record: RecordInformation) =
+        let databaseSpecificCode =
+            ctx.DatabaseSpecificProfile.CreateGenerator ctx record |> List.map indent1
+
         [ yield! Comments.freqlRemark DateTime.UtcNow
           $"let ``create {record.Name} Record`` (ctx: {ctx.DatabaseSpecificProfile.ContextType}) (newRecord: {record.Name}) : Result<{record.Name}, string> ="
-          $"failwith \"TODO - Implement ``create {record.Name} Record`` function\""
-          |> indent1
+          match databaseSpecificCode.IsEmpty with
+          | true ->
+              $"failwith \"TODO - Implement ``create {record.Name} Record`` function\""
+              |> indent1
+          | false -> yield! databaseSpecificCode
           "" ]
 
     let generateReadFunction (ctx: CodeGeneratorContext) (record: RecordInformation) =
