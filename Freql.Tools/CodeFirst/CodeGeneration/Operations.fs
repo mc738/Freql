@@ -59,10 +59,16 @@ module Operations =
           "" ]
 
     let generateDeleteFunction (ctx: CodeGeneratorContext) (record: RecordInformation) =
+        let databaseSpecificCode =
+            ctx.DatabaseSpecificProfile.DeleteGenerator ctx record |> List.map indent1
+
         [ yield! Comments.freqlRemark DateTime.UtcNow
-          $"let ``delete {record.Name} Record`` (ctx: {ctx.DatabaseSpecificProfile.ContextType}) (newRecord: {record.Name}) : Result<unit, string> ="
-          $"failwith \"TODO - Implement ``delete {record.Name} Record`` function\""
-          |> indent1
+          $"let ``delete {record.Name} Record`` (ctx: {ctx.DatabaseSpecificProfile.ContextType}) (record: {record.Name}) : Result<unit, string> ="
+          match databaseSpecificCode.IsEmpty with
+          | true ->
+              $"failwith \"TODO - Implement ``delete {record.Name} Record`` function\""
+              |> indent1
+          | false -> yield! databaseSpecificCode
           "" ]
 
     let generateDatabaseOperations (ctx: CodeGeneratorContext) =
