@@ -1,23 +1,27 @@
 namespace Freql.Sqlite.Tools.CodeFirst
 
-open Freql.Tools.CodeFirst.Core
-
-
 [<RequireQualifiedAccess>]
 module OperationsGenerator =
 
+    open Freql.Tools.CodeGeneration.Utils
+    open Freql.Tools.CodeFirst.Core
     open Freql.Tools.CodeFirst.CodeGeneration
 
     [<RequireQualifiedAccess>]
     module Create =
 
-        let generate (ctx: CodeGeneratorContext) (record: RecordInformation) = []
+        let generate (ctx: CodeGeneratorContext) (record: RecordInformation) =
+            [ "match ctx.TryExecuteVerbatimNonQueryAnon(newRecord.InsertRecordSql(), newRecord.GetValues()) with"
+              "| Ok _ ->"
+              "// TODO update primary key if required" |> indent1
+              "Ok newRecord" |> indent1
+              "| Error failure -> failure.GetMessage() |> Error" ]
 
     [<RequireQualifiedAccess>]
     module Read =
 
         let generate (ctx: CodeGeneratorContext) (record: RecordInformation) = []
-    
+
     [<RequireQualifiedAccess>]
     module Update =
 
@@ -28,8 +32,8 @@ module OperationsGenerator =
 
         let generate (ctx: CodeGeneratorContext) (record: RecordInformation) = []
 
-    
-    
-    
+
+
+
 
     let generate (ctx: CodeGeneratorContext) = []
