@@ -2,6 +2,7 @@ namespace Freql.Tools.CodeFirst.Core
 
 open System
 open System.Reflection
+open Freql.Core.Utils
 open Freql.Tools.CodeFirst
 open Freql.Tools.CodeFirst.Core.Attributes
 open Google.Protobuf.WellKnownTypes
@@ -23,16 +24,7 @@ module Mapping =
         | InvalidType of Name: string * Message: string
         | InvalidChild of Name: string * Failure: MappingFailure
 
-    let partitionResults (results: Result<'T, 'U> seq) =
-        results
-        |> Seq.fold
-            (fun (successes, errors) result ->
-                match result with
-                | Ok r -> r :: successes, errors
-                | Error e -> successes, e :: errors)
-            ([], [])
-        |> fun (successes, errors) -> successes |> List.rev, errors |> List.rev
-
+    
     let getPrimaryKeyAttribute (propertyInfo: PropertyInfo) =
         getAttributeFromProperty<PrimaryKeyAttribute> propertyInfo
 
@@ -88,7 +80,7 @@ module Mapping =
                          None
                        Optional = Types.typeIsOption field.PropertyType }
                     : FieldInformation)))
-            |> partitionResults
+            |> Results.partition
             |> fun (successes, errors) ->
                 match errors.IsEmpty with
                 | true ->
@@ -213,7 +205,7 @@ module Mapping =
     let mapRecords (types: Type list) =
         types
         |> List.map mapRecord
-        |> partitionResults
+        |> Results.partition
         |> fun (successes, errors) ->
             match errors.IsEmpty with
             | true ->
@@ -222,25 +214,39 @@ module Mapping =
                 |> List.map (fun record ->
                     { record with
                         VirtualFields =
-                            successes
-                            |> List.filter (fun otherRecord ->
-                                otherRecord.Fields
-                                |> List.exists (fun field ->
-                                    match field.Type with
-                                    | SupportedType supportedType -> false
-                                    | Record ``type`` ->
-                                        ``type``.FullName.Equals(
-                                            record.Type.FullName,
-                                            StringComparison.OrdinalIgnoreCase
-                                        )
-                                    | Collection collectionType ->
-                                        collectionType
-                                            .GetInnerType()
-                                            .FullName.Equals(
-                                                record.Type.FullName,
-                                                StringComparison.OrdinalIgnoreCase
-                                            )))
-                            |> List.map (fun otherRecord -> VirtualField.ForeignKey { Type = otherRecord.Type }) })
+                            [
+                              // Add a virtual primary key if the record has no primary key.
+                              // This will always take the form of a guid.
+                              // The name will be in the form `vf_pk__[normalized [table name]Id]`
+                              match record.HasDefinedPrimaryKey() |> not with
+                              | true -> ()
+                              | false -> ()
+
+                              yield!
+                                  successes
+                                  |> List.filter (fun otherRecord ->
+                                      otherRecord.Fields
+                                      |> List.exists (fun field ->
+                                          match field.Type with
+                                          | SupportedType supportedType -> false
+                                          | Record ``type`` ->
+                                              ``type``.FullName.Equals(
+                                                  record.Type.FullName,
+                                                  StringComparison.OrdinalIgnoreCase
+                                              )
+                                          | Collection collectionType ->
+                                              collectionType
+                                                  .GetInnerType()
+                                                  .FullName.Equals(
+                                                      record.Type.FullName,
+                                                      StringComparison.OrdinalIgnoreCase
+                                                  )))
+                                  |> List.map (fun otherRecord ->
+                                      VirtualField.ForeignKey
+                                          { Type = otherRecord.Type
+                                            ValueType = PrimaryKeyType.Simple })
+
+                              ] })
                 |> Ok
 
             | false -> Error errors
