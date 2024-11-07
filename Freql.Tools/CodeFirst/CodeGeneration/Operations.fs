@@ -38,12 +38,21 @@ module Operations =
           "" ]
 
     let generateUpdateFunction (ctx: CodeGeneratorContext) (record: RecordInformation) =
+        let databaseSpecific =
+            ctx.DatabaseSpecificProfile.UpdateGenerator ctx record |> List.map (indent 2)
+
         [ yield! Comments.freqlRemark DateTime.UtcNow
           $"let ``update {record.Name} Record`` (ctx: {ctx.DatabaseSpecificProfile.ContextType}) (newRecord: {record.Name}) : Result<{record.Name}, string> ="
           $"match Read.``read {record.Name} Record`` ctx newRecord with" |> indent1
           "| Some oldRecord ->" |> indent1
-          "let updates = ()" |> indent 2
-          "failwith \"\"" |> indent 2
+          $"let ops = RecordComparisons.``compare {record.Name} records`` oldRecord newRecord"
+          |> indent 2
+
+          match databaseSpecific.IsEmpty with
+          | true -> "failwith \"\"" |> indent 2
+          | false ->
+              ""
+              yield! databaseSpecific
           $"| None -> Create.``create {record.Name} Record`` ctx newRecord" |> indent1
           //$"failwith \"TODO - Implement ``update {recordType.Name} Record`` function\""
           //|> indent1
