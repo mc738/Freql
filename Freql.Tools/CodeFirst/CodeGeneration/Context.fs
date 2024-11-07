@@ -1,6 +1,5 @@
 namespace Freql.Tools.CodeFirst.CodeGeneration
 
-
 module Context =
 
     open Freql.Core.Utils
