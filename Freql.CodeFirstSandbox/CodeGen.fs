@@ -12,7 +12,9 @@ namespace Freql.CodeFirstSandbox
 
 open System
 open Freql.Tools.CodeFirst
+open Freql.Tools.CodeFirst.Core
 open Freql.Tools.CodeFirst.Core.Operations
+open Freql.Sqlite
 open Freql.CodeFirstSandbox.Models
 
 /// <summary>
@@ -20,36 +22,179 @@ open Freql.CodeFirstSandbox.Models
 /// Extensions are added so domain models do not need to be polluted with methods only needed for bindings.
 /// </summary>
 /// <remarks>
-/// This record was generated via Freql.Tools on 31/10/2024 21:22:07
+/// This record was generated via Freql.Tools on 07/11/2024 19:44:02
 /// </remarks>
 [<CompilerMessage("This module is intended for internal use in generated code. It is not intended to make up a public API. To remove this warning add #nowarn \"6142001\"",
                   6142001)>]
 module Extensions =
     type Foo with
         member this.GetPrimaryKey() =
-            failwith "todo"
+            { FieldName = "Id"
+              Value = ScalarValue.String this.Id }
+            |> PrimaryKeyValue.Simple
+            |> Some
+    
+        member this.GetValues() =
+            [ box this.Id
+              box this.Name
+              box this.Value ]
+    
+        member this.GetPrimaryKeyValues() =
+            [ box this.Id ]
+    
+        member this.CreateTableSql() =
+            """
+            CREATE TABLE IF NOT EXISTS Foo (
+                Id TEXT NOT NULL PRIMARY KEY,
+                Name TEXT NOT NULL,
+                Value TEXT NOT NULL
+            )
+            """
+        
+        member this.InsertRecordSql() =
+            """
+            INSERT INTO Foo (Id, Name, Value)
+            VALUES (@0, @1, @2)
+            """
+        
+        member this.UpdateRecordsSql(updates: UpdateFieldOperation list) =
+            """
+            UPDATE Foo
+            SET Id = @0, Name = @1, Value = @2
+            WHERE Id = @3
+            """
+        
+        member this.DeleteRecordsSql() =
+            """
+            DELETE Foo
+            WHERE Id = @0
+            """
     
     type Bar with
         member this.GetPrimaryKey() =
-            failwith "todo"
+            { FieldName = "Id"
+              Value = ScalarValue.Int this.Id }
+            |> PrimaryKeyValue.Simple
+            |> Some
+    
+        member this.GetValues() =
+            [ box this.Id ]
+    
+        member this.GetPrimaryKeyValues() =
+            [ box this.Id ]
+    
+        member this.CreateTableSql() =
+            """
+            CREATE TABLE IF NOT EXISTS Bar (
+                Id INTEGER NOT NULL PRIMARY KEY
+            )
+            """
+        
+        member this.InsertRecordSql() =
+            """
+            INSERT INTO Bar (Id)
+            VALUES (@0)
+            """
+        
+        member this.UpdateRecordsSql(updates: UpdateFieldOperation list) =
+            """
+            UPDATE Bar
+            SET Id = @0
+            WHERE Id = @1
+            """
+        
+        member this.DeleteRecordsSql() =
+            """
+            DELETE Bar
+            WHERE Id = @0
+            """
     
     type Baz with
         member this.GetPrimaryKey() =
-            failwith "todo"
+            { FieldName = "Id"
+              Value = ScalarValue.String this.Id }
+            |> PrimaryKeyValue.Simple
+            |> Some
+    
+        member this.GetValues() =
+            [ box this.Id ]
+    
+        member this.GetPrimaryKeyValues() =
+            [ box this.Id ]
+    
+        member this.CreateTableSql() =
+            """
+            CREATE TABLE IF NOT EXISTS Baz (
+                Id TEXT NOT NULL PRIMARY KEY
+            )
+            """
+        
+        member this.InsertRecordSql() =
+            """
+            INSERT INTO Baz (Id)
+            VALUES (@0)
+            """
+        
+        member this.UpdateRecordsSql(updates: UpdateFieldOperation list) =
+            """
+            UPDATE Baz
+            SET Id = @0
+            WHERE Id = @1
+            """
+        
+        member this.DeleteRecordsSql() =
+            """
+            DELETE Baz
+            WHERE Id = @0
+            """
     
     type FooBarLink with
-        member this.GetPrimaryKey() =
-            failwith "todo"
+        member this.GetPrimaryKey() = None
+    
+        member this.GetValues() =
+            [ box this.FooId
+              box this.BarId ]
+    
+        member this.GetPrimaryKeyValues() =
+            [ box this.FooId
+              box this.BarId ]
+    
+        member this.CreateTableSql() =
+            """
+            CREATE TABLE IF NOT EXISTS FooBarLink (
+                FooId TEXT NOT NULL PRIMARY KEY,
+                BarId TEXT NOT NULL PRIMARY KEY
+            )
+            """
+        
+        member this.InsertRecordSql() =
+            """
+            INSERT INTO FooBarLink (FooId, BarId)
+            VALUES (@0, @1)
+            """
+        
+        member this.UpdateRecordsSql(updates: UpdateFieldOperation list) =
+            """
+            UPDATE FooBarLink
+            SET FooId = @0, BarId = @1
+            WHERE (FooId = @2, BarId = @3)
+            """
+        
+        member this.DeleteRecordsSql() =
+            """
+            DELETE FooBarLink
+            WHERE (FooId = @0, BarId = @1)
+            """
     
 /// <remarks>
-/// This record was generated via Freql.Tools on 31/10/2024 21:22:07
+/// This record was generated via Freql.Tools on 07/11/2024 19:44:02
 /// </remarks>
 [<CompilerMessage("This module is intended for internal use in generated code. It is not intended to make up a public API. To remove this warning add #nowarn \"6142001\"",
                   6142001)>]
 [<RequireQualifiedAccess>]
 module RecordComparisons =
     /// <remarks>
-    /// This record was generated via Freql.Tools on 31/10/2024 21:22:07
+    /// This record was generated via Freql.Tools on 07/11/2024 19:44:02
     /// </remarks>
     let ``compare Foo records`` (a: Foo) (b: Foo) =
         [ if a.Name.Equals(b.Name, StringComparison.OrdinalIgnoreCase) then
@@ -64,27 +209,22 @@ module RecordComparisons =
               |> RecordTrackingOperation.UpdateField ]
     
     /// <remarks>
-    /// This record was generated via Freql.Tools on 31/10/2024 21:22:07
+    /// This record was generated via Freql.Tools on 07/11/2024 19:44:02
     /// </remarks>
     let ``compare Bar records`` (_: Bar) (_: Bar) = []
     
     /// <remarks>
-    /// This record was generated via Freql.Tools on 31/10/2024 21:22:07
+    /// This record was generated via Freql.Tools on 07/11/2024 19:44:02
     /// </remarks>
-    let ``compare Baz records`` (a: Baz) (b: Baz) =
-        [ if a.Id.Equals(b.Id, StringComparison.OrdinalIgnoreCase) then
-              { TableName = "Baz"
-                FieldName = "Id"
-                NewValue = box b.Id }
-              |> RecordTrackingOperation.UpdateField ]
+    let ``compare Baz records`` (_: Baz) (_: Baz) = []
     
     /// <remarks>
-    /// This record was generated via Freql.Tools on 31/10/2024 21:22:07
+    /// This record was generated via Freql.Tools on 07/11/2024 19:44:02
     /// </remarks>
     let ``compare FooBarLink records`` (_: FooBarLink) (_: FooBarLink) = []
     
 /// <remarks>
-/// This record was generated via Freql.Tools on 31/10/2024 21:22:07
+/// This record was generated via Freql.Tools on 07/11/2024 19:44:02
 /// </remarks>
 [<CompilerMessage("This module is intended for internal use in generated code. It is not intended to make up a public API. To remove this warning add #nowarn \"6142001\"",
                   6142001)>]
@@ -92,31 +232,47 @@ module RecordComparisons =
 module Create =
     open Extensions
     /// <remarks>
-    /// This record was generated via Freql.Tools on 31/10/2024 21:22:07
+    /// This record was generated via Freql.Tools on 07/11/2024 19:44:02
     /// </remarks>
-    let ``create Foo Record`` (ctx: obj) (newRecord: Foo) : Result<Foo, string> =
-        failwith "TODO - Implement ``create Foo Record`` function"
+    let ``create Foo Record`` (ctx: SqliteContext) (newRecord: Foo) : Result<Foo, string> =
+        match ctx.TryExecuteVerbatimNonQueryAnon(newRecord.InsertRecordSql(), newRecord.GetValues()) with
+        | Ok _ ->
+            // TODO update primary key if required
+            Ok newRecord
+        | Error failure -> failure.GetMessage() |> Error
     
     /// <remarks>
-    /// This record was generated via Freql.Tools on 31/10/2024 21:22:07
+    /// This record was generated via Freql.Tools on 07/11/2024 19:44:02
     /// </remarks>
-    let ``create Bar Record`` (ctx: obj) (newRecord: Bar) : Result<Bar, string> =
-        failwith "TODO - Implement ``create Bar Record`` function"
+    let ``create Bar Record`` (ctx: SqliteContext) (newRecord: Bar) : Result<Bar, string> =
+        match ctx.TryExecuteVerbatimNonQueryAnon(newRecord.InsertRecordSql(), newRecord.GetValues()) with
+        | Ok _ ->
+            // TODO update primary key if required
+            Ok newRecord
+        | Error failure -> failure.GetMessage() |> Error
     
     /// <remarks>
-    /// This record was generated via Freql.Tools on 31/10/2024 21:22:07
+    /// This record was generated via Freql.Tools on 07/11/2024 19:44:02
     /// </remarks>
-    let ``create Baz Record`` (ctx: obj) (newRecord: Baz) : Result<Baz, string> =
-        failwith "TODO - Implement ``create Baz Record`` function"
+    let ``create Baz Record`` (ctx: SqliteContext) (newRecord: Baz) : Result<Baz, string> =
+        match ctx.TryExecuteVerbatimNonQueryAnon(newRecord.InsertRecordSql(), newRecord.GetValues()) with
+        | Ok _ ->
+            // TODO update primary key if required
+            Ok newRecord
+        | Error failure -> failure.GetMessage() |> Error
     
     /// <remarks>
-    /// This record was generated via Freql.Tools on 31/10/2024 21:22:07
+    /// This record was generated via Freql.Tools on 07/11/2024 19:44:02
     /// </remarks>
-    let ``create FooBarLink Record`` (ctx: obj) (newRecord: FooBarLink) : Result<FooBarLink, string> =
-        failwith "TODO - Implement ``create FooBarLink Record`` function"
+    let ``create FooBarLink Record`` (ctx: SqliteContext) (newRecord: FooBarLink) : Result<FooBarLink, string> =
+        match ctx.TryExecuteVerbatimNonQueryAnon(newRecord.InsertRecordSql(), newRecord.GetValues()) with
+        | Ok _ ->
+            // TODO update primary key if required
+            Ok newRecord
+        | Error failure -> failure.GetMessage() |> Error
     
 /// <remarks>
-/// This record was generated via Freql.Tools on 31/10/2024 21:22:07
+/// This record was generated via Freql.Tools on 07/11/2024 19:44:02
 /// </remarks>
 [<CompilerMessage("This module is intended for internal use in generated code. It is not intended to make up a public API. To remove this warning add #nowarn \"6142001\"",
                   6142001)>]
@@ -124,31 +280,31 @@ module Create =
 module Read =
     open Extensions
     /// <remarks>
-    /// This record was generated via Freql.Tools on 31/10/2024 21:22:07
+    /// This record was generated via Freql.Tools on 07/11/2024 19:44:02
     /// </remarks>
-    let ``read Foo Record`` (ctx: obj) (newRecord: Foo) : Foo option =
+    let ``read Foo Record`` (ctx: SqliteContext) (newRecord: Foo) : Foo option =
         failwith "TODO - Implement ``read Foo Record`` function"
     
     /// <remarks>
-    /// This record was generated via Freql.Tools on 31/10/2024 21:22:07
+    /// This record was generated via Freql.Tools on 07/11/2024 19:44:02
     /// </remarks>
-    let ``read Bar Record`` (ctx: obj) (newRecord: Bar) : Bar option =
+    let ``read Bar Record`` (ctx: SqliteContext) (newRecord: Bar) : Bar option =
         failwith "TODO - Implement ``read Bar Record`` function"
     
     /// <remarks>
-    /// This record was generated via Freql.Tools on 31/10/2024 21:22:07
+    /// This record was generated via Freql.Tools on 07/11/2024 19:44:02
     /// </remarks>
-    let ``read Baz Record`` (ctx: obj) (newRecord: Baz) : Baz option =
+    let ``read Baz Record`` (ctx: SqliteContext) (newRecord: Baz) : Baz option =
         failwith "TODO - Implement ``read Baz Record`` function"
     
     /// <remarks>
-    /// This record was generated via Freql.Tools on 31/10/2024 21:22:07
+    /// This record was generated via Freql.Tools on 07/11/2024 19:44:02
     /// </remarks>
-    let ``read FooBarLink Record`` (ctx: obj) (newRecord: FooBarLink) : FooBarLink option =
+    let ``read FooBarLink Record`` (ctx: SqliteContext) (newRecord: FooBarLink) : FooBarLink option =
         failwith "TODO - Implement ``read FooBarLink Record`` function"
     
 /// <remarks>
-/// This record was generated via Freql.Tools on 31/10/2024 21:22:07
+/// This record was generated via Freql.Tools on 07/11/2024 19:44:02
 /// </remarks>
 [<CompilerMessage("This module is intended for internal use in generated code. It is not intended to make up a public API. To remove this warning add #nowarn \"6142001\"",
                   6142001)>]
@@ -156,47 +312,111 @@ module Read =
 module Update =
     open Extensions
     /// <remarks>
-    /// This record was generated via Freql.Tools on 31/10/2024 21:22:07
+    /// This record was generated via Freql.Tools on 07/11/2024 19:44:02
     /// </remarks>
-    let ``update Foo Record`` (ctx: obj) (newRecord: Foo) : Result<Foo, string> =
+    let ``update Foo Record`` (ctx: SqliteContext) (newRecord: Foo) : Result<Foo, string> =
         match Read.``read Foo Record`` ctx newRecord with
         | Some oldRecord ->
-            let updates = ()
-            failwith ""
+            let ops = RecordComparisons.``compare Foo records`` oldRecord newRecord
+    
+            let updates =
+                ops
+                |> List.choose (function
+                    | RecordTrackingOperation.UpdateField update -> Some update
+                    | _ -> None)
+            
+            match
+                ctx.TryExecuteVerbatimNonQueryAnon(
+                    newRecord.UpdateRecordsSql(updates),
+                    updates |> List.map (fun update -> update.NewValue)
+                )
+            with
+            | Ok _ ->
+                // TODO update primary key if required
+                Ok newRecord
+            | Error failure -> failure.GetMessage() |> Error
         | None -> Create.``create Foo Record`` ctx newRecord
     
     /// <remarks>
-    /// This record was generated via Freql.Tools on 31/10/2024 21:22:07
+    /// This record was generated via Freql.Tools on 07/11/2024 19:44:02
     /// </remarks>
-    let ``update Bar Record`` (ctx: obj) (newRecord: Bar) : Result<Bar, string> =
+    let ``update Bar Record`` (ctx: SqliteContext) (newRecord: Bar) : Result<Bar, string> =
         match Read.``read Bar Record`` ctx newRecord with
         | Some oldRecord ->
-            let updates = ()
-            failwith ""
+            let ops = RecordComparisons.``compare Bar records`` oldRecord newRecord
+    
+            let updates =
+                ops
+                |> List.choose (function
+                    | RecordTrackingOperation.UpdateField update -> Some update
+                    | _ -> None)
+            
+            match
+                ctx.TryExecuteVerbatimNonQueryAnon(
+                    newRecord.UpdateRecordsSql(updates),
+                    updates |> List.map (fun update -> update.NewValue)
+                )
+            with
+            | Ok _ ->
+                // TODO update primary key if required
+                Ok newRecord
+            | Error failure -> failure.GetMessage() |> Error
         | None -> Create.``create Bar Record`` ctx newRecord
     
     /// <remarks>
-    /// This record was generated via Freql.Tools on 31/10/2024 21:22:07
+    /// This record was generated via Freql.Tools on 07/11/2024 19:44:02
     /// </remarks>
-    let ``update Baz Record`` (ctx: obj) (newRecord: Baz) : Result<Baz, string> =
+    let ``update Baz Record`` (ctx: SqliteContext) (newRecord: Baz) : Result<Baz, string> =
         match Read.``read Baz Record`` ctx newRecord with
         | Some oldRecord ->
-            let updates = ()
-            failwith ""
+            let ops = RecordComparisons.``compare Baz records`` oldRecord newRecord
+    
+            let updates =
+                ops
+                |> List.choose (function
+                    | RecordTrackingOperation.UpdateField update -> Some update
+                    | _ -> None)
+            
+            match
+                ctx.TryExecuteVerbatimNonQueryAnon(
+                    newRecord.UpdateRecordsSql(updates),
+                    updates |> List.map (fun update -> update.NewValue)
+                )
+            with
+            | Ok _ ->
+                // TODO update primary key if required
+                Ok newRecord
+            | Error failure -> failure.GetMessage() |> Error
         | None -> Create.``create Baz Record`` ctx newRecord
     
     /// <remarks>
-    /// This record was generated via Freql.Tools on 31/10/2024 21:22:07
+    /// This record was generated via Freql.Tools on 07/11/2024 19:44:02
     /// </remarks>
-    let ``update FooBarLink Record`` (ctx: obj) (newRecord: FooBarLink) : Result<FooBarLink, string> =
+    let ``update FooBarLink Record`` (ctx: SqliteContext) (newRecord: FooBarLink) : Result<FooBarLink, string> =
         match Read.``read FooBarLink Record`` ctx newRecord with
         | Some oldRecord ->
-            let updates = ()
-            failwith ""
+            let ops = RecordComparisons.``compare FooBarLink records`` oldRecord newRecord
+    
+            let updates =
+                ops
+                |> List.choose (function
+                    | RecordTrackingOperation.UpdateField update -> Some update
+                    | _ -> None)
+            
+            match
+                ctx.TryExecuteVerbatimNonQueryAnon(
+                    newRecord.UpdateRecordsSql(updates),
+                    updates |> List.map (fun update -> update.NewValue)
+                )
+            with
+            | Ok _ ->
+                // TODO update primary key if required
+                Ok newRecord
+            | Error failure -> failure.GetMessage() |> Error
         | None -> Create.``create FooBarLink Record`` ctx newRecord
     
 /// <remarks>
-/// This record was generated via Freql.Tools on 31/10/2024 21:22:07
+/// This record was generated via Freql.Tools on 07/11/2024 19:44:02
 /// </remarks>
 [<CompilerMessage("This module is intended for internal use in generated code. It is not intended to make up a public API. To remove this warning add #nowarn \"6142001\"",
                   6142001)>]
@@ -204,26 +424,119 @@ module Update =
 module Delete =
     open Extensions
     /// <remarks>
-    /// This record was generated via Freql.Tools on 31/10/2024 21:22:07
+    /// This record was generated via Freql.Tools on 07/11/2024 19:44:02
     /// </remarks>
-    let ``delete Foo Record`` (ctx: obj) (newRecord: Foo) : Result<unit, string> =
-        failwith "TODO - Implement ``delete Foo Record`` function"
+    let ``delete Foo Record`` (ctx: SqliteContext) (record: Foo) : Result<unit, string> =
+        match ctx.TryExecuteVerbatimNonQueryAnon(record.DeleteRecordsSql(), record.GetPrimaryKeyValues()) with
+        | Ok _ -> Ok()
+        | Error failure -> failure.GetMessage() |> Error
     
     /// <remarks>
-    /// This record was generated via Freql.Tools on 31/10/2024 21:22:07
+    /// This record was generated via Freql.Tools on 07/11/2024 19:44:02
     /// </remarks>
-    let ``delete Bar Record`` (ctx: obj) (newRecord: Bar) : Result<unit, string> =
-        failwith "TODO - Implement ``delete Bar Record`` function"
+    let ``delete Bar Record`` (ctx: SqliteContext) (record: Bar) : Result<unit, string> =
+        match ctx.TryExecuteVerbatimNonQueryAnon(record.DeleteRecordsSql(), record.GetPrimaryKeyValues()) with
+        | Ok _ -> Ok()
+        | Error failure -> failure.GetMessage() |> Error
     
     /// <remarks>
-    /// This record was generated via Freql.Tools on 31/10/2024 21:22:07
+    /// This record was generated via Freql.Tools on 07/11/2024 19:44:02
     /// </remarks>
-    let ``delete Baz Record`` (ctx: obj) (newRecord: Baz) : Result<unit, string> =
-        failwith "TODO - Implement ``delete Baz Record`` function"
+    let ``delete Baz Record`` (ctx: SqliteContext) (record: Baz) : Result<unit, string> =
+        match ctx.TryExecuteVerbatimNonQueryAnon(record.DeleteRecordsSql(), record.GetPrimaryKeyValues()) with
+        | Ok _ -> Ok()
+        | Error failure -> failure.GetMessage() |> Error
     
     /// <remarks>
-    /// This record was generated via Freql.Tools on 31/10/2024 21:22:07
+    /// This record was generated via Freql.Tools on 07/11/2024 19:44:02
     /// </remarks>
-    let ``delete FooBarLink Record`` (ctx: obj) (newRecord: FooBarLink) : Result<unit, string> =
-        failwith "TODO - Implement ``delete FooBarLink Record`` function"
+    let ``delete FooBarLink Record`` (ctx: SqliteContext) (record: FooBarLink) : Result<unit, string> =
+        match ctx.TryExecuteVerbatimNonQueryAnon(record.DeleteRecordsSql(), record.GetPrimaryKeyValues()) with
+        | Ok _ -> Ok()
+        | Error failure -> failure.GetMessage() |> Error
     
+/// <remarks>
+/// This record was generated via Freql.Tools on 07/11/2024 19:44:02
+/// </remarks>
+[<CompilerMessage("This module is intended for internal use in generated code. It is not intended to make up a public API. To remove this warning add #nowarn \"6142001\"",
+                  6142001)>]
+[<RequireQualifiedAccess>]
+module DatabaseOperations =
+    open Extensions
+    /// <remarks>
+    /// This record was generated via Freql.Tools on 07/11/2024 19:44:02
+    /// </remarks>
+    type OperationType = 
+        | InsertFoo of Foo
+        | UpdateFoo of Foo
+        | DeleteFoo of Foo
+        | InsertBar of Bar
+        | UpdateBar of Bar
+        | DeleteBar of Bar
+        | InsertBaz of Baz
+        | UpdateBaz of Baz
+        | DeleteBaz of Baz
+        | InsertFooBarLink of FooBarLink
+        | UpdateFooBarLink of FooBarLink
+        | DeleteFooBarLink of FooBarLink
+    
+    /// <remarks>
+    /// This record was generated via Freql.Tools on 07/11/2024 19:44:02
+    /// </remarks>
+    let ``commit database changes`` (ctx: SqliteContext) (operations: OperationType seq) : Result<unit, string> =
+        ctx.TryExecuteInTransaction(fun t ->
+            operations
+            |> Seq.fold (fun state op ->
+                match state, op with
+                | Error _, _ -> state
+                | Ok _, InsertFoo record -> Create.``create Foo Record`` t record |> Result.map ignore // TODO handle better - see code gen
+                | Ok _, UpdateFoo record -> Update.``update Foo Record`` t record |> Result.map ignore // TODO handle better - see code gen
+                | Ok _, DeleteFoo record -> Delete.``delete Foo Record`` t record
+                | Ok _, InsertBar record -> Create.``create Bar Record`` t record |> Result.map ignore // TODO handle better - see code gen
+                | Ok _, UpdateBar record -> Update.``update Bar Record`` t record |> Result.map ignore // TODO handle better - see code gen
+                | Ok _, DeleteBar record -> Delete.``delete Bar Record`` t record
+                | Ok _, InsertBaz record -> Create.``create Baz Record`` t record |> Result.map ignore // TODO handle better - see code gen
+                | Ok _, UpdateBaz record -> Update.``update Baz Record`` t record |> Result.map ignore // TODO handle better - see code gen
+                | Ok _, DeleteBaz record -> Delete.``delete Baz Record`` t record
+                | Ok _, InsertFooBarLink record -> Create.``create FooBarLink Record`` t record |> Result.map ignore // TODO handle better - see code gen
+                | Ok _, UpdateFooBarLink record -> Update.``update FooBarLink Record`` t record |> Result.map ignore // TODO handle better - see code gen
+                | Ok _, DeleteFooBarLink record -> Delete.``delete FooBarLink Record`` t record) (Ok ()))
+        |> Result.mapError (fun err -> err.Message)
+    
+type CodeFirstContext(ctx: SqliteContext, ?commitOnClose: bool) =
+    let autoComment = commitOnClose |> Option.defaultValue false
+    let operations = ResizeArray<DatabaseOperations.OperationType>()
+
+    interface IDisposable with
+        member this.Dispose() =
+            if autoComment then this.Commit() |> ignore // TODO Handle better
+
+    member this.HasPendingCommits() = operations.Count > 0
+
+    member this.Commit() =
+        DatabaseOperations.``commit database changes`` ctx operations
+        |> Result.map (fun _ -> operations.Clear())
+
+    member this.Insert<'T>(value: 'T) =
+        match box value with
+        | :? Foo as foo -> foo |> DatabaseOperations.OperationType.InsertFoo |> operations.Add |> Ok
+        | :? Bar as bar -> bar |> DatabaseOperations.OperationType.InsertBar |> operations.Add |> Ok
+        | :? Baz as baz -> baz |> DatabaseOperations.OperationType.InsertBaz |> operations.Add |> Ok
+        | :? FooBarLink as fooBarLink -> fooBarLink |> DatabaseOperations.OperationType.InsertFooBarLink |> operations.Add |> Ok
+        | _ -> Error $"Type {typeof<'T>.FullName}\ not supported"
+
+    member this.Update<'T>(value: 'T) =
+        match box value with
+        | :? Foo as foo -> foo |> DatabaseOperations.OperationType.UpdateFoo |> operations.Add |> Ok
+        | :? Bar as bar -> bar |> DatabaseOperations.OperationType.UpdateBar |> operations.Add |> Ok
+        | :? Baz as baz -> baz |> DatabaseOperations.OperationType.UpdateBaz |> operations.Add |> Ok
+        | :? FooBarLink as fooBarLink -> fooBarLink |> DatabaseOperations.OperationType.UpdateFooBarLink |> operations.Add |> Ok
+        | _ -> Error $"Type {typeof<'T>.FullName}\ not supported"
+
+    member this.Delete<'T>(value: 'T) =
+        match box value with
+        | :? Foo as foo -> foo |> DatabaseOperations.OperationType.DeleteFoo |> operations.Add |> Ok
+        | :? Bar as bar -> bar |> DatabaseOperations.OperationType.DeleteBar |> operations.Add |> Ok
+        | :? Baz as baz -> baz |> DatabaseOperations.OperationType.DeleteBaz |> operations.Add |> Ok
+        | :? FooBarLink as fooBarLink -> fooBarLink |> DatabaseOperations.OperationType.DeleteFooBarLink |> operations.Add |> Ok
+        | _ -> Error $"Type {typeof<'T>.FullName}\ not supported"
