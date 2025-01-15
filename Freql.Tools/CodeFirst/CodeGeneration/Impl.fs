@@ -62,10 +62,7 @@ module Impl =
 
         // Create placeholder files. This will overwrite what already exists but this should be fine.
         File.WriteAllText(Path.Combine(outputDirectoryPath, "Tracking.fs"), $"namespace {settings.Namespace}")
-
-
-
-
+        
         ()
 
 
