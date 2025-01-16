@@ -1,5 +1,7 @@
 namespace Freql.Tools.CodeFirst.CodeGeneration
 
+open Freql.Tools.CodeFirst.Core
+
 [<AutoOpen>]
 module Common =
 
@@ -25,6 +27,10 @@ module Common =
           TopSection: CodeGeneratorContext -> string list
           TypeExtension: CodeGeneratorContext -> RecordInformation -> string list
           OperationGenerator: CodeGeneratorContext -> string list
+          CreateGenerator: CodeGeneratorContext -> RecordInformation -> string list
+          ReadGenerator: CodeGeneratorContext -> RecordInformation -> string list
+          UpdateGenerator: CodeGeneratorContext -> RecordInformation -> string list
+          DeleteGenerator: CodeGeneratorContext -> RecordInformation -> string list
           BottomSection: CodeGeneratorContext -> string list }
 
     let internalCompilerMessage =
