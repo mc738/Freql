@@ -17,6 +17,10 @@ module Common =
             | :? SqliteException as ex -> SQLiteFailure.SQLiteException ex
             | ex -> SQLiteFailure.GeneralException ex
 
+        member failure.GetMessage() =
+            match failure with
+            | SQLiteException sqliteException -> sqliteException.Message
+            | GeneralException ``exception`` -> ``exception``.Message
 
     let supportedTypeToSqliteType (supportedType: SupportedType) =
         match supportedType with
