@@ -1,15 +1,10 @@
 open System
-open System.ComponentModel.DataAnnotations
 open System.IO
-open System.Text.Json
-open System.Text.Json.Serialization
 open Freql.MySql
 open Freql.MySql.Tools
 open Freql.Sqlite
-open Freql.Sqlite.Tools
-open Freql.Tools
-open Freql.Tools.CodeGeneration.Configuration
-open Microsoft.Data.Sqlite
+open Freql.Sqlite.Tools.Core
+open Freql.Tools.DatabaseBindings.Configuration
 
 [<RequireQualifiedAccess>]
 type DatabaseType =
@@ -117,9 +112,11 @@ module MySqlActions =
 [<RequireQualifiedAccess>]
 module SqliteActions =
     
+    open Freql.Sqlite.Tools.DatabaseBindings
+    
     let generate (databaseName: string) (profile: GeneratorProfile) (ctx: SqliteContext) =
         SqliteMetadata.get ctx
-        |> SqliteCodeGeneration.generate profile
+        |> generate profile
         
 
 module GenerationActions =
