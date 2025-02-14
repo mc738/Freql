@@ -9,7 +9,9 @@ open System.Text.RegularExpressions
 open DocumentFormat.OpenXml.Packaging
 open Freql.MySql
 open Freql.Sqlite
+open Freql.Tools.CodeFirst.Core.Attributes
 open Freql.Tools.CodeGeneration
+open Freql.Tools.DatabaseBindings
 open Freql.Tools.DatabaseComparisons
 open Microsoft.FSharp.Core
 open Freql.Csv
@@ -25,12 +27,8 @@ let (|SomeObj|_|) =
         let aty = a.GetType()
         let v = aty.GetProperty("Value")
 
-        if aty.IsGenericType
-           && aty.GetGenericTypeDefinition() = ty then
-            if a = null then
-                None
-            else
-                Some(v.GetValue(a, [||]))
+        if aty.IsGenericType && aty.GetGenericTypeDefinition() = ty then
+            if a = null then None else Some(v.GetValue(a, [||]))
         else
             None
 
@@ -54,13 +52,11 @@ let optionTest _ =
 	);
     """
 
-    let ctx =
-        SqliteContext.Create("C:\\ProjectData\\OpenReferralUk\\delete-me.db")
+    let ctx = SqliteContext.Create("C:\\ProjectData\\OpenReferralUk\\delete-me.db")
 
     ctx.ExecuteSqlNonQuery sql |> ignore
 
-    [ { Id = 1; Bar = Some "baz" }
-      { Id = 2; Bar = None } ]
+    [ { Id = 1; Bar = Some "baz" }; { Id = 2; Bar = None } ]
     |> List.map (fun b -> ctx.Insert("foo", b))
     |> ignore
 
@@ -99,7 +95,8 @@ let typeReplacements =
          Initialization = Some "Guid.NewGuid()" }
        { Match = MatchType.String "active"
          ReplacementType = "bool"
-         Initialization = Some "true" } ]: TypeReplacement list)
+         Initialization = Some "true" } ]
+    : TypeReplacement list)
 
 let printDiff (results: TableComparisonResult list) =
 
@@ -115,36 +112,32 @@ let printDiff (results: TableComparisonResult list) =
     let printAltered str = cprintfn ConsoleColor.DarkYellow str
 
     results
-    |> List.map
-        (fun t ->
-            match t.Type with
-            | TableComparisonResultType.Added -> printAdd $"+ Table `{t.Name}` added"
-            | TableComparisonResultType.Altered ->
-                printAltered $"! Table `{t.Name}` altered"
+    |> List.map (fun t ->
+        match t.Type with
+        | TableComparisonResultType.Added -> printAdd $"+ Table `{t.Name}` added"
+        | TableComparisonResultType.Altered ->
+            printAltered $"! Table `{t.Name}` altered"
 
-                t.Columns
-                |> List.map
-                    (fun c ->
-                        match c.Type with
-                        | ColumnComparisonResultType.Added -> printAdd $"+     Column `{c.Name}` added."
-                        | ColumnComparisonResultType.Altered columnDifferences ->
-                            printAltered $"!     Column `{c.Name}` altered."
+            t.Columns
+            |> List.map (fun c ->
+                match c.Type with
+                | ColumnComparisonResultType.Added -> printAdd $"+     Column `{c.Name}` added."
+                | ColumnComparisonResultType.Altered columnDifferences ->
+                    printAltered $"!     Column `{c.Name}` altered."
 
-                            columnDifferences
-                            |> List.map
-                                (fun cd ->
-                                    match cd with
-                                    | Type (o, n) -> printAltered $"!         Type changed. Old: {o} new: {n}"
-                                    | DefaultValue (o, n) ->
-                                        printAltered $"!         Default value changed. Old: {o} new: {n}"
-                                    | NotNull (o, n) -> printAltered $"!         Not null changed. Old: {o} new: {n}"
-                                    | Key (o, n) -> printAltered $"!         Key changed. Old: {o} new: {n}")
-                            |> ignore
-                        | ColumnComparisonResultType.Removed -> printRemove $"-     Column `{c.Name}` removed."
-                        | ColumnComparisonResultType.NoChange -> printfn $"      Column `{c.Name}` unaltered.")
-                |> ignore
-            | TableComparisonResultType.Removed -> printRemove $"- Table `{t.Name}` removed."
-            | TableComparisonResultType.NoChange -> printfn $"  Table `{t.Name}` unaltered.")
+                    columnDifferences
+                    |> List.map (fun cd ->
+                        match cd with
+                        | Type(o, n) -> printAltered $"!         Type changed. Old: {o} new: {n}"
+                        | DefaultValue(o, n) -> printAltered $"!         Default value changed. Old: {o} new: {n}"
+                        | NotNull(o, n) -> printAltered $"!         Not null changed. Old: {o} new: {n}"
+                        | Key(o, n) -> printAltered $"!         Key changed. Old: {o} new: {n}")
+                    |> ignore
+                | ColumnComparisonResultType.Removed -> printRemove $"-     Column `{c.Name}` removed."
+                | ColumnComparisonResultType.NoChange -> printfn $"      Column `{c.Name}` unaltered.")
+            |> ignore
+        | TableComparisonResultType.Removed -> printRemove $"- Table `{t.Name}` removed."
+        | TableComparisonResultType.NoChange -> printfn $"  Table `{t.Name}` unaltered.")
     |> ignore
 
 
@@ -179,41 +172,42 @@ type CustomerPurchase =
       Profit: decimal }
 
 module XlsxTest =
-    
+
     open Freql.Xlsx
     open Freql.Xlsx.Records
-    
+
     type Record =
-        {
-            [<XlsxOptions(ColumnName = "A", OADate = true)>]
-            Date: DateTime
-            [<XlsxColumnName("B")>]
-            WholeEconomy: decimal
-            [<XlsxColumnName("E")>]
-            PrivateSector: decimal
-            [<XlsxColumnName("H")>]
-            PublicSector: decimal
-            [<XlsxColumnName("K")>]
-            Services: decimal
-            [<XlsxColumnName("N")>]
-            FinanceSector: decimal
-            [<XlsxColumnName("Q")>]
-            PublicSectorExcludingFiance: decimal
-            [<XlsxColumnName("T")>]
-            Manufacturing: decimal
-            [<XlsxColumnName("W")>]
-            Construction: decimal
-            [<XlsxColumnName("Z")>]
-            WholeSale: decimal
-            
+        { [<XlsxOptions(ColumnName = "A", OADate = true)>]
+          Date: DateTime
+          [<XlsxColumnName("B")>]
+          WholeEconomy: decimal
+          [<XlsxColumnName("E")>]
+          PrivateSector: decimal
+          [<XlsxColumnName("H")>]
+          PublicSector: decimal
+          [<XlsxColumnName("K")>]
+          Services: decimal
+          [<XlsxColumnName("N")>]
+          FinanceSector: decimal
+          [<XlsxColumnName("Q")>]
+          PublicSectorExcludingFiance: decimal
+          [<XlsxColumnName("T")>]
+          Manufacturing: decimal
+          [<XlsxColumnName("W")>]
+          Construction: decimal
+          [<XlsxColumnName("Z")>]
+          WholeSale: decimal
+
         }
-    
+
     let path = "C:\\Users\\44748\\Downloads\\earn01jun2023.xlsx"
-    
+
     let run _ =
-        
-        let rps = typeof<Record>.GetProperties() |> Array.mapi (fun i pi -> RecordProperty.Create(pi, i, 0))
-        
+
+        let rps =
+            typeof<Record>.GetProperties()
+            |> Array.mapi (fun i pi -> RecordProperty.Create(pi, i, 0))
+
         let fn (doc: SpreadsheetDocument) =
             match getSheet "1. AWE Total Pay" doc with
             | Some s ->
@@ -221,23 +215,50 @@ module XlsxTest =
                 |> Records.createRecordsFromWorksheet<Record> (Some 10) (Some 289)
                 |> List.ofSeq
             | None -> failwith "Worksheet not found"
-            
-        
+
+
         let r = exec fn true path
-        
-        
+
+
         ()
+
+module CodeFirstType =
+
+    type Foo =
+        { [<PrimaryKey>]
+          Id: string }
+
+    type Bar =
+        { [<PrimaryKey>]
+          Id: string
+          Bazs: Baz list }
+
+    and Baz = { Id: string }
+
+    type FooBarLink =
+        { [<PrimaryKey; ForeignKey(typeof<Foo>)>]
+          FooId: string
+          [<PrimaryKey; ForeignKey(typeof<Bar>)>]
+          BarId: string }
+
+
+    let types =
+        
+        
+        [ typeof<Foo>; typeof<Bar>; typeof<Baz>; typeof<FooBarLink> ]
+
+
 
 [<EntryPoint>]
 let main argv =
-    
+
     XlsxTest.run ()
-    
-    
-    //let r = CsvParser.parseFile true "C:\\ProjectData\\DataSets\\SuperStore\\Sample - Superstore.csv" 
-    
-    //let t = CsvParser2.parseFile<CustomerPurchase> true "C:\\ProjectData\\DataSets\\SuperStore\\Sample - Superstore.csv" 
-    
+
+
+    //let r = CsvParser.parseFile true "C:\\ProjectData\\DataSets\\SuperStore\\Sample - Superstore.csv"
+
+    //let t = CsvParser2.parseFile<CustomerPurchase> true "C:\\ProjectData\\DataSets\\SuperStore\\Sample - Superstore.csv"
+
     let (items, errors) =
         parseFile<CustomerPurchase> true "C:\\ProjectData\\DataSets\\SuperStore\\Sample - Superstore.csv"
         |> splitResults
@@ -245,20 +266,24 @@ let main argv =
     // Read line char by char.
 
     // If char
-    
-    let fiftyPercentProfile = items |> List.filter (fun i -> i.Profit >= (i.Sales / 100m) * 45m)
-    
+
+    let fiftyPercentProfile =
+        items |> List.filter (fun i -> i.Profit >= (i.Sales / 100m) * 45m)
+
     fiftyPercentProfile
-    |> List.iter (fun i -> printfn $"{i.Category} - {i.ProductName} {i.Sales} ({i.Profit} {(i.Profit / i.Sales) * 100m}%%)")
-    
+    |> List.iter (fun i ->
+        printfn $"{i.Category} - {i.ProductName} {i.Sales} ({i.Profit} {(i.Profit / i.Sales) * 100m}%%)")
+
     printfn ""
     printfn "# Losses"
     printfn ""
-    
-    items |> List.filter (fun i -> i.Profit <= 0m) |> List.iter (fun i -> printfn $"{i.Category} - {i.ProductName} {i.Sales} ({i.Profit} {(i.Profit / i.Sales) * 100m}%%)")
-    
-    let ctx =
-        SqliteContext.Create("C:\\ProjectData\\Freql\\test.db")
+
+    items
+    |> List.filter (fun i -> i.Profit <= 0m)
+    |> List.iter (fun i ->
+        printfn $"{i.Category} - {i.ProductName} {i.Sales} ({i.Profit} {(i.Profit / i.Sales) * 100m}%%)")
+
+    let ctx = SqliteContext.Create("C:\\ProjectData\\Freql\\test.db")
 
     (*
     ctx.CreateTable<Name>("test_table") |> ignore
