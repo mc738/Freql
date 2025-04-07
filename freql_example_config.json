@@ -1,0 +1,78 @@
+[
+    {
+        "name": "my_sql_database",
+        "type": "mysql",
+        "connectionString": "my_connection_string",
+        "generatorProfiles": [
+            {
+                "name": "records",
+                "outputPath": "output path",
+                "namespace": "namespace",
+                "moduleName": "Records",
+                "includeJsonAttributes": true,
+                "nameSuffix": "Record",
+                "typeReplacements": [
+                    {
+                        "matchValue": "^uid",
+                        "matchType": "regex",
+                        "replacementValue": "Guid",
+                        "replacementInitValue": "Guid.NewGuid()"
+                    }
+                ],
+                "tableNameReplacements": [
+                    {
+                        "name": "db table name",
+                        "replacementName": "record name"
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "name": "sqlite database name",
+        "type": "sqlite",
+        "connectionString": "Data Source=path",
+        "generatorProfiles": [
+            {
+                "name": "records",
+                "outputPath": "outputPath",
+                "namespace": "namespace",
+                "moduleName": "Records",
+                "includeJsonAttributes": true,
+                "nameSuffix": "Record",
+                "typeReplacements": [
+                    {
+                        "matchValue": "^reference",
+                        "matchType": "regex",
+                        "replacementValue": "Guid",
+                        "replacementInitValue": "Guid.NewGuid()"
+                    },
+                    {
+                        "matchValue": "created_on",
+                        "matchType": "regex",
+                        "replacementValue": "DateTime",
+                        "replacementInitValue": "DateTime.UtcNow"
+                    },
+                    {
+                        "matchValue": "updated_on",
+                        "matchType": "regex",
+                        "replacementValue": "DateTime",
+                        "replacementInitValue": "DateTime.UtcNow"
+                    },
+                    {
+                        "matchValue": "active",
+                        "matchType": "string",
+                        "replacementValue": "bool",
+                        "replacementInitValue": "true"
+                    }
+                ],
+                "tableNameReplacements": [
+                    {
+                        "name": "db table name",
+                        "replacementName": "record name"
+                    }
+                ]
+            }
+        ]
+    }
+]
