@@ -9,6 +9,9 @@ module Mapping =
     open Utils
     open Attributes
     
+    /// This used to only map fields that are in the record.
+    let fieldMappingBindings = BindingFlags.Public ||| BindingFlags.Instance
+    
     /// A indexed field value.
     type FieldValue = { Index: int; Value: obj }
 
@@ -33,7 +36,7 @@ module Mapping =
             let t = typeof<'T>
 
             let fields =
-                t.GetProperties()
+                t.GetProperties(fieldMappingBindings)
                 |> List.ofSeq
                 |> List.fold
                     (fun (acc, i) pi ->
