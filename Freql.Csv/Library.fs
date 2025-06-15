@@ -385,6 +385,20 @@ module CsvParser =
             | exn ->
                 printfn $"Error - {i + 1} {exn.Message}"
                 Error { Line = i + 1; Error = exn.Message })
+        
+    let deferredParseFile<'T> (hasHeader: bool) (path: string) =
+        let rps = typeof<'T>.GetProperties() |> Array.mapi (fun i pi -> RecordProperty.Create(pi, i))
+        
+        File.ReadLines path
+        |> Seq.skip (if hasHeader then 1 else 0)
+        |> Seq.mapi (fun i l ->
+            try
+                parseLine l |> Array.ofList |> Records.createRecordV2<'T> rps |> Ok
+            with
+            | exn ->
+                printfn $"Error - {i + 1} {exn.Message}"
+                Error { Line = i + 1; Error = exn.Message }
+            )
 
     let splitResults<'T> (results: Result<'T, ParseError> list) =
         results
