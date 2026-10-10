@@ -1,0 +1,51 @@
+name: Publish App Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*-release'
+    
+jobs:
+  build-and-release:
+    runs-on: docker
+    
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v7
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Extract Version from Tag
+        id: get_version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT  
+
+      - name: Publish .NET Application (linux-x64)
+        run: |
+          dotnet publish --configuration Release \
+            /p:Version=${{ steps.get_version.outputs.VERSION }} \
+            --runtime linux-x64 \
+            --self-contained true \
+            --output ./publish-output
+      
+      - name: Zip Release Artifacts
+        run: |
+          cd ./publish-output
+          zip -r ../freql-linux-x64.zip .
+          cd ..
+      
+      # Step 4: Create a Release in Forgejo and upload the zip file
+      - name: Create Forgejo Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          files: freql-linux-x64.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Forgejo provides this automatically
