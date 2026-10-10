@@ -36,6 +36,6 @@ jobs:
           dotnet nuget push "./artifacts/*.nupkg" \
             --source "${{ forgejo.server_url }}/api/packages/${{ forgejo.repository_owner }}/nuget/index.json" \
             --api-key "${{ secrets.NUGET_TOKEN }}" \
-            --skip-duplicate
+            --skip-duplicate \
             --allow-insecure-connections
 
