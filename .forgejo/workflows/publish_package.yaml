@@ -30,11 +30,3 @@ jobs:
           dotnet pack --configuration Release \
             /p:PackageVersion=${{ steps.get_version.outputs.VERSION }} \
             --output ./artifacts
-
-      - name: Publish to Forgejo NuGet Registry
-        run: |
-          dotnet nuget push "./artifacts/*.nupkg" \
-            --source "${{ gitea.repository_url }}/packages/nuget/index.json" \
-            --api-key "${{ secrets.NUGET_TOKEN }}" \
-            --skip-duplicate
-
