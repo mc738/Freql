@@ -40,7 +40,7 @@ jobs:
       
       # Step 4: Create a Release in Forgejo and upload the zip file
       - name: Create Forgejo Release
-        uses: softprops/action-gh-release@v2
+        uses: bbangg/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           name: Release ${{ github.ref_name }}
