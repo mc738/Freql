@@ -1,0 +1,40 @@
+name: Publish Nuget
+
+on: 
+  push:
+    tags:
+      - 'v*.*.*' # Triggers only when you push a version tag like v1.0.0
+jobs:
+  publish:
+    runs-on: docker
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v7
+      
+      - name: Setup .NET SDK  
+        uses: actions/setup-dotnet@v6
+        with:
+            dotnet-version: '10.0.x'
+            
+      - name: Extract Version from Tag
+        id: get_version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          
+      - name: Restore Dependencies
+        run: dotnet restore
+        
+      - name: Pack NuGet Package
+        run: |
+          dotnet pack --configuration Release \
+            /p:PackageVersion=${{ steps.get_version.outputs.VERSION }} \
+            --output ./artifacts
+
+      - name: Publish to Forgejo NuGet Registry
+        run: |
+          dotnet nuget push "./artifacts/*.nupkg" \
+            --source "${{ gitea.repository_url }}/packages/nuget/index.json" \
+            --api-key "${{ secrets.NUGET_TOKEN }}" \
+            --skip-duplicate
+
