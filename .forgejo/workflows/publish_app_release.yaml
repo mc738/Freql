@@ -31,13 +31,11 @@ jobs:
             --runtime linux-x64 \
             --framework net10.0 \
             --self-contained true \
-            --output ./publish-output
+            --output ./publish-output/linux-x64
       
       - name: Zip Release Artifacts
         run: |
-          cd ./publish-output
-          zip -r ../freql-linux-x64.zip .
-          cd ..
+          tar -cvf freql-linux-x64.tar ./publish-output/linux-x64/
       
       # Step 4: Create a Release in Forgejo and upload the zip file
       - name: Create Forgejo Release
@@ -47,6 +45,6 @@ jobs:
           name: Release ${{ github.ref_name }}
           draft: false
           prerelease: false
-          files: freql-linux-x64.zip
+          files: freql-linux-x64.tar
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Forgejo provides this automatically
