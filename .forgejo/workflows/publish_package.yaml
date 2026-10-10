@@ -25,9 +25,9 @@ jobs:
       - name: Restore Dependencies
         run: dotnet restore
         
-      - name: Pack NuGet Package
+      - name: Pack Freql.Sqlite NuGet Package
         run: |
-          dotnet pack --configuration Release \
+          dotnet pack ./Freql.Sqlite/Freql.Sqlite.fsproj --configuration Release \
             /p:PackageVersion=${{ steps.get_version.outputs.VERSION }} \
             --output ./artifacts
 
