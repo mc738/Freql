@@ -8,27 +8,5 @@ jobs:
   publish:
     runs-on: docker
     steps:
-      - uses: actions/checkout@v7
-      
-      - uses: actions/setup-dotnet@v6
-        with:
-            dotnet-version: '10.0.x'
-            
-      - id: get_version
-        run: |
-          VERSION=${GITHUB_REF#refs/tags/v}
-          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
-          
-      - run: dotnet restore
-        
-      - run: |
-          dotnet pack --configuration Release \
-            /p:PackageVersion=${{ steps.get_version.outputs.VERSION }} \
-            --output ./artifacts
-
-      - run: |
-          dotnet nuget push "./artifacts/*.nupkg" \
-            --source "${{ gitea.repository_url }}/packages/nuget/index.json" \
-            --api-key "${{ secrets.NUGET_TOKEN }}" \
-            --skip-duplicate
-
+      - name: Checkout Source Code
+        uses: actions/checkout@v7
