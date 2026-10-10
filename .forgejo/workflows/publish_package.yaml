@@ -34,7 +34,7 @@ jobs:
       - name: Publish to Forgejo NuGet Registry
         run: |
           dotnet nuget push "./artifacts/*.nupkg" \
-            --source "http://192.168.0.100:3000/Max/Freql/packages/nuget/index.json" \
+            --source "${{ forgejo.server_url }}/api/packages/${{ forgejo.repository_owner }}/nuget/index.json" \
             --api-key "${{ secrets.NUGET_TOKEN }}" \
             --skip-duplicate
 
