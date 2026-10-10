@@ -15,6 +15,12 @@ jobs:
         uses: actions/setup-dotnet@v6
         with:
             dotnet-version: '10.0.x'
-     
+            
+      - name: Extract Version from Tag
+        id: get_version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          
       - name: Restore Dependencies
         run: dotnet restore
