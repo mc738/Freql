@@ -26,9 +26,10 @@ jobs:
 
       - name: Publish .NET Application (linux-x64)
         run: |
-          dotnet publish --configuration Release \
+          dotnet publish Freql.App --configuration Release \
             /p:Version=${{ steps.get_version.outputs.VERSION }} \
             --runtime linux-x64 \
+            --framework net10.0 \
             --self-contained true \
             --output ./publish-output
       
